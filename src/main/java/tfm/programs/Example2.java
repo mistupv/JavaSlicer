@@ -6,14 +6,13 @@ public class Example2 {
         int x = 1;
         int y = 2;
 
-        if (x > y) {
+        if (x > y)
             x = 1;
-        }
 
-        int o = 3;
+        int z = 10;
 
-        while (x < y) {
-            x++;
+        for(int i = 0, o = 0; i < z; i++, o++) {
+            z--;
         }
     }
 }

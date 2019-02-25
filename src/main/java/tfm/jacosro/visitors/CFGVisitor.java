@@ -47,7 +47,7 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
         if (ifStmt.hasElseBranch()) {
             lastParentNodes.clear();
-            lastParentNodes.add(ifCondition); // Set if node as root
+            lastParentNodes.add(ifCondition); // Set if nodes as root
 
             super.visit(ifStmt.getElseStmt().get().asBlockStmt(), arg);
 

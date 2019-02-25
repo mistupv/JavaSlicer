@@ -73,7 +73,7 @@ public class Node<E> implements Comparable<Node<E>> {
     }
 
     public String toString() {
-        return String.format("Node{id: %s, data: '%s', fromNodes: %s, toNodes: %s}",
+        return String.format("Vertex{id: %s, data: '%s', fromNodes: %s, toNodes: %s}",
                 id,
                 data,
                 inArcs.stream().map(arc -> arc.getSource().getId()).collect(Collectors.toList()),
