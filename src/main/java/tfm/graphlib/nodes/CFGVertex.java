@@ -1,6 +1,5 @@
 package tfm.graphlib.nodes;
 
-import tfm.graphlib.arcs.data.ArcData;
 import tfm.graphlib.arcs.data.VoidArcData;
 import tfm.graphlib.graphs.Graph;
 

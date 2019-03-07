@@ -14,29 +14,31 @@ public class PDGVertex extends Vertex {
     }
 
     public String toString() {
-        List<Arc> dataFrom = new ArrayList<>();
-        List<Arc> dataTo = new ArrayList<>();
-        List<Arc> controlFrom = new ArrayList<>();
-        List<Arc> controlTo = new ArrayList<>();
+        List<Integer> dataFrom = new ArrayList<>();
+        List<Integer> dataTo = new ArrayList<>();
+        List<Integer> controlFrom = new ArrayList<>();
+        List<Integer> controlTo = new ArrayList<>();
 
         getIncomingArrows().forEach(arrow -> {
             Arc arc = (Arc) arrow;
+            Vertex from = (Vertex) arc.getFrom();
 
             if (arc.isDataDependencyArrow()) {
-                dataFrom.add(arc);
+                dataFrom.add(from.getId());
             } else if (arc.isControlDependencyArrow()) {
-                controlFrom.add(arc);
+                controlFrom.add(from.getId());
             }
 
         });
 
         getOutgoingArrows().forEach(arrow -> {
             Arc arc = (Arc) arrow;
+            Vertex to = (Vertex) arc.getTo();
 
             if (arc.isDataDependencyArrow()) {
-                dataTo.add(arc);
+                dataTo.add(to.getId());
             } else if (arc.isControlDependencyArrow()) {
-                controlTo.add(arc);
+                controlTo.add(to.getId());
             }
 
         });

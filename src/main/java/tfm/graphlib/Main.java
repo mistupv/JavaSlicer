@@ -16,28 +16,28 @@ import java.io.FileNotFoundException;
 public class Main {
 
     public static void main(String[] args) throws FileNotFoundException {
-        File file = new File("/home/jacosro/IdeaProjects/TFM/src/main/java/tfm/programs/Example2.java");
+        File file = new File("/home/jacosro/IdeaProjects/TFM/src/main/java/tfm/programs/Example1.java");
         CompilationUnit compilationUnit = JavaParser.parse(file);
 
-        CFGGraph cfgGraph = new CFGGraph() {
+//        CFGGraph cfgGraph = new CFGGraph() {
+//            @Override
+//            protected String getRootNodeData() {
+//                return "Start";
+//            }
+//        };
+        PDGGraph pdgGraph = new PDGGraph() {
             @Override
             protected String getRootNodeData() {
-                return "Start";
+                return "Entry";
             }
         };
-        // PDGGraph pdgGraph = new PDGGraph() {
-        //    @Override
-        //    protected String getRootNodeData() {
-        //        return "Entry";
-        //    }
-        // };
 
-        VoidVisitor<Void> voidVisitor = new CFGVisitor(cfgGraph);
+        VoidVisitor<PDGVertex> voidVisitor = new PDGVisitor(pdgGraph);
 
-        compilationUnit.accept(voidVisitor, null);
+        compilationUnit.accept(voidVisitor, pdgGraph.getRootVertex());
         // compilationUnit.accept(new PDGVisitor(pdgGraph), pdgGraph.getRootVertex());
 
-        System.out.println(cfgGraph);
-        System.out.println(cfgGraph.toGraphvizRepresentation());
+        System.out.println(pdgGraph);
+//        System.out.println(cfgGraph.toGraphvizRepresentation());
     }
 }

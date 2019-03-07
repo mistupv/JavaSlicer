@@ -1,10 +1,7 @@
 package tfm.graphlib.graphs;
 
-import com.github.javaparser.ast.Node;
 import edg.graphlib.Arrow;
 import tfm.graphlib.arcs.cfg.ControlFlowArc;
-import tfm.graphlib.arcs.data.ArcData;
-import tfm.graphlib.arcs.data.VoidArcData;
 import tfm.graphlib.nodes.CFGVertex;
 
 public abstract class CFGGraph extends Graph<CFGVertex> {
