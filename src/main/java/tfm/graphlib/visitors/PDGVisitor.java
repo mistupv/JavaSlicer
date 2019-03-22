@@ -1,12 +1,19 @@
 package tfm.graphlib.visitors;
 
 import com.github.javaparser.ast.expr.AssignExpr;
+import com.github.javaparser.ast.expr.BooleanLiteralExpr;
+import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
+import com.github.javaparser.ast.stmt.ForStmt;
 import com.github.javaparser.ast.stmt.IfStmt;
 import com.github.javaparser.ast.stmt.WhileStmt;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.graphlib.graphs.PDGGraph;
 import tfm.graphlib.nodes.PDGVertex;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class PDGVisitor extends VoidVisitorAdapter<PDGVertex> {
 
@@ -49,5 +56,27 @@ public class PDGVisitor extends VoidVisitorAdapter<PDGVertex> {
         graph.addControlDependencyArc(parent, whileNode);
 
         super.visit(whileStmt, whileNode);
+    }
+
+    @Override
+    public void visit(ForStmt forStmt, PDGVertex parent) {
+        // Add initialization nodes
+        forStmt.getInitialization().stream()
+                .map(expression -> graph.addVertex(expression.toString()))
+                .forEach(pdgVertex -> graph.addControlDependencyArc(parent, pdgVertex));
+
+        // Add condition node
+        Expression condition = forStmt.getCompare().orElse(new BooleanLiteralExpr(true));
+        PDGVertex conditionNode = graph.addVertex(condition.toString());
+
+        graph.addControlDependencyArc(parent, conditionNode);
+
+        // Visit for
+        super.visit(forStmt, conditionNode);
+
+        // Add update vertex
+        forStmt.getUpdate().stream()
+                .map(expression -> graph.addVertex(expression.toString()))
+                .forEach(pdgVertex -> graph.addControlDependencyArc(conditionNode, pdgVertex));
     }
 }

@@ -26,6 +26,11 @@ public abstract class Arc<D extends ArcData> extends edg.graphlib.Arrow<String, 
     }
 
     public String toGraphvizRepresentation() {
-        return String.format("\"%s\" -> \"%s\"", getFrom().getData(), getTo().getData());
+        Vertex from = (Vertex) getFrom();
+        Vertex to = (Vertex) getTo();
+
+        return String.format("\"%s: %s\" -> \"%s: %s\"",
+                from.getId(), from.getData(),
+                to.getId(), to.getData());
     }
 }

@@ -38,6 +38,6 @@ public class Main {
         // compilationUnit.accept(new PDGVisitor(pdgGraph), pdgGraph.getRootVertex());
 
         System.out.println(pdgGraph);
-//        System.out.println(cfgGraph.toGraphvizRepresentation());
+        System.out.println(pdgGraph.toGraphvizRepresentation());
     }
 }
