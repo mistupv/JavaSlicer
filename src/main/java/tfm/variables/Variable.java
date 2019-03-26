@@ -1,4 +1,6 @@
-package tfm.utils;
+package tfm.variables;
+
+import tfm.utils.Scope;
 
 public class Variable<T> {
 
