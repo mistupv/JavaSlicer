@@ -1,26 +1,27 @@
 package tfm.graphs;
 
-import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import tfm.arcs.Arc;
 import tfm.arcs.pdg.ControlDependencyArc;
 import tfm.arcs.pdg.DataDependencyArc;
 import tfm.nodes.PDGVertex;
+import tfm.nodes.Vertex;
+import tfm.variables.*;
+import tfm.variables.actions.VariableAction;
+import tfm.variables.actions.VariableDeclaration;
+import tfm.variables.actions.VariableRead;
+import tfm.variables.actions.VariableWrite;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public abstract class PDGGraph extends Graph<PDGVertex> {
 
-    private Map<String, List<VariableDeclarationExpr>> variablesDeclarations;
-    private Map<String, List<VariableDeclarationExpr>> variablesUses;
+    private VariableSet variableSet;
 
     public PDGGraph() {
         setRootVertex(new PDGVertex(VertexId.getVertexId(), getRootNodeData()));
 
-        variablesDeclarations = new HashMap<>();
-        variablesUses = new HashMap<>();
+        variableSet = new VariableSet();
     }
 
     protected abstract String getRootNodeData();
@@ -50,28 +51,24 @@ public abstract class PDGGraph extends Graph<PDGVertex> {
         this.addArc(dataDataDependencyArc);
     }
 
-    public void addVariableDeclaration(String variable, VariableDeclarationExpr expr) {
-        doAddVariableUseOrDeclaration(variable, expr, variablesDeclarations);
+    public <T> Variable<T> addNewVariable(String name, T value, Vertex declarationNode) {
+        Variable<T> variable = new Variable<>(new VariableDeclaration<>(declarationNode, value), name);
+        variableSet.addVariable(variable);
+
+        return variable;
     }
 
-    public void addVariableUse(String variable, VariableDeclarationExpr expr) {
-        doAddVariableUseOrDeclaration(variable, expr, variablesUses);
+    public <T> void addVariableWrite(Vertex currentNode, T newValue, String variable) {
+        variableSet.findVariableByName(variable)
+                .ifPresent(objectVariable -> objectVariable.addWrite(new VariableWrite<>(currentNode, newValue)));
     }
 
-    private void doAddVariableUseOrDeclaration(String variable, VariableDeclarationExpr expr, Map<String, List<VariableDeclarationExpr>> map) {
-        List<VariableDeclarationExpr> list = map.getOrDefault(variable, new ArrayList<>());
-        list.add(expr);
-
-        if (!map.containsKey(variable)) {
-            map.put(variable, list);
-        }
+    public <T> void addVariableRead(Vertex currentNode, T currentValue, String variable) {
+        variableSet.findVariableByName(variable)
+                .ifPresent(objectVariable -> objectVariable.addRead(new VariableRead<>(currentNode, currentValue)));
     }
 
-    public List<VariableDeclarationExpr> getDeclarationsOf(String variable) {
-        return variablesDeclarations.get(variable);
-    }
-
-    public List<VariableDeclarationExpr> getUsesOf(String variable) {
-        return variablesUses.get(variable);
+    public VariableSet getVariableSet() {
+        return variableSet;
     }
 }

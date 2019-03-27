@@ -1,6 +1,7 @@
-package tfm.variables;
+package tfm.variables.actions;
 
 import tfm.nodes.Vertex;
+import tfm.utils.Scope;
 
 public abstract class VariableAction<T> {
 
@@ -28,7 +29,7 @@ public abstract class VariableAction<T> {
         this.node = node;
     }
 
-    public abstract boolean isDeclaration();
+    public abstract boolean isWrite();
 
-    public abstract boolean isUse();
+    public abstract boolean isRead();
 }

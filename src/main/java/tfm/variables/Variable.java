@@ -1,34 +1,43 @@
 package tfm.variables;
 
-import tfm.utils.Scope;
+import tfm.variables.actions.VariableDeclaration;
+import tfm.variables.actions.VariableRead;
+import tfm.variables.actions.VariableWrite;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class Variable<T> {
-
-    private Scope scope;
+    private VariableDeclaration<T> declaration;
     private String name;
-    private T value;
+    private List<VariableWrite<T>> writes;
+    private List<VariableRead<T>> reads;
 
-    public Variable(Scope scope, String name) {
-        this(scope, name, null);
-    }
-
-    public Variable(Scope scope, String name, T value) {
-        this.scope = scope;
+    public Variable(VariableDeclaration<T> variableDeclaration, String name) {
+        this.declaration = variableDeclaration;
         this.name = name;
-        this.value = value;
+        this.writes = new ArrayList<>();
+        this.reads = new ArrayList<>();
     }
 
     public String getName() {
         return name;
     }
 
-    public Scope getScope() {
-        return scope;
+    public void addWrite(VariableWrite<T> declaration) {
+        this.writes.add(declaration);
     }
 
-    @Override
-    public int hashCode() {
-        return scope.hashCode() + name.hashCode();
+    public void addWrites(List<VariableWrite<T>> declarations) {
+        this.writes.addAll(declarations);
+    }
+
+    public void addRead(VariableRead<T> uses) {
+        this.reads.add(uses);
+    }
+
+    public void addReads(List<VariableRead<T>> uses) {
+        this.reads.addAll(uses);
     }
 
     @Override
@@ -42,19 +51,23 @@ public class Variable<T> {
 
         Variable other = (Variable) o;
 
-        return name.equals(other.name) && scope.equals(other.scope);
+        return name.equals(other.name) && declaration.equals(other.declaration);
     }
 
     @Override
     public String toString() {
-        return String.format("Variable %s defined in scope %s", name, scope);
+        return String.format("Variable %s declared on vertex %s", name, declaration.getNode().getId());
     }
 
-    public T getValue() {
-        return value;
+    public List<VariableWrite<T>> getWrites() {
+        return writes;
     }
 
-    public void setValue(T value) {
-        this.value = value;
+    public List<VariableRead<T>> getReads() {
+        return reads;
+    }
+
+    public VariableDeclaration<T> getDeclaration() {
+        return declaration;
     }
 }

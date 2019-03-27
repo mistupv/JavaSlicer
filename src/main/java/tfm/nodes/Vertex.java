@@ -8,7 +8,7 @@ import java.util.stream.Collectors;
 
 public class Vertex extends edg.graphlib.Vertex<String, ArcData> {
 
-    private int fileLineNumber;
+    private Integer fileLineNumber;
 
     public Vertex(Graph.VertexId id, String instruction) {
         this(id, instruction, null);
@@ -17,7 +17,7 @@ public class Vertex extends edg.graphlib.Vertex<String, ArcData> {
     public Vertex(Graph.VertexId id, String instruction, Integer fileLineNumber) {
         super(id.toString(), instruction);
 
-        this.fileLineNumber = Optional.ofNullable(fileLineNumber).orElse(-1);
+        this.fileLineNumber = fileLineNumber;
     }
 
     public int getId() {
@@ -33,7 +33,7 @@ public class Vertex extends edg.graphlib.Vertex<String, ArcData> {
     }
 
     public Optional<Integer> getFileLineNumber() {
-        return fileLineNumber == -1 ? Optional.empty() : Optional.of(fileLineNumber);
+        return Optional.ofNullable(fileLineNumber);
     }
 
     public void setFileLineNumber(Integer fileLineNumber) {

@@ -29,13 +29,7 @@ public class PDGVisitor extends VoidVisitorAdapter<PDGVertex> {
 
         graph.addControlDependencyArc(parent, expressionNode);
 
-        n.getExpression().ifAssignExpr(assignExpr -> {
-            assignExpr.getTarget().ifVariableDeclarationExpr(variableDeclarationExpr -> {
-                variableDeclarationExpr.getVariables().forEach(variableDeclarator -> {
-                    String name = variableDeclarator.getName().asString();
-                });
-            });
-        });
+        // todo: Extract variables from Expression
 
         super.visit(n, parent);
     }
@@ -46,7 +40,9 @@ public class PDGVisitor extends VoidVisitorAdapter<PDGVertex> {
 
         graph.addControlDependencyArc(parent, ifNode);
 
-        super.visit(ifStmt, ifNode);
+        // Default adapter visits else before then, we have to visit then branch first
+        ifStmt.getThenStmt().accept(this, ifNode);
+        ifStmt.getElseStmt().ifPresent(statement -> statement.accept(this, ifNode));
     }
 
     @Override
