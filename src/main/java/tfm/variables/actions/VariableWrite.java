@@ -2,10 +2,10 @@ package tfm.variables.actions;
 
 import tfm.nodes.Vertex;
 
-public class VariableWrite<T> extends VariableAction<T> {
+public class VariableWrite extends VariableAction {
 
-    public VariableWrite(Vertex node, T value) {
-        super(node, value);
+    public VariableWrite(Vertex node) {
+        super(node);
     }
 
     @Override

@@ -1,5 +1,7 @@
 package tfm.programs;
 
+import java.util.Arrays;
+
 public class Example2 {
 
     public static void main(String[] args) {
@@ -11,8 +13,10 @@ public class Example2 {
 
         int z = 10;
 
-        for(int i = 0, o = 0; i < z; i++, o++) {
-            z--;
+        Iterable<Integer> integers = Arrays.asList(1, 2, 3);
+
+        for(int i : integers) {
+            System.out.println(i);
         }
     }
 }

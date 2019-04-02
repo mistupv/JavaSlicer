@@ -51,21 +51,19 @@ public abstract class PDGGraph extends Graph<PDGVertex> {
         this.addArc(dataDataDependencyArc);
     }
 
-    public <T> Variable<T> addNewVariable(String name, T value, Vertex declarationNode) {
-        Variable<T> variable = new Variable<>(new VariableDeclaration<>(declarationNode, value), name);
+    public Variable addNewVariable(String name, Vertex declarationNode) {
+        Variable variable = new Variable(new VariableDeclaration(declarationNode), name);
         variableSet.addVariable(variable);
 
         return variable;
     }
 
-    public <T> void addVariableWrite(Vertex currentNode, T newValue, String variable) {
-        variableSet.findVariableByName(variable)
-                .ifPresent(objectVariable -> objectVariable.addWrite(new VariableWrite<>(currentNode, newValue)));
+    public void addVariableWrite(String variable, Vertex currentNode) {
+        variableSet.addWrite(variable, new VariableWrite(currentNode));
     }
 
-    public <T> void addVariableRead(Vertex currentNode, T currentValue, String variable) {
-        variableSet.findVariableByName(variable)
-                .ifPresent(objectVariable -> objectVariable.addRead(new VariableRead<>(currentNode, currentValue)));
+    public void addVariableRead(String variable, Vertex currentNode) {
+        variableSet.addRead(variable, new VariableRead(currentNode));
     }
 
     public VariableSet getVariableSet() {

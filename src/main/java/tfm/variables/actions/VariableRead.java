@@ -2,10 +2,10 @@ package tfm.variables.actions;
 
 import tfm.nodes.Vertex;
 
-public class VariableRead<T> extends VariableAction<T> {
+public class VariableRead extends VariableAction {
 
-    public VariableRead(Vertex node, T value) {
-        super(node, value);
+    public VariableRead(Vertex node) {
+        super(node);
     }
 
     @Override

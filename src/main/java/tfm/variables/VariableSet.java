@@ -2,6 +2,7 @@ package tfm.variables;
 
 import org.checkerframework.checker.nullness.qual.NonNull;
 import tfm.variables.actions.VariableDeclaration;
+import tfm.variables.actions.VariableRead;
 import tfm.variables.actions.VariableWrite;
 
 import java.util.*;
@@ -14,27 +15,29 @@ public class VariableSet {
         variableSet = new HashSet<>();
     }
 
-    public <T> Optional<Variable<T>> findVariableByName(String name) {
+    public  Optional<Variable> findVariableByName(String name) {
         return variableSet.stream()
                 .filter(variable -> Objects.equals(variable.getName(), name))
-                .findFirst()
-                .map(variable -> (Variable<T>) variable);
+                .findFirst();
     }
 
-    public <T> Optional<Variable<T>> findVariableByDeclaration(VariableDeclaration<T> declaration) {
+    public  Optional<Variable> findVariableByDeclaration(VariableDeclaration declaration) {
         return variableSet.stream()
                 .filter(variable -> Objects.equals(variable.getDeclaration(), declaration))
-                .findFirst()
-                .map(variable -> (Variable<T>) variable);
+                .findFirst();
     }
-
-    public void addVariable(Variable<?> variable) {
+    
+    public boolean containsVariable(String name) {
+        return findVariableByName(name).isPresent();
+    }
+    
+    public void addVariable(Variable variable) {
         this.variableSet.add(variable);
     }
 
 
-    public <T> Optional<VariableWrite<T>> getLastWriteOf(@NonNull Variable<T> variable) {
-        List<VariableWrite<T>> writes = variable.getWrites();
+    public Optional<VariableWrite> getLastWriteOf(@NonNull Variable variable) {
+        List<VariableWrite> writes = variable.getWrites();
 
         if (writes.isEmpty())
             return Optional.empty();
@@ -42,12 +45,22 @@ public class VariableSet {
         return Optional.of(writes.get(writes.size() - 1));
     }
 
-    public <T> Optional<VariableWrite<T>> getLastWriteOf(@NonNull String variableName) {
-        Optional<Variable<T>> variable = findVariableByName(variableName);
+    public  Optional<VariableWrite> getLastWriteOf(@NonNull String variableName) {
+        Optional<Variable> variable = findVariableByName(variableName);
 
         if (!variable.isPresent())
             return Optional.empty();
 
         return getLastWriteOf(variable.get());
+    }
+
+    public void addRead(String variableName, VariableRead variableRead) {
+        findVariableByName(variableName)
+                .ifPresent(variable -> variable.addRead(variableRead));
+    }
+
+    public void addWrite(String variableName, VariableWrite variableWrite) {
+        findVariableByName(variableName)
+                .ifPresent(variable -> variable.addWrite(variableWrite));
     }
 }

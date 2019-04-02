@@ -1,5 +1,6 @@
 package tfm.variables;
 
+import com.github.javaparser.ast.type.Type;
 import tfm.variables.actions.VariableDeclaration;
 import tfm.variables.actions.VariableRead;
 import tfm.variables.actions.VariableWrite;
@@ -7,13 +8,14 @@ import tfm.variables.actions.VariableWrite;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Variable<T> {
-    private VariableDeclaration<T> declaration;
+public class Variable {
+    private VariableDeclaration declaration;
     private String name;
-    private List<VariableWrite<T>> writes;
-    private List<VariableRead<T>> reads;
+//    private Type type;
+    private List<VariableWrite> writes;
+    private List<VariableRead> reads;
 
-    public Variable(VariableDeclaration<T> variableDeclaration, String name) {
+    public Variable(VariableDeclaration variableDeclaration, String name) {
         this.declaration = variableDeclaration;
         this.name = name;
         this.writes = new ArrayList<>();
@@ -24,20 +26,12 @@ public class Variable<T> {
         return name;
     }
 
-    public void addWrite(VariableWrite<T> declaration) {
+    void addWrite(VariableWrite declaration) {
         this.writes.add(declaration);
     }
 
-    public void addWrites(List<VariableWrite<T>> declarations) {
-        this.writes.addAll(declarations);
-    }
-
-    public void addRead(VariableRead<T> uses) {
+    void addRead(VariableRead uses) {
         this.reads.add(uses);
-    }
-
-    public void addReads(List<VariableRead<T>> uses) {
-        this.reads.addAll(uses);
     }
 
     @Override
@@ -59,15 +53,15 @@ public class Variable<T> {
         return String.format("Variable %s declared on vertex %s", name, declaration.getNode().getId());
     }
 
-    public List<VariableWrite<T>> getWrites() {
+    public List<VariableWrite> getWrites() {
         return writes;
     }
 
-    public List<VariableRead<T>> getReads() {
+    public List<VariableRead> getReads() {
         return reads;
     }
 
-    public VariableDeclaration<T> getDeclaration() {
+    public VariableDeclaration getDeclaration() {
         return declaration;
     }
 }

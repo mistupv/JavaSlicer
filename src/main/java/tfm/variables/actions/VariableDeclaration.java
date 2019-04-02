@@ -2,9 +2,9 @@ package tfm.variables.actions;
 
 import tfm.nodes.Vertex;
 
-public class VariableDeclaration<T> extends VariableWrite<T> {
+public class VariableDeclaration extends VariableWrite {
 
-    public VariableDeclaration(Vertex node, T value) {
-        super(node, value);
+    public VariableDeclaration(Vertex node) {
+        super(node);
     }
 }

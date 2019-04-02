@@ -17,6 +17,16 @@ public class Example1 {
             y *= x;
         }
 
+        int e = (Integer) x;
+
+        switch (x) {
+            case 1:
+                e = 2;
+                break;
+            case 2:
+                e = 3;
+        }
+
         System.out.println(y);
     }
 }

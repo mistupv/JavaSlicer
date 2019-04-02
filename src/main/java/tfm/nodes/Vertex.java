@@ -1,8 +1,10 @@
 package tfm.nodes;
 
+import com.sun.corba.se.spi.ior.ObjectKey;
 import tfm.arcs.data.ArcData;
 import tfm.graphs.Graph;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -38,5 +40,22 @@ public class Vertex extends edg.graphlib.Vertex<String, ArcData> {
 
     public void setFileLineNumber(Integer fileLineNumber) {
         this.fileLineNumber = fileLineNumber;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o)
+            return true;
+
+        if (!(o instanceof Vertex))
+            return false;
+
+        Vertex other = (Vertex) o;
+
+        return Objects.equals(getData(), other.getData())
+                && Objects.equals(getIncomingArrows(), other.getIncomingArrows())
+                && Objects.equals(getOutgoingArrows(), other.getOutgoingArrows())
+                && Objects.equals(fileLineNumber, other.fileLineNumber);
+                // && Objects.equals(getName(), other.getName()) ID IS ALWAYS UNIQUE, SO IT WILL NEVER BE THE SAME
     }
 }

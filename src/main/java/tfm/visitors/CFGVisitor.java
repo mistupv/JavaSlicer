@@ -1,13 +1,18 @@
 package tfm.visitors;
 
+import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.expr.BooleanLiteralExpr;
-import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.stmt.*;
+import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
+import javassist.expr.MethodCall;
+import jdk.nashorn.internal.ir.BlockStatement;
 import tfm.graphs.CFGGraph;
 import tfm.nodes.CFGVertex;
+import tfm.variables.actions.VariableDeclaration;
 
 import java.util.*;
 
@@ -101,6 +106,94 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
         Expression comparison = forStmt.getCompare().orElse(new BooleanLiteralExpr(true));
 
         visit(new WhileStmt(comparison, blockStatement), null);
+    }
+
+    @Override
+    public void visit(ForEachStmt forEachStmt, Void arg) {
+        // init
+        NodeList<Expression> initialization = new NodeList<>();
+        // Iterable iterable = var.getClass().isArray() ? Arrays.asList(var) : (Iterable) (Object) var;
+//        VariableDeclarationExpr variableDeclarationExpr = new VariableDeclarationExpr(
+//                new ClassOrInterfaceType("Iterable"),
+//                Utils.wrapIntoList(
+//                        new VariableDeclarator(
+//                                new VariableDeclaratorId("iterable"),
+//                                new ConditionalExpr(
+//                                        new MethodCallExpr(
+//                                                new MethodCallExpr(foreachStmt.getIterable(), "getClass"),
+//                                                "isArray"
+//                                        ),
+//                                        new MethodCallExpr(
+//                                                new NameExpr("Arrays"),
+//                                                "asList",
+//                                                Utils.wrapIntoList(foreachStmt.getIterable())
+//                                        ),
+//                                        new CastExpr(
+//                                                new ClassOrInterfaceType("Iterable"),
+//                                                new CastExpr(
+//                                                        new ClassOrInterfaceType("Object"),
+//                                                        foreachStmt.getIterable()
+//                                                )
+//                                        )
+//                                )
+//                        )
+//                )
+//        );
+
+//        VariableDeclarationExpr variableDeclarationExpr = new VariableDeclarationExpr(
+//                new VariableDeclarator(
+//                        JavaParser.parseClassOrInterfaceType("Iterator"),
+//                        "iterator",
+//                        new ConditionalExpr(
+//                                new MethodCallExpr(
+//                                        new MethodCallExpr(
+//                                                forEachStmt.getVariable().getVariables().get(0).getNameAsExpression(),
+//                                                "getClass"
+//                                        ),
+//                                        "isArray"
+//                                ),
+//                                new MethodCallExpr(
+//                                        new MethodCallExpr(
+//                                                new NameExpr("Arrays"),
+//                                                "asList",
+//                                                forEachStmt.getVariable().getVariables().get(0).getNameAsExpression()
+//                                        ),
+//                                        "iterator"
+//                                ),
+//
+//                        )
+//                )
+//        );
+
+//        initialization.add(variableDeclarationExpr);
+
+        // condition
+        Expression condition =
+                new MethodCallExpr(
+                        new NameExpr("iterator"),
+                        "hasNext"
+                );
+
+        BlockStmt body = blockStmtWrapper(forEachStmt.getBody());
+        NodeList<Statement> stmts = body.getStatements();
+        stmts.addFirst(
+            new ExpressionStmt(
+                new VariableDeclarationExpr(
+                    new VariableDeclarator(
+                            forEachStmt.getVariable().getCommonType(),
+                            forEachStmt.getVariable().getVariables().get(0).getNameAsString(),
+                            new CastExpr(forEachStmt.getVariable().getCommonType(),
+                                new MethodCallExpr(
+                                    new NameExpr("iterator"),
+                                    "next"
+                                )
+                            )
+                    )
+                )
+            )
+        );
+
+        visit(new ForStmt(initialization, condition, new NodeList<>(), body), null);
     }
 
     @Override

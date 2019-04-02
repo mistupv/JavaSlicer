@@ -1,24 +1,33 @@
 package tfm.variables.actions;
 
+import com.sun.org.apache.regexp.internal.RE;
 import tfm.nodes.Vertex;
 import tfm.utils.Scope;
 
-public abstract class VariableAction<T> {
+public abstract class VariableAction {
+
+    public enum Actions {
+        UNKNOWN,
+        READ,
+        WRITE;
+
+        public Actions or(Actions action) {
+            if (action == WRITE || this == WRITE)
+                return WRITE;
+
+            return READ;
+        }
+
+        public String toString() {
+            return this == UNKNOWN ? "unknown" :
+                    (this == READ ? "read" : "write");
+        }
+    }
 
     private Vertex node;
-    private T value;
 
-    protected VariableAction(Vertex node, T value) {
+    protected VariableAction(Vertex node) {
         this.node = node;
-        this.value = value;
-    }
-
-    public T getValue() {
-        return value;
-    }
-
-    public void setValue(T value) {
-        this.value = value;
     }
 
     public Vertex getNode() {
