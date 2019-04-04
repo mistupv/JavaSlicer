@@ -30,20 +30,6 @@ public class VariableSet {
     public boolean containsVariable(String name) {
         return findVariableByName(name).isPresent();
     }
-    
-    public void addVariable(Variable variable) {
-        this.variableSet.add(variable);
-    }
-
-
-    public Optional<VariableWrite> getLastWriteOf(@NonNull Variable variable) {
-        List<VariableWrite> writes = variable.getWrites();
-
-        if (writes.isEmpty())
-            return Optional.empty();
-
-        return Optional.of(writes.get(writes.size() - 1));
-    }
 
     public  Optional<VariableWrite> getLastWriteOf(@NonNull String variableName) {
         Optional<Variable> variable = findVariableByName(variableName);
@@ -51,7 +37,12 @@ public class VariableSet {
         if (!variable.isPresent())
             return Optional.empty();
 
-        return getLastWriteOf(variable.get());
+        List<VariableWrite> writes = variable.get().getWrites();
+
+        if (writes.isEmpty())
+            return Optional.empty();
+
+        return Optional.of(writes.get(writes.size() - 1));
     }
 
     public void addRead(String variableName, VariableRead variableRead) {
@@ -62,5 +53,18 @@ public class VariableSet {
     public void addWrite(String variableName, VariableWrite variableWrite) {
         findVariableByName(variableName)
                 .ifPresent(variable -> variable.addWrite(variableWrite));
+    }
+
+    public Variable addVariable(String variableName, VariableDeclaration variableDeclaration) {
+        Variable newVariable = new Variable(variableName, variableDeclaration);
+
+        // check if it already exists
+        if (this.variableSet.contains(newVariable)) {
+            throw new IllegalStateException("Variable " + variableName + " already exists in VariableSet");
+        }
+
+        this.variableSet.add(newVariable);
+
+        return newVariable;
     }
 }

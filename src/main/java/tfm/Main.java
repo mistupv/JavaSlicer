@@ -19,7 +19,7 @@ public class Main {
         File file = new File("/home/jacosro/IdeaProjects/TFM/src/main/java/tfm/programs/Example2.java");
         CompilationUnit compilationUnit = JavaParser.parse(file);
 
-        Graph<?> graph = cfg(file, compilationUnit);
+        Graph<?> graph = pdg(file, compilationUnit);
 
         System.out.println(graph);
         System.out.println(graph.toGraphvizRepresentation());

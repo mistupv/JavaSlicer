@@ -9,8 +9,6 @@ import tfm.nodes.PDGVertex;
 import tfm.utils.VariableExtractor;
 import tfm.variables.actions.VariableAction;
 
-import java.util.List;
-import java.util.Map;
 
 public class PDGVisitor extends VoidVisitorAdapter<PDGVertex> {
 
@@ -28,8 +26,8 @@ public class PDGVisitor extends VoidVisitorAdapter<PDGVertex> {
 
         graph.addControlDependencyArc(parent, expressionNode);
 
-        VariableExtractor.Result result = VariableExtractor.parse(expression);
-        result.variableActions.forEach((variable, actions) -> {
+        VariableExtractor.Result result = VariableExtractor.extractFrom(expression);
+        result.forEach((variable, actions) -> {
                     System.out.println(
                             String.format("Variable %s with actions on ExpressionStmt: %s",
                                     variable, actions
@@ -53,8 +51,8 @@ public class PDGVisitor extends VoidVisitorAdapter<PDGVertex> {
 
         graph.addControlDependencyArc(parent, ifNode);
 
-        VariableExtractor.Result result = VariableExtractor.parse(ifStmt.getCondition());
-        result.variableActions.forEach((variable, actions) -> {
+        VariableExtractor.Result result = VariableExtractor.extractFrom(ifStmt.getCondition());
+        result.forEach((variable, actions) -> {
                     System.out.println(
                             String.format("Variable %s with actions on IfStmt: %s",
                                     variable, actions
@@ -62,10 +60,15 @@ public class PDGVisitor extends VoidVisitorAdapter<PDGVertex> {
                     );
 
                     actions.forEach(action -> {
-                        if (action == VariableAction.Actions.READ) {
-                            graph.addVariableRead(variable, ifNode);
-                        } else {
+                        if (action == VariableAction.Actions.DECLARE) {
+                            graph.addNewVariable(variable, ifNode);
+                        }
+                        if (action == VariableAction.Actions.WRITE) {
                             graph.addVariableWrite(variable, ifNode);
+                        } else {
+                            if (graph.containsVariable(variable)) {
+                                graph.addVariableRead(variable, ifNode);
+                            }
                         }
                     });
                 }
@@ -82,8 +85,8 @@ public class PDGVisitor extends VoidVisitorAdapter<PDGVertex> {
 
         graph.addControlDependencyArc(parent, whileNode);
 
-        VariableExtractor.Result result = VariableExtractor.parse(whileStmt.getCondition());
-        result.variableActions.forEach((variable, actions) -> {
+        VariableExtractor.Result result = VariableExtractor.extractFrom(whileStmt.getCondition());
+        result.forEach((variable, actions) -> {
                 System.out.println(
                         String.format("Variable %s with actions on WhileStmt: %s",
                                 variable, actions

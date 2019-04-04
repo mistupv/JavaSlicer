@@ -1,6 +1,5 @@
 package tfm.variables;
 
-import com.github.javaparser.ast.type.Type;
 import tfm.variables.actions.VariableDeclaration;
 import tfm.variables.actions.VariableRead;
 import tfm.variables.actions.VariableWrite;
@@ -15,7 +14,7 @@ public class Variable {
     private List<VariableWrite> writes;
     private List<VariableRead> reads;
 
-    public Variable(VariableDeclaration variableDeclaration, String name) {
+    Variable(String name, VariableDeclaration variableDeclaration) {
         this.declaration = variableDeclaration;
         this.name = name;
         this.writes = new ArrayList<>();
@@ -46,6 +45,11 @@ public class Variable {
         Variable other = (Variable) o;
 
         return name.equals(other.name) && declaration.equals(other.declaration);
+    }
+
+    @Override
+    public int hashCode() {
+        return name.hashCode() + declaration.hashCode();
     }
 
     @Override

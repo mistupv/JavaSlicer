@@ -7,11 +7,14 @@ import tfm.utils.Scope;
 public abstract class VariableAction {
 
     public enum Actions {
-        UNKNOWN,
-        READ,
-        WRITE;
+        DECLARE,
+        WRITE,
+        READ;
 
         public Actions or(Actions action) {
+            if (action == DECLARE || this == DECLARE)
+                return DECLARE;
+
             if (action == WRITE || this == WRITE)
                 return WRITE;
 
@@ -19,7 +22,7 @@ public abstract class VariableAction {
         }
 
         public String toString() {
-            return this == UNKNOWN ? "unknown" :
+            return this == DECLARE ? "declare" :
                     (this == READ ? "read" : "write");
         }
     }

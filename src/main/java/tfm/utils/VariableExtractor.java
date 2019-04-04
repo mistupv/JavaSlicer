@@ -4,19 +4,20 @@ import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.visitor.GenericVisitorAdapter;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
+import org.jetbrains.annotations.NotNull;
 import tfm.variables.Variable;
+import tfm.variables.VariableSet;
 import tfm.variables.actions.VariableAction.Actions;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
 
 public class VariableExtractor {
 
-    public static class Result {
+    public static class Result implements Iterable<Map.Entry<String, List<Actions>>> {
 
-        public Map<String, List<Actions>> variableActions;
+        private Map<String, List<Actions>> variableActions;
 
         public Result() {
             variableActions = new HashMap<>();
@@ -31,14 +32,32 @@ public class VariableExtractor {
                 variableActions.put(variable, actions);
             }
         }
+
+        public Set<String> variableNames() {
+            return variableActions.keySet();
+        }
+
+        public Collection<List<Actions>> variableActions() {
+            return variableActions.values();
+        }
+
+        public void forEach(BiConsumer<String, List<Actions>> action) {
+            variableActions.forEach(action);
+        }
+
+        @NotNull
+        @Override
+        public Iterator<Map.Entry<String, List<Actions>>> iterator() {
+            return variableActions.entrySet().iterator();
+        }
     }
 
     private VariableExtractor() {
     }
 
-    public static Result parse(Expression expression) {
+    public static Result extractFrom(Expression expression) {
         VariableVisitor variableVisitor = new VariableVisitor();
-        expression.accept(variableVisitor, Actions.UNKNOWN);
+        expression.accept(variableVisitor, Actions.READ);
 
         return variableVisitor.result;
     }
@@ -48,7 +67,7 @@ public class VariableExtractor {
         private Result result;
 
         private VariableVisitor() {
-            result = new Result();
+            this.result = new Result();
         }
 
         @Override
@@ -80,7 +99,7 @@ public class VariableExtractor {
 
         @Override
         public void visit(ConditionalExpr n, Actions action) {
-            System.out.println("On CondtionalExpr: [" + n + "]");
+            System.out.println("On ConditionalExpr: [" + n + "]");
             n.getCondition().accept(this, action.or(Actions.READ));
             n.getThenExpr().accept(this, action.or(Actions.READ));
             n.getElseExpr().accept(this, action.or(Actions.READ));
@@ -94,8 +113,8 @@ public class VariableExtractor {
 
         @Override
         public void visit(FieldAccessExpr n, Actions action) {
-//            System.out.println("On FieldAccessExpr: [" + n + "]");
-//            n.getScope().accept(this, action.or(Actions.READ)); todo: accessing a field of a variable is a READ??
+            System.out.println("On FieldAccessExpr: [" + n + "]");
+            n.getScope().accept(this, action.or(Actions.READ));
         }
 
 //        @Override
@@ -107,14 +126,17 @@ public class VariableExtractor {
         @Override
         public void visit(MethodCallExpr n, Actions action) {
             System.out.println("On MethodCallExpr: [" + n + "]");
-//            n.getScope().ifPresent(expression -> expression.accept(this, action.or(Actions.READ))); todo: accessing a field of a variable is a READ??
+            n.getScope().ifPresent(expression -> expression.accept(this, action.or(Actions.READ)));
             n.getArguments().forEach(expression -> expression.accept(this, action.or(Actions.READ)));
         }
 
         @Override
         public void visit(NameExpr n, Actions action) {
             System.out.println("On NameExpr. Found variable " + n.getNameAsString() + " and action " + action);
-            result.addVariableAction(n.getNameAsString(), action);
+
+            String variableName = n.getNameAsString();
+
+            result.addVariableAction(variableName, action);
         }
 
 //        @Override
@@ -139,7 +161,7 @@ public class VariableExtractor {
             System.out.println("On VariableDeclarationExpr: [" + n + "]");
             n.getVariables()
                     .forEach(variableDeclarator -> {
-                        variableDeclarator.getNameAsExpression().accept(this, action.or(Actions.WRITE));
+                        variableDeclarator.getNameAsExpression().accept(this, action.or(Actions.DECLARE));
                         variableDeclarator.getInitializer()
                                 .ifPresent(expression -> expression.accept(this, action.or(Actions.READ)));
                     });
