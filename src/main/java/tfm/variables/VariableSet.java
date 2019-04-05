@@ -1,9 +1,10 @@
 package tfm.variables;
 
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.jetbrains.annotations.NotNull;
 import tfm.variables.actions.VariableDeclaration;
-import tfm.variables.actions.VariableRead;
-import tfm.variables.actions.VariableWrite;
+import tfm.variables.actions.VariableUse;
+import tfm.variables.actions.VariableDefinition;
 
 import java.util.*;
 
@@ -31,13 +32,13 @@ public class VariableSet {
         return findVariableByName(name).isPresent();
     }
 
-    public  Optional<VariableWrite> getLastWriteOf(@NonNull String variableName) {
+    public  Optional<VariableDefinition> getLastDefinitionOf(@NonNull String variableName) {
         Optional<Variable> variable = findVariableByName(variableName);
 
         if (!variable.isPresent())
             return Optional.empty();
 
-        List<VariableWrite> writes = variable.get().getWrites();
+        List<VariableDefinition> writes = variable.get().getDefinitions();
 
         if (writes.isEmpty())
             return Optional.empty();
@@ -45,14 +46,14 @@ public class VariableSet {
         return Optional.of(writes.get(writes.size() - 1));
     }
 
-    public void addRead(String variableName, VariableRead variableRead) {
+    public void addUse(String variableName, VariableUse variableUse) {
         findVariableByName(variableName)
-                .ifPresent(variable -> variable.addRead(variableRead));
+                .ifPresent(variable -> variable.addUse(variableUse));
     }
 
-    public void addWrite(String variableName, VariableWrite variableWrite) {
+    public void addDefinition(String variableName, VariableDefinition variableDefinition) {
         findVariableByName(variableName)
-                .ifPresent(variable -> variable.addWrite(variableWrite));
+                .ifPresent(variable -> variable.addDefinition(variableDefinition));
     }
 
     public Variable addVariable(String variableName, VariableDeclaration variableDeclaration) {
@@ -66,5 +67,9 @@ public class VariableSet {
         this.variableSet.add(newVariable);
 
         return newVariable;
+    }
+
+    public Set<Variable> getVariables() {
+        return variableSet;
     }
 }

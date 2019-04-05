@@ -7,6 +7,8 @@ import tfm.graphs.CFGGraph;
 import tfm.graphs.Graph;
 import tfm.graphs.PDGGraph;
 import tfm.nodes.PDGVertex;
+import tfm.utils.Logger;
+import tfm.variables.Variable;
 import tfm.visitors.CFGVisitor;
 import tfm.visitors.PDGVisitor;
 
@@ -15,14 +17,32 @@ import java.io.FileNotFoundException;
 
 public class Main {
 
+    private static long t0;
+
     public static void main(String[] args) throws FileNotFoundException {
         File file = new File("/home/jacosro/IdeaProjects/TFM/src/main/java/tfm/programs/Example2.java");
         CompilationUnit compilationUnit = JavaParser.parse(file);
 
+        t0 = System.nanoTime();
+
         Graph<?> graph = pdg(file, compilationUnit);
 
-        System.out.println(graph);
-        System.out.println(graph.toGraphvizRepresentation());
+        long tt = System.nanoTime();
+
+        Logger.log(
+                "****************************\n" +
+                "*           GRAPH          *\n" +
+                "****************************"
+        );
+        Logger.log(graph);
+        Logger.log(
+                "****************************\n" +
+                "*         GRAPHVIZ         *\n" +
+                "****************************"
+        );
+        Logger.log(graph.toGraphvizRepresentation());
+        Logger.log();
+        Logger.format("Done in %.2f ms", (tt - t0) / 10e6);
     }
 
     public static CFGGraph cfg(File file, CompilationUnit cu) {

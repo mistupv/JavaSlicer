@@ -35,10 +35,10 @@ public class PDGVisitor extends VoidVisitorAdapter<PDGVertex> {
                     );
 
                     actions.forEach(action -> {
-                        if (action == VariableAction.Actions.READ) {
-                            graph.addVariableRead(variable, expressionNode);
+                        if (action == VariableAction.Actions.USE) {
+                            graph.addVariableUse(variable, expressionNode);
                         } else {
-                            graph.addVariableWrite(variable, expressionNode);
+                            graph.addVariableDefinition(variable, expressionNode);
                         }
                     });
                 }
@@ -60,14 +60,14 @@ public class PDGVisitor extends VoidVisitorAdapter<PDGVertex> {
                     );
 
                     actions.forEach(action -> {
-                        if (action == VariableAction.Actions.DECLARE) {
+                        if (action == VariableAction.Actions.DECLARATION) {
                             graph.addNewVariable(variable, ifNode);
                         }
-                        if (action == VariableAction.Actions.WRITE) {
-                            graph.addVariableWrite(variable, ifNode);
+                        if (action == VariableAction.Actions.DEFINITION) {
+                            graph.addVariableDefinition(variable, ifNode);
                         } else {
                             if (graph.containsVariable(variable)) {
-                                graph.addVariableRead(variable, ifNode);
+                                graph.addVariableUse(variable, ifNode);
                             }
                         }
                     });
@@ -94,10 +94,10 @@ public class PDGVisitor extends VoidVisitorAdapter<PDGVertex> {
                 );
 
                 actions.forEach(action -> {
-                    if (action == VariableAction.Actions.READ) {
-                        graph.addVariableRead(variable, whileNode);
+                    if (action == VariableAction.Actions.USE) {
+                        graph.addVariableUse(variable, whileNode);
                     } else {
-                        graph.addVariableWrite(variable, whileNode);
+                        graph.addVariableDefinition(variable, whileNode);
                     }
                 });
             }

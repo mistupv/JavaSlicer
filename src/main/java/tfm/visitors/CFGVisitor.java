@@ -12,6 +12,7 @@ import javassist.expr.MethodCall;
 import jdk.nashorn.internal.ir.BlockStatement;
 import tfm.graphs.CFGGraph;
 import tfm.nodes.CFGVertex;
+import tfm.utils.Logger;
 import tfm.variables.actions.VariableDeclaration;
 
 import java.util.*;
@@ -37,7 +38,7 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
         lastParentNodes.add(nextNode);
 
-        System.out.println(expressionStmt);
+        Logger.log(expressionStmt);
 
         super.visit(expressionStmt, arg);
     }
@@ -48,7 +49,7 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
 //
 //        lastParentNodes.add(nextNode);
 //
-//        System.out.println(variableDeclarationExpr);
+//        Logger.log(variableDeclarationExpr);
 //
 //        super.visit(variableDeclarationExpr, arg);
 //    }

@@ -1,5 +1,7 @@
 package tfm.programs;
 
+import tfm.utils.Logger;
+
 public class Example1 {
 
     public static void main(String[] args) {
@@ -27,6 +29,6 @@ public class Example1 {
                 e = 3;
         }
 
-        System.out.println(y);
+        Logger.log(y);
     }
 }

@@ -2,10 +2,15 @@ package tfm.variables.actions;
 
 import tfm.nodes.Vertex;
 
-public class VariableWrite extends VariableAction {
+public class VariableDefinition extends VariableAction {
 
-    public VariableWrite(Vertex node) {
+    public VariableDefinition(Vertex node) {
         super(node);
+    }
+
+    @Override
+    public boolean isDeclaration() {
+        return false;
     }
 
     @Override

@@ -1,36 +1,36 @@
 package tfm.variables;
 
 import tfm.variables.actions.VariableDeclaration;
-import tfm.variables.actions.VariableRead;
-import tfm.variables.actions.VariableWrite;
+import tfm.variables.actions.VariableUse;
+import tfm.variables.actions.VariableDefinition;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class Variable {
-    private VariableDeclaration declaration;
-    private String name;
+    private VariableDeclaration declaration; // The declaration holds the scope, so its part of the id of the variable
+    private String name; // In addition to the name
 //    private Type type;
-    private List<VariableWrite> writes;
-    private List<VariableRead> reads;
+    private List<VariableDefinition> definitions;
+    private List<VariableUse> uses;
 
     Variable(String name, VariableDeclaration variableDeclaration) {
         this.declaration = variableDeclaration;
         this.name = name;
-        this.writes = new ArrayList<>();
-        this.reads = new ArrayList<>();
+        this.definitions = new ArrayList<>();
+        this.uses = new ArrayList<>();
     }
 
     public String getName() {
         return name;
     }
 
-    void addWrite(VariableWrite declaration) {
-        this.writes.add(declaration);
+    void addDefinition(VariableDefinition declaration) {
+        this.definitions.add(declaration);
     }
 
-    void addRead(VariableRead uses) {
-        this.reads.add(uses);
+    void addUse(VariableUse uses) {
+        this.uses.add(uses);
     }
 
     @Override
@@ -57,12 +57,12 @@ public class Variable {
         return String.format("Variable %s declared on vertex %s", name, declaration.getNode().getId());
     }
 
-    public List<VariableWrite> getWrites() {
-        return writes;
+    public List<VariableDefinition> getDefinitions() {
+        return definitions;
     }
 
-    public List<VariableRead> getReads() {
-        return reads;
+    public List<VariableUse> getUses() {
+        return uses;
     }
 
     public VariableDeclaration getDeclaration() {

@@ -1,5 +1,7 @@
 package tfm.programs;
 
+import tfm.utils.Logger;
+
 import java.util.Arrays;
 
 public class Example2 {
@@ -16,7 +18,7 @@ public class Example2 {
         Iterable<Integer> integers = Arrays.asList(1, 2, 3);
 
         for(int i : integers) {
-            System.out.println(i);
+            Logger.log(i);
         }
     }
 }

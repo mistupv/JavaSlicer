@@ -6,13 +6,9 @@ import tfm.arcs.pdg.DataDependencyArc;
 import tfm.nodes.PDGVertex;
 import tfm.nodes.Vertex;
 import tfm.variables.*;
-import tfm.variables.actions.VariableAction;
 import tfm.variables.actions.VariableDeclaration;
-import tfm.variables.actions.VariableRead;
-import tfm.variables.actions.VariableWrite;
-
-import java.util.*;
-import java.util.stream.Collectors;
+import tfm.variables.actions.VariableUse;
+import tfm.variables.actions.VariableDefinition;
 
 public abstract class PDGGraph extends Graph<PDGVertex> {
 
@@ -59,12 +55,12 @@ public abstract class PDGGraph extends Graph<PDGVertex> {
         return variableSet.addVariable(name, new VariableDeclaration(declarationNode));
     }
 
-    public void addVariableWrite(String variable, Vertex currentNode) {
-        variableSet.addWrite(variable, new VariableWrite(currentNode));
+    public void addVariableDefinition(String variable, Vertex currentNode) {
+        variableSet.addDefinition(variable, new VariableDefinition(currentNode));
     }
 
-    public void addVariableRead(String variable, Vertex currentNode) {
-        variableSet.addRead(variable, new VariableRead(currentNode));
+    public void addVariableUse(String variable, Vertex currentNode) {
+        variableSet.addUse(variable, new VariableUse(currentNode));
     }
 
     public VariableSet getVariableSet() {

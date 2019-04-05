@@ -1,29 +1,27 @@
 package tfm.variables.actions;
 
-import com.sun.org.apache.regexp.internal.RE;
 import tfm.nodes.Vertex;
-import tfm.utils.Scope;
 
 public abstract class VariableAction {
 
     public enum Actions {
-        DECLARE,
-        WRITE,
-        READ;
+        DECLARATION,
+        DEFINITION,
+        USE;
 
         public Actions or(Actions action) {
-            if (action == DECLARE || this == DECLARE)
-                return DECLARE;
+            if (action == DECLARATION || this == DECLARATION)
+                return DECLARATION;
 
-            if (action == WRITE || this == WRITE)
-                return WRITE;
+            if (action == DEFINITION || this == DEFINITION)
+                return DEFINITION;
 
-            return READ;
+            return USE;
         }
 
         public String toString() {
-            return this == DECLARE ? "declare" :
-                    (this == READ ? "read" : "write");
+            return this == DECLARATION ? "declaration" :
+                    (this == USE ? "use" : "definition");
         }
     }
 
@@ -40,6 +38,8 @@ public abstract class VariableAction {
     public void setNode(Vertex node) {
         this.node = node;
     }
+
+    public abstract boolean isDeclaration();
 
     public abstract boolean isWrite();
 
