@@ -2,7 +2,7 @@ package tfm.graphs;
 
 import tfm.arcs.Arc;
 import tfm.arcs.data.ArcData;
-import tfm.nodes.Vertex;
+import tfm.nodes.Node;
 
 import java.util.Comparator;
 import java.util.stream.Collectors;
@@ -10,19 +10,19 @@ import java.util.stream.Collectors;
 /**
  * A graphlibGraph without cost and data in arcs
  * */
-public abstract class Graph<NodeType extends Vertex> extends edg.graphlib.Graph<String, ArcData> {
+public abstract class Graph<NodeType extends Node> extends edg.graphlib.Graph<String, ArcData> {
 
-    public final static class VertexId {
+    public final static class NodeId {
         private static int nextVertexId = 0;
 
         private int id;
 
-        private VertexId(int id) {
+        private NodeId(int id) {
             this.id = id;
         }
 
-        static synchronized VertexId getVertexId() {
-            return new VertexId(nextVertexId++);
+        static synchronized NodeId getVertexId() {
+            return new NodeId(nextVertexId++);
         }
 
         public int getId() {
@@ -40,12 +40,11 @@ public abstract class Graph<NodeType extends Vertex> extends edg.graphlib.Graph<
     }
 
     @SuppressWarnings("unchecked")
-    @Override
-    public NodeType getRootVertex() {
+    public NodeType getRootNode() {
         return (NodeType) super.getRootVertex();
     }
 
-    public abstract NodeType addVertex(String instruction);
+    public abstract NodeType addNode(String instruction);
 
     public String toString() {
         return getVerticies().stream()
@@ -56,7 +55,7 @@ public abstract class Graph<NodeType extends Vertex> extends edg.graphlib.Graph<
     public String toGraphvizRepresentation() {
         String arrows =
                 getArrows().stream()
-                        .sorted(Comparator.comparingInt(arrow -> ((Vertex) arrow.getFrom()).getId()))
+                        .sorted(Comparator.comparingInt(arrow -> ((Node) arrow.getFrom()).getId()))
                         .map(arrow -> ((Arc) arrow).toGraphvizRepresentation())
                         .collect(Collectors.joining(System.lineSeparator()));
 

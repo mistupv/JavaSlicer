@@ -1,16 +1,16 @@
 package tfm.utils;
 
-import tfm.nodes.Vertex;
+import tfm.nodes.Node;
 
 public class Scope {
 
-    private Vertex parent;
+    private Node parent;
 
-    public Scope(Vertex parent) {
+    public Scope(Node parent) {
         this.parent = parent;
     }
 
-    public Vertex getParent() {
+    public Node getParent() {
         return parent;
     }
 

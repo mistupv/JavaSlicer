@@ -1,10 +1,10 @@
 package tfm.variables.actions;
 
-import tfm.nodes.Vertex;
+import tfm.nodes.Node;
 
 public class VariableDefinition extends VariableAction {
 
-    public VariableDefinition(Vertex node) {
+    public VariableDefinition(Node node) {
         super(node);
     }
 

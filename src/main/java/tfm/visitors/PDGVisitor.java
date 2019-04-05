@@ -5,12 +5,12 @@ import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.graphs.PDGGraph;
-import tfm.nodes.PDGVertex;
+import tfm.nodes.PDGNode;
 import tfm.utils.VariableExtractor;
 import tfm.variables.actions.VariableAction;
 
 
-public class PDGVisitor extends VoidVisitorAdapter<PDGVertex> {
+public class PDGVisitor extends VoidVisitorAdapter<PDGNode> {
 
     private PDGGraph graph;
 
@@ -19,10 +19,10 @@ public class PDGVisitor extends VoidVisitorAdapter<PDGVertex> {
     }
 
     @Override
-    public void visit(ExpressionStmt n, PDGVertex parent) {
+    public void visit(ExpressionStmt n, PDGNode parent) {
         Expression expression = n.getExpression();
 
-        PDGVertex expressionNode = graph.addVertex(expression.toString());
+        PDGNode expressionNode = graph.addNode(expression.toString());
 
         graph.addControlDependencyArc(parent, expressionNode);
 
@@ -46,8 +46,8 @@ public class PDGVisitor extends VoidVisitorAdapter<PDGVertex> {
     }
 
     @Override
-    public void visit(IfStmt ifStmt, PDGVertex parent) {
-        PDGVertex ifNode = graph.addVertex(ifStmt.getCondition().toString());
+    public void visit(IfStmt ifStmt, PDGNode parent) {
+        PDGNode ifNode = graph.addNode(ifStmt.getCondition().toString());
 
         graph.addControlDependencyArc(parent, ifNode);
 
@@ -80,8 +80,8 @@ public class PDGVisitor extends VoidVisitorAdapter<PDGVertex> {
     }
 
     @Override
-    public void visit(WhileStmt whileStmt, PDGVertex parent) {
-        PDGVertex whileNode = graph.addVertex(whileStmt.getCondition().toString());
+    public void visit(WhileStmt whileStmt, PDGNode parent) {
+        PDGNode whileNode = graph.addNode(whileStmt.getCondition().toString());
 
         graph.addControlDependencyArc(parent, whileNode);
 
@@ -107,15 +107,15 @@ public class PDGVisitor extends VoidVisitorAdapter<PDGVertex> {
     }
 
     @Override
-    public void visit(ForStmt forStmt, PDGVertex parent) {
+    public void visit(ForStmt forStmt, PDGNode parent) {
         // Add initialization nodes
         forStmt.getInitialization().stream()
-                .map(expression -> graph.addVertex(expression.toString()))
+                .map(expression -> graph.addNode(expression.toString()))
                 .forEach(pdgVertex -> graph.addControlDependencyArc(parent, pdgVertex));
 
         // Add condition node
         Expression condition = forStmt.getCompare().orElse(new BooleanLiteralExpr(true));
-        PDGVertex conditionNode = graph.addVertex(condition.toString());
+        PDGNode conditionNode = graph.addNode(condition.toString());
 
         graph.addControlDependencyArc(parent, conditionNode);
 
@@ -124,13 +124,13 @@ public class PDGVisitor extends VoidVisitorAdapter<PDGVertex> {
 
         // Add update vertex
         forStmt.getUpdate().stream()
-                .map(expression -> graph.addVertex(expression.toString()))
+                .map(expression -> graph.addNode(expression.toString()))
                 .forEach(pdgVertex -> graph.addControlDependencyArc(conditionNode, pdgVertex));
     }
 
     @Override
-    public void visit(SwitchStmt switchStmt, PDGVertex parent) {
-        PDGVertex switchNode = graph.addVertex(switchStmt.toString());
+    public void visit(SwitchStmt switchStmt, PDGNode parent) {
+        PDGNode switchNode = graph.addNode(switchStmt.toString());
 
         graph.addControlDependencyArc(parent, switchNode);
 

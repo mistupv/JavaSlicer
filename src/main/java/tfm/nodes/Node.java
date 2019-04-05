@@ -1,6 +1,6 @@
 package tfm.nodes;
 
-import com.sun.corba.se.spi.ior.ObjectKey;
+import edg.graphlib.Vertex;
 import tfm.arcs.data.ArcData;
 import tfm.graphs.Graph;
 
@@ -8,15 +8,15 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-public class Vertex extends edg.graphlib.Vertex<String, ArcData> {
+public class Node extends Vertex<String, ArcData> {
 
     private Integer fileLineNumber;
 
-    public Vertex(Graph.VertexId id, String instruction) {
+    public Node(Graph.NodeId id, String instruction) {
         this(id, instruction, null);
     }
 
-    public Vertex(Graph.VertexId id, String instruction, Integer fileLineNumber) {
+    public Node(Graph.NodeId id, String instruction, Integer fileLineNumber) {
         super(id.toString(), instruction);
 
         this.fileLineNumber = fileLineNumber;
@@ -27,7 +27,7 @@ public class Vertex extends edg.graphlib.Vertex<String, ArcData> {
     }
 
     public String toString() {
-        return String.format("Vertex{id: %s, data: '%s', in: %s, out: %s}",
+        return String.format("Node{id: %s, data: '%s', in: %s, out: %s}",
                 getName(),
                 getData(),
                 getIncomingArrows().stream().map(arrow -> arrow.getFrom().getName()).collect(Collectors.toList()),
@@ -47,10 +47,10 @@ public class Vertex extends edg.graphlib.Vertex<String, ArcData> {
         if (this == o)
             return true;
 
-        if (!(o instanceof Vertex))
+        if (!(o instanceof Node))
             return false;
 
-        Vertex other = (Vertex) o;
+        Node other = (Node) o;
 
         return Objects.equals(getData(), other.getData())
                 && Objects.equals(getIncomingArrows(), other.getIncomingArrows())

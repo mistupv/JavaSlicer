@@ -2,11 +2,11 @@ package tfm.arcs.pdg;
 
 import tfm.arcs.Arc;
 import tfm.arcs.data.ArcData;
-import tfm.nodes.Vertex;
+import tfm.nodes.Node;
 
 public class ControlDependencyArc extends Arc<ArcData> {
 
-    public ControlDependencyArc(Vertex from, Vertex to) {
+    public ControlDependencyArc(Node from, Node to) {
         super(from, to);
     }
 
@@ -28,8 +28,8 @@ public class ControlDependencyArc extends Arc<ArcData> {
     @Override
     public String toString() {
         return String.format("ControlDependencyArc{%s -> %s}",
-                ((Vertex) getFrom()).getId(),
-                ((Vertex) getTo()).getId()
+                ((Node) getFrom()).getId(),
+                ((Node) getTo()).getId()
         );
     }
 }

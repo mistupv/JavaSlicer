@@ -1,6 +1,6 @@
 package tfm.variables.actions;
 
-import tfm.nodes.Vertex;
+import tfm.nodes.Node;
 
 public abstract class VariableAction {
 
@@ -25,17 +25,17 @@ public abstract class VariableAction {
         }
     }
 
-    private Vertex node;
+    private Node node;
 
-    protected VariableAction(Vertex node) {
+    protected VariableAction(Node node) {
         this.node = node;
     }
 
-    public Vertex getNode() {
+    public Node getNode() {
         return node;
     }
 
-    public void setNode(Vertex node) {
+    public void setNode(Node node) {
         this.node = node;
     }
 

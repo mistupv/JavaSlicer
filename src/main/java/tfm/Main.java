@@ -6,9 +6,8 @@ import com.github.javaparser.ast.visitor.VoidVisitor;
 import tfm.graphs.CFGGraph;
 import tfm.graphs.Graph;
 import tfm.graphs.PDGGraph;
-import tfm.nodes.PDGVertex;
+import tfm.nodes.PDGNode;
 import tfm.utils.Logger;
-import tfm.variables.Variable;
 import tfm.visitors.CFGVisitor;
 import tfm.visitors.PDGVisitor;
 
@@ -66,9 +65,9 @@ public class Main {
             }
         };
 
-        VoidVisitor<PDGVertex> voidVisitor = new PDGVisitor(pdgGraph);
+        VoidVisitor<PDGNode> voidVisitor = new PDGVisitor(pdgGraph);
 
-        cu.accept(voidVisitor, pdgGraph.getRootVertex());
+        cu.accept(voidVisitor, pdgGraph.getRootNode());
 
         return pdgGraph;
     }

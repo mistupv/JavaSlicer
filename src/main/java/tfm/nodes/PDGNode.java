@@ -1,15 +1,14 @@
 package tfm.nodes;
 
 import tfm.arcs.Arc;
-import tfm.arcs.data.ArcData;
 import tfm.graphs.Graph;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class PDGVertex extends Vertex {
+public class PDGNode extends Node {
 
-    public PDGVertex(Graph.VertexId id, String data) {
+    public PDGNode(Graph.NodeId id, String data) {
         super(id, data);
     }
 
@@ -21,7 +20,7 @@ public class PDGVertex extends Vertex {
 
         getIncomingArrows().forEach(arrow -> {
             Arc arc = (Arc) arrow;
-            Vertex from = (Vertex) arc.getFrom();
+            Node from = (Node) arc.getFrom();
 
             if (arc.isDataDependencyArrow()) {
                 dataFrom.add(from.getId());
@@ -33,7 +32,7 @@ public class PDGVertex extends Vertex {
 
         getOutgoingArrows().forEach(arrow -> {
             Arc arc = (Arc) arrow;
-            Vertex to = (Vertex) arc.getTo();
+            Node to = (Node) arc.getTo();
 
             if (arc.isDataDependencyArrow()) {
                 dataTo.add(to.getId());
@@ -43,7 +42,7 @@ public class PDGVertex extends Vertex {
 
         });
 
-        return String.format("PDGVertex{id: %s, data: %s, dataFrom: %s, dataTo: %s, controlFrom: %s, controlTo: %s}",
+        return String.format("PDGNode{id: %s, data: %s, dataFrom: %s, dataTo: %s, controlFrom: %s, controlTo: %s}",
                 getId(),
                 getData(),
                 dataFrom,

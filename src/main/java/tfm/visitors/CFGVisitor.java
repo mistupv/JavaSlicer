@@ -1,19 +1,14 @@
 package tfm.visitors;
 
-import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.stmt.*;
-import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import javassist.expr.MethodCall;
-import jdk.nashorn.internal.ir.BlockStatement;
 import tfm.graphs.CFGGraph;
-import tfm.nodes.CFGVertex;
+import tfm.nodes.CFGNode;
 import tfm.utils.Logger;
-import tfm.variables.actions.VariableDeclaration;
 
 import java.util.*;
 
@@ -21,20 +16,20 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
     private CFGGraph graph;
 
-    private Queue<CFGVertex> lastParentNodes;
+    private Queue<CFGNode> lastParentNodes;
 
     public CFGVisitor(CFGGraph graph) {
         this.graph = graph;
         this.lastParentNodes = Collections.asLifoQueue(
                 new ArrayDeque<>(
-                        Collections.singletonList((CFGVertex) graph.getRootVertex())
+                        Collections.singletonList((CFGNode) graph.getRootNode())
                 )
         );
     }
 
     @Override
     public void visit(ExpressionStmt expressionStmt, Void arg) {
-        CFGVertex nextNode = addNodeAndArcs(expressionStmt.toString());
+        CFGNode nextNode = addNodeAndArcs(expressionStmt.toString());
 
         lastParentNodes.add(nextNode);
 
@@ -45,7 +40,7 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
 //    @Override
 //    public void visit(VariableDeclarationExpr variableDeclarationExpr, Void arg) {
-//        CFGVertex<String> nextNode = addNodeAndArcs(variableDeclarationExpr.toString());
+//        CFGNode<String> nextNode = addNodeAndArcs(variableDeclarationExpr.toString());
 //
 //        lastParentNodes.add(nextNode);
 //
@@ -56,7 +51,7 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
     @Override
     public void visit(IfStmt ifStmt, Void arg) {
-        CFGVertex ifCondition = addNodeAndArcs(
+        CFGNode ifCondition = addNodeAndArcs(
                 String.format("if (%s)", ifStmt.getCondition().toString())
         );
 
@@ -65,7 +60,7 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
         // Visit "then"
         super.visit(blockStmtWrapper(ifStmt.getThenStmt()), arg);
 
-        Queue<CFGVertex> lastThenNodes = new ArrayDeque<>(lastParentNodes);
+        Queue<CFGNode> lastThenNodes = new ArrayDeque<>(lastParentNodes);
 
         if (ifStmt.hasElseBranch()) {
             lastParentNodes.clear();
@@ -81,7 +76,7 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
     @Override
     public void visit(WhileStmt whileStmt, Void arg) {
-        CFGVertex whileCondition = addNodeAndArcs(
+        CFGNode whileCondition = addNodeAndArcs(
                 String.format("while (%s)", whileStmt.getCondition().toString())
         );
 
@@ -204,10 +199,10 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
         addNodeAndArcs("Stop");
     }
 
-    private CFGVertex addNodeAndArcs(String nodeData) {
-        CFGVertex node = graph.addVertex(nodeData);
+    private CFGNode addNodeAndArcs(String nodeData) {
+        CFGNode node = graph.addNode(nodeData);
 
-        CFGVertex parent = lastParentNodes.poll(); // ALWAYS exists a parent
+        CFGNode parent = lastParentNodes.poll(); // ALWAYS exists a parent
         graph.addControlFlowEdge(parent, node);
 
         while (!lastParentNodes.isEmpty()) {
