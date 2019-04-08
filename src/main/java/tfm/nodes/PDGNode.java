@@ -8,8 +8,8 @@ import java.util.List;
 
 public class PDGNode extends Node {
 
-    public PDGNode(Graph.NodeId id, String data) {
-        super(id, data);
+    public PDGNode(Graph.NodeId id, String data, int fileNumber) {
+        super(id, data, fileNumber);
     }
 
     public String toString() {

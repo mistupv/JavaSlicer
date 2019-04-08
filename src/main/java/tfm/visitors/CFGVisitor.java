@@ -22,14 +22,14 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
         this.graph = graph;
         this.lastParentNodes = Collections.asLifoQueue(
                 new ArrayDeque<>(
-                        Collections.singletonList((CFGNode) graph.getRootNode())
+                        Collections.singletonList(graph.getRootNode())
                 )
         );
     }
 
     @Override
     public void visit(ExpressionStmt expressionStmt, Void arg) {
-        CFGNode nextNode = addNodeAndArcs(expressionStmt.toString());
+        CFGNode nextNode = addNodeAndArcs(expressionStmt.toString(), expressionStmt.getBegin().get().line);
 
         lastParentNodes.add(nextNode);
 
@@ -52,7 +52,8 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
     @Override
     public void visit(IfStmt ifStmt, Void arg) {
         CFGNode ifCondition = addNodeAndArcs(
-                String.format("if (%s)", ifStmt.getCondition().toString())
+                String.format("if (%s)", ifStmt.getCondition().toString()),
+                ifStmt.getBegin().get().line
         );
 
         lastParentNodes.add(ifCondition);
@@ -77,7 +78,8 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
     @Override
     public void visit(WhileStmt whileStmt, Void arg) {
         CFGNode whileCondition = addNodeAndArcs(
-                String.format("while (%s)", whileStmt.getCondition().toString())
+                String.format("while (%s)", whileStmt.getCondition().toString()),
+                whileStmt.getBegin().get().line
         );
 
         lastParentNodes.add(whileCondition);
@@ -196,11 +198,11 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
     public void visit(MethodDeclaration methodDeclaration, Void arg) {
         super.visit(methodDeclaration, arg);
 
-        addNodeAndArcs("Stop");
+        addNodeAndArcs("Stop", methodDeclaration.getBegin().get().line);
     }
 
-    private CFGNode addNodeAndArcs(String nodeData) {
-        CFGNode node = graph.addNode(nodeData);
+    private CFGNode addNodeAndArcs(String nodeData, int fileNumber) {
+        CFGNode node = graph.addNode(nodeData, fileNumber);
 
         CFGNode parent = lastParentNodes.poll(); // ALWAYS exists a parent
         graph.addControlFlowEdge(parent, node);

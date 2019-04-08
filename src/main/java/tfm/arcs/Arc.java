@@ -29,8 +29,9 @@ public abstract class Arc<D extends ArcData> extends edg.graphlib.Arrow<String, 
         Node from = (Node) getFrom();
         Node to = (Node) getTo();
 
-        return String.format("\"%s: %s\" -> \"%s: %s\"",
-                from.getId(), from.getData(),
-                to.getId(), to.getData());
+        return String.format("%s -> %s",
+                from.getId(),
+                to.getId()
+        );
     }
 }

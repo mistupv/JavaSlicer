@@ -13,12 +13,14 @@ public class Variable {
 //    private Type type;
     private List<VariableDefinition> definitions;
     private List<VariableUse> uses;
+    private List<VariableDependency> dependencies;
 
     Variable(String name, VariableDeclaration variableDeclaration) {
         this.declaration = variableDeclaration;
         this.name = name;
         this.definitions = new ArrayList<>();
         this.uses = new ArrayList<>();
+        this.dependencies = new ArrayList<>();
     }
 
     public String getName() {
@@ -31,6 +33,10 @@ public class Variable {
 
     void addUse(VariableUse uses) {
         this.uses.add(uses);
+    }
+
+    void addDependency(VariableDependency variable) {
+        this.dependencies.add(variable);
     }
 
     @Override
@@ -54,7 +60,7 @@ public class Variable {
 
     @Override
     public String toString() {
-        return String.format("Variable %s declared on vertex %s", name, declaration.getNode().getId());
+        return String.format("Variable %s declared on node %s", name, declaration.getNode().getId());
     }
 
     public List<VariableDefinition> getDefinitions() {
@@ -67,5 +73,9 @@ public class Variable {
 
     public VariableDeclaration getDeclaration() {
         return declaration;
+    }
+
+    public List<VariableDependency> getDependencies() {
+        return dependencies;
     }
 }

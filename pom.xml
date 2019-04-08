@@ -35,5 +35,11 @@
             <scope>compile</scope>
         </dependency>
 
+        <dependency>
+            <groupId>guru.nidi</groupId>
+            <artifactId>graphviz-java</artifactId>
+            <version>0.8.3</version>
+        </dependency>
+
     </dependencies>
 </project>

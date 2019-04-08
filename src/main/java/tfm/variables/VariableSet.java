@@ -2,6 +2,7 @@ package tfm.variables;
 
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.jetbrains.annotations.NotNull;
+import tfm.nodes.Node;
 import tfm.variables.actions.VariableDeclaration;
 import tfm.variables.actions.VariableUse;
 import tfm.variables.actions.VariableDefinition;
@@ -44,6 +45,22 @@ public class VariableSet {
             return Optional.empty();
 
         return Optional.of(writes.get(writes.size() - 1));
+    }
+
+    public Optional<VariableDefinition> getLastDefinitionOf(@NonNull String variableName, Node fromNode) {
+        Optional<Variable> variable = findVariableByName(variableName);
+
+        if (!variable.isPresent())
+            return Optional.empty();
+
+        List<VariableDefinition> writes = variable.get().getDefinitions();
+
+        if (writes.isEmpty())
+            return Optional.empty();
+
+        return writes.stream()
+                .filter(variableDefinition -> variableDefinition.getNode().getId() < fromNode.getId())
+                .max(Comparator.comparingInt(vd -> vd.getNode().getId()));
     }
 
     public void addUse(String variableName, VariableUse variableUse) {

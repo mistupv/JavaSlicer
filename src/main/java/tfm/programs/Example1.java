@@ -21,13 +21,13 @@ public class Example1 {
 
         int e = (Integer) x;
 
-        switch (x) {
-            case 1:
-                e = 2;
-                break;
-            case 2:
-                e = 3;
-        }
+//        switch (x) {
+//            case 1:
+//                e = 2;
+//                break;
+//            case 2:
+//                e = 3;
+//        }
 
         Logger.log(y);
     }

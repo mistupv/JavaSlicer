@@ -14,12 +14,15 @@ import tfm.visitors.PDGVisitor;
 import java.io.File;
 import java.io.FileNotFoundException;
 
+import static guru.nidi.graphviz.model.Factory.graph;
+import static guru.nidi.graphviz.model.Factory.node;
+
 public class Main {
 
     private static long t0;
 
     public static void main(String[] args) throws FileNotFoundException {
-        File file = new File("/home/jacosro/IdeaProjects/TFM/src/main/java/tfm/programs/Example2.java");
+        File file = new File("/home/jacosro/IdeaProjects/TFM/src/main/java/tfm/programs/Example1.java");
         CompilationUnit compilationUnit = JavaParser.parse(file);
 
         t0 = System.nanoTime();

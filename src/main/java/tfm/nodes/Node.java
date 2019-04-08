@@ -10,11 +10,11 @@ import java.util.stream.Collectors;
 
 public class Node extends Vertex<String, ArcData> {
 
-    private Integer fileLineNumber;
+    private int fileLineNumber;
 
-    public Node(Graph.NodeId id, String instruction) {
-        this(id, instruction, null);
-    }
+//    public Node(Graph.NodeId id, String instruction) {
+//        this(id, instruction, null);
+//    }
 
     public Node(Graph.NodeId id, String instruction, Integer fileLineNumber) {
         super(id.toString(), instruction);
@@ -34,8 +34,8 @@ public class Node extends Vertex<String, ArcData> {
                 getOutgoingArrows().stream().map(arc -> arc.getTo().getName()).collect(Collectors.toList()));
     }
 
-    public Optional<Integer> getFileLineNumber() {
-        return Optional.ofNullable(fileLineNumber);
+    public int getFileLineNumber() {
+        return fileLineNumber;
     }
 
     public void setFileLineNumber(Integer fileLineNumber) {
@@ -57,5 +57,9 @@ public class Node extends Vertex<String, ArcData> {
                 && Objects.equals(getOutgoingArrows(), other.getOutgoingArrows())
                 && Objects.equals(fileLineNumber, other.fileLineNumber);
                 // && Objects.equals(getName(), other.getName()) ID IS ALWAYS UNIQUE, SO IT WILL NEVER BE THE SAME
+    }
+
+    public String toGraphvizRepresentation() {
+        return String.format("%s[label=\"%s: %s\"];", getId(), getId(), getData());
     }
 }

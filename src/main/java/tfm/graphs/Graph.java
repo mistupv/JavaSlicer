@@ -44,7 +44,7 @@ public abstract class Graph<NodeType extends Node> extends edg.graphlib.Graph<St
         return (NodeType) super.getRootVertex();
     }
 
-    public abstract NodeType addNode(String instruction);
+    public abstract NodeType addNode(String instruction, int fileNumber);
 
     public String toString() {
         return getVerticies().stream()
@@ -52,18 +52,6 @@ public abstract class Graph<NodeType extends Node> extends edg.graphlib.Graph<St
                 .collect(Collectors.joining(System.lineSeparator()));
     }
 
-    public String toGraphvizRepresentation() {
-        String arrows =
-                getArrows().stream()
-                        .sorted(Comparator.comparingInt(arrow -> ((Node) arrow.getFrom()).getId()))
-                        .map(arrow -> ((Arc) arrow).toGraphvizRepresentation())
-                        .collect(Collectors.joining(System.lineSeparator()));
-
-        String lineSep = System.lineSeparator();
-
-        return "digraph g{" + lineSep +
-                    arrows + lineSep +
-                "}";
-    }
+    public abstract String toGraphvizRepresentation();
 
 }
