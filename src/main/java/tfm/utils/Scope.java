@@ -1,39 +1,62 @@
 package tfm.utils;
 
 import tfm.nodes.Node;
+import tfm.variables.actions.VariableDeclaration;
+import tfm.variables.actions.VariableDefinition;
+import tfm.variables.actions.VariableUse;
+
+import java.util.*;
 
 public class Scope {
 
-    private Node parent;
+    private Map<String, List<VariableDeclaration>> variableDeclarations;
+    private Map<String, List<VariableDefinition>> variableDefinitions;
+    private Map<String, List<VariableUse>> variableUses;
 
-    public Scope(Node parent) {
-        this.parent = parent;
+    private Node node;
+
+    public Scope(Node node) {
+        this.node = node;
+
+        variableDeclarations = new HashMap<>();
+        variableDefinitions = new HashMap<>();
+        variableUses = new HashMap<>();
     }
 
-    public Node getParent() {
-        return parent;
+    public Scope(Node node, Scope scope) {
+        this.node = node;
+
+        variableDeclarations = new HashMap<>(scope.variableDeclarations);
+        variableDefinitions = new HashMap<>(scope.variableDefinitions);
+        variableUses = new HashMap<>(scope.variableUses);
     }
 
-    @Override
-    public int hashCode() {
-        return parent.hashCode();
+    public Node getNode() {
+        return node;
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o)
-            return true;
-
-        if (!(o instanceof Scope))
-            return false;
-
-        Scope other = (Scope) o;
-
-        return this.parent.equals(other.parent);
+    public List<VariableDeclaration> getDeclarationsOf(String variable) {
+        return variableDeclarations.getOrDefault(variable, new ArrayList<>());
     }
 
-    @Override
-    public String toString() {
-        return parent.getName();
+    public List<VariableDefinition> getDefinitionsOf(String variable) {
+        return variableDefinitions.getOrDefault(variable, new ArrayList<>());
+    }
+
+    public List<VariableUse> getUsesOf(String variable) {
+        return variableUses.getOrDefault(variable, new ArrayList<>());
+    }
+
+    public Set<String> getDeclaredVariables() {
+        return variableDeclarations.keySet();
+    }
+
+    public Optional<VariableDefinition> getLastDefinitionOf(String variable) {
+        List<VariableDefinition> definitions = getDefinitionsOf(variable);
+
+        if (definitions.isEmpty())
+            return Optional.empty();
+
+        return Optional.of(definitions.get(definitions.size() - 1));
     }
 }
