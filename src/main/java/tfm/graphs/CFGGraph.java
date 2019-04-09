@@ -1,5 +1,7 @@
 package tfm.graphs;
 
+import com.github.javaparser.ast.stmt.EmptyStmt;
+import com.github.javaparser.ast.stmt.Statement;
 import edg.graphlib.Arrow;
 import tfm.arcs.Arc;
 import tfm.arcs.cfg.ControlFlowArc;
@@ -13,12 +15,12 @@ public abstract class CFGGraph extends Graph<CFGNode> {
 
     public CFGGraph() {
         super();
-        setRootVertex(new CFGNode(NodeId.getVertexId(), getRootNodeData(), 0));
+        setRootVertex(new CFGNode(NodeId.getVertexId(), getRootNodeData(), new EmptyStmt()));
     }
 
     @Override
-    public CFGNode addNode(String instruction, int fileNumber) {
-        CFGNode vertex = new CFGNode(NodeId.getVertexId(), instruction, fileNumber);
+    public CFGNode addNode(String instruction, Statement statement) {
+        CFGNode vertex = new CFGNode(NodeId.getVertexId(), instruction, statement);
         this.addVertex(vertex);
 
         return vertex;

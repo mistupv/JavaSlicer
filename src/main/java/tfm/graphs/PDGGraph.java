@@ -1,5 +1,7 @@
 package tfm.graphs;
 
+import com.github.javaparser.ast.stmt.EmptyStmt;
+import com.github.javaparser.ast.stmt.Statement;
 import edg.graphlib.Vertex;
 import edg.graphlib.Visitor;
 import tfm.arcs.Arc;
@@ -13,24 +15,21 @@ import tfm.variables.actions.VariableDeclaration;
 import tfm.variables.actions.VariableUse;
 import tfm.variables.actions.VariableDefinition;
 
+import javax.swing.plaf.nimbus.State;
 import java.util.*;
 import java.util.stream.Collectors;
 
 public abstract class PDGGraph extends Graph<PDGNode> {
 
-    private VariableSet variableSet;
-
     public PDGGraph() {
-        setRootVertex(new PDGNode(NodeId.getVertexId(), getRootNodeData(), 0));
-
-        variableSet = new VariableSet();
+        setRootVertex(new PDGNode(NodeId.getVertexId(), getRootNodeData(), new EmptyStmt()));
     }
 
     protected abstract String getRootNodeData();
 
     @Override
-    public PDGNode addNode(String instruction, int fileNumber) {
-        PDGNode vertex = new PDGNode(NodeId.getVertexId(), instruction, fileNumber);
+    public PDGNode addNode(String instruction, Statement statement) {
+        PDGNode vertex = new PDGNode(NodeId.getVertexId(), instruction, statement);
         super.addVertex(vertex);
 
         return vertex;
@@ -51,26 +50,6 @@ public abstract class PDGGraph extends Graph<PDGNode> {
         DataDependencyArc dataDataDependencyArc = new DataDependencyArc(from, to, variable);
 
         this.addArc(dataDataDependencyArc);
-    }
-
-    public boolean containsVariable(String name) {
-        return variableSet.containsVariable(name);
-    }
-
-    public Variable addNewVariable(String name, Node declarationNode) {
-        return variableSet.addVariable(name, new VariableDeclaration(declarationNode));
-    }
-
-    public void addVariableDefinition(String variable, Node currentNode) {
-        variableSet.addDefinition(variable, new VariableDefinition(currentNode));
-    }
-
-    public void addVariableUse(String variable, Node currentNode) {
-        variableSet.addUse(variable, new VariableUse(currentNode));
-    }
-
-    public VariableSet getVariableSet() {
-        return variableSet;
     }
 
     @Override

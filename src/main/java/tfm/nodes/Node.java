@@ -1,5 +1,6 @@
 package tfm.nodes;
 
+import com.github.javaparser.ast.stmt.Statement;
 import edg.graphlib.Vertex;
 import tfm.arcs.data.ArcData;
 import tfm.graphs.Graph;
@@ -10,16 +11,16 @@ import java.util.stream.Collectors;
 
 public class Node extends Vertex<String, ArcData> {
 
-    private int fileLineNumber;
+    private Statement statement;
 
 //    public Node(Graph.NodeId id, String instruction) {
 //        this(id, instruction, null);
 //    }
 
-    public Node(Graph.NodeId id, String instruction, Integer fileLineNumber) {
-        super(id.toString(), instruction);
+    public Node(Graph.NodeId id, String representation, Statement statement) {
+        super(id.toString(), representation);
 
-        this.fileLineNumber = fileLineNumber;
+        this.statement = statement;
     }
 
     public int getId() {
@@ -34,12 +35,12 @@ public class Node extends Vertex<String, ArcData> {
                 getOutgoingArrows().stream().map(arc -> arc.getTo().getName()).collect(Collectors.toList()));
     }
 
-    public int getFileLineNumber() {
-        return fileLineNumber;
+    public Statement getStatement() {
+        return statement;
     }
 
-    public void setFileLineNumber(Integer fileLineNumber) {
-        this.fileLineNumber = fileLineNumber;
+    public Optional<Integer> getFileLineNumber() {
+        return statement.getBegin().isPresent() ? Optional.of(statement.getBegin().get().line) : Optional.empty();
     }
 
     @Override
@@ -55,7 +56,7 @@ public class Node extends Vertex<String, ArcData> {
         return Objects.equals(getData(), other.getData())
                 && Objects.equals(getIncomingArrows(), other.getIncomingArrows())
                 && Objects.equals(getOutgoingArrows(), other.getOutgoingArrows())
-                && Objects.equals(fileLineNumber, other.fileLineNumber);
+                && Objects.equals(statement, other.statement);
                 // && Objects.equals(getName(), other.getName()) ID IS ALWAYS UNIQUE, SO IT WILL NEVER BE THE SAME
     }
 

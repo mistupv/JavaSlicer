@@ -29,7 +29,7 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
     @Override
     public void visit(ExpressionStmt expressionStmt, Void arg) {
-        CFGNode nextNode = addNodeAndArcs(expressionStmt.toString(), expressionStmt.getBegin().get().line);
+        CFGNode nextNode = addNodeAndArcs(expressionStmt.toString(), expressionStmt);
 
         lastParentNodes.add(nextNode);
 
@@ -53,7 +53,7 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
     public void visit(IfStmt ifStmt, Void arg) {
         CFGNode ifCondition = addNodeAndArcs(
                 String.format("if (%s)", ifStmt.getCondition().toString()),
-                ifStmt.getBegin().get().line
+                ifStmt
         );
 
         lastParentNodes.add(ifCondition);
@@ -79,7 +79,7 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
     public void visit(WhileStmt whileStmt, Void arg) {
         CFGNode whileCondition = addNodeAndArcs(
                 String.format("while (%s)", whileStmt.getCondition().toString()),
-                whileStmt.getBegin().get().line
+                whileStmt
         );
 
         lastParentNodes.add(whileCondition);
@@ -198,11 +198,11 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
     public void visit(MethodDeclaration methodDeclaration, Void arg) {
         super.visit(methodDeclaration, arg);
 
-        addNodeAndArcs("Stop", methodDeclaration.getBegin().get().line);
+        addNodeAndArcs("Stop", new EmptyStmt());
     }
 
-    private CFGNode addNodeAndArcs(String nodeData, int fileNumber) {
-        CFGNode node = graph.addNode(nodeData, fileNumber);
+    private CFGNode addNodeAndArcs(String nodeData, Statement statement) {
+        CFGNode node = graph.addNode(nodeData, statement);
 
         CFGNode parent = lastParentNodes.poll(); // ALWAYS exists a parent
         graph.addControlFlowEdge(parent, node);

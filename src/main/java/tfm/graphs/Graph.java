@@ -1,5 +1,6 @@
 package tfm.graphs;
 
+import com.github.javaparser.ast.stmt.Statement;
 import tfm.arcs.Arc;
 import tfm.arcs.data.ArcData;
 import tfm.nodes.Node;
@@ -44,7 +45,7 @@ public abstract class Graph<NodeType extends Node> extends edg.graphlib.Graph<St
         return (NodeType) super.getRootVertex();
     }
 
-    public abstract NodeType addNode(String instruction, int fileNumber);
+    public abstract NodeType addNode(String instruction, Statement statement);
 
     public String toString() {
         return getVerticies().stream()

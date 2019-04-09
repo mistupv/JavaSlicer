@@ -6,48 +6,34 @@ import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.graphs.PDGGraph;
 import tfm.nodes.PDGNode;
 import tfm.variables.VariableSet;
+import tfm.variables.VariableExtractor;
 import tfm.variables.actions.VariableDeclaration;
 import tfm.variables.actions.VariableDefinition;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class PDGVisitor extends VoidVisitorAdapter<PDGNode> {
 
     private VariableSet variableSet;
     private PDGGraph graph;
 
-    // For loops: store variables used in conditions to look for their definitions in body
-    private List<String> variablesUsedInLoopCondition;
-    private List<String> variablesUsedInLoopBody;
-
-    private boolean inLoop;
-
     public PDGVisitor(PDGGraph graph) {
         this.graph = graph;
         this.variableSet = new VariableSet();
-        this.variablesUsedInLoopCondition = new ArrayList<>();
-        this.variablesUsedInLoopBody = new ArrayList<>();
     }
 
     @Override
     public void visit(ExpressionStmt n, PDGNode parent) {
         Expression expression = n.getExpression();
 
-        PDGNode expressionNode = graph.addNode(expression.toString(), n.getBegin().get().line);
+        PDGNode expressionNode = graph.addNode(expression.toString(), n);
 
         graph.addControlDependencyArc(parent, expressionNode);
 
-        new VariableVisitor()
-                .setOnVariableDeclaration(variable ->
-                        variableSet.addVariable(variable, new VariableDeclaration(expressionNode)))
-                .setOnVariableDefinition(variable -> {
-                        variableSet.addDefinition(variable, new VariableDefinition(expressionNode));
-                        if (variablesUsedInLoopCondition.contains(variable)) {
-                            graph.addDataDependencyArc(expressionNode, parent, variable);
-                        }
-                })
-                .setOnVariableUse(variable -> {
+        new VariableExtractor()
+                .setOnVariableDeclarationListener(variable ->
+                        variableSet.addVariable(variable, new VariableDeclaration(expressionNode))
+                ).setOnVariableDefinitionListener(variable ->
+                        variableSet.addDefinition(variable, new VariableDefinition(expressionNode))
+                ).setOnVariableUseListener(variable -> {
                     variableSet.getLastDefinitionOf(variable, expressionNode)
                         .ifPresent(variableDefinition -> graph.addDataDependencyArc(
                                 (PDGNode) variableDefinition.getNode(),
@@ -63,13 +49,13 @@ public class PDGVisitor extends VoidVisitorAdapter<PDGNode> {
     public void visit(IfStmt ifStmt, PDGNode parent) {
         PDGNode ifNode = graph.addNode(
                 String.format("if (%s)", ifStmt.getCondition().toString()),
-                ifStmt.getBegin().get().line
+                ifStmt
         );
 
         graph.addControlDependencyArc(parent, ifNode);
 
-        new VariableVisitor()
-                .setOnVariableUse(variable -> {
+        new VariableExtractor()
+                .setOnVariableUseListener(variable -> {
                     variableSet.getLastDefinitionOf(variable, ifNode)
                             .ifPresent(variableDefinition -> graph.addDataDependencyArc(
                                     (PDGNode) variableDefinition.getNode(),
@@ -91,17 +77,13 @@ public class PDGVisitor extends VoidVisitorAdapter<PDGNode> {
 
         PDGNode whileNode = graph.addNode(
                 String.format("while (%s)", whileStmt.getCondition().toString()),
-                whileStmt.getBegin().get().line
+                whileStmt
         );
 
         graph.addControlDependencyArc(parent, whileNode);
 
-        variablesUsedInLoopCondition.clear();
-//        variablesUsedInLoopBody.clear();
-
-        new VariableVisitor()
-                .setOnVariableUse(variable -> {
-                    variablesUsedInLoopCondition.add(variable);
+        new VariableExtractor()
+                .setOnVariableUseListener(variable -> {
                     variableSet.getLastDefinitionOf(variable, whileNode)
                             .ifPresent(variableDefinition -> graph.addDataDependencyArc(
                                     (PDGNode) variableDefinition.getNode(),
@@ -111,25 +93,8 @@ public class PDGVisitor extends VoidVisitorAdapter<PDGNode> {
                 })
                 .visit(whileStmt.getCondition());
 
-
-//        inLoop = true;
-
         whileStmt.getBody().accept(this, whileNode);
 
-        new VariableVisitor()
-                .setOnVariableUse(variable ->
-                        variableSet.getLastDefinitionOf(variable)
-                            .ifPresent(variableDefinition -> graph.addDataDependencyArc(
-                                    (PDGNode) variableDefinition.getNode(),
-                                    whileNode
-                            ))
-                )
-                .visit(whileStmt.getBody());
-
-
-//        inLoop = false;
-        variablesUsedInLoopCondition.clear();
-//        variablesUsedInLoopBody.clear();
     }
 
 //    @Override

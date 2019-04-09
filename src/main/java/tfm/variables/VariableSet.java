@@ -8,6 +8,8 @@ import tfm.variables.actions.VariableUse;
 import tfm.variables.actions.VariableDefinition;
 
 import java.util.*;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 public class VariableSet {
 
@@ -33,32 +35,31 @@ public class VariableSet {
         return findVariableByName(name).isPresent();
     }
 
-    public  Optional<VariableDefinition> getLastDefinitionOf(@NonNull String variableName) {
+    public List<VariableDefinition> getDefinitions(@NonNull String variableName) {
         Optional<Variable> variable = findVariableByName(variableName);
 
-        if (!variable.isPresent())
-            return Optional.empty();
+        return variable.isPresent() ? variable.get().getDefinitions() : Collections.emptyList();
+    }
 
-        List<VariableDefinition> writes = variable.get().getDefinitions();
+    public List<VariableDefinition> getLastDefinitionsOf(@NonNull String variableName, int number) {
+        List<VariableDefinition> definitions = getDefinitions(variableName);
 
-        if (writes.isEmpty())
-            return Optional.empty();
+        if (definitions.size() <= number)
+            return definitions;
 
-        return Optional.of(writes.get(writes.size() - 1));
+        return definitions.stream().skip(Math.max(0, definitions.size() - number)).collect(Collectors.toList());
+    }
+
+    public Optional<VariableDefinition> getLastDefinitionOf(@NonNull String variableName) {
+        List<VariableDefinition> definitions = getLastDefinitionsOf(variableName, 1);
+
+        return definitions.size() == 1 ? Optional.of(definitions.get(0)) : Optional.empty();
     }
 
     public Optional<VariableDefinition> getLastDefinitionOf(@NonNull String variableName, Node fromNode) {
-        Optional<Variable> variable = findVariableByName(variableName);
+        List<VariableDefinition> definitions = getLastDefinitionsOf(variableName, 1);
 
-        if (!variable.isPresent())
-            return Optional.empty();
-
-        List<VariableDefinition> writes = variable.get().getDefinitions();
-
-        if (writes.isEmpty())
-            return Optional.empty();
-
-        return writes.stream()
+        return definitions.stream()
                 .filter(variableDefinition -> variableDefinition.getNode().getId() < fromNode.getId())
                 .max(Comparator.comparingInt(vd -> vd.getNode().getId()));
     }

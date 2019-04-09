@@ -1,5 +1,6 @@
 package tfm.nodes;
 
+import com.github.javaparser.ast.stmt.Statement;
 import tfm.arcs.Arc;
 import tfm.graphs.Graph;
 
@@ -8,8 +9,8 @@ import java.util.List;
 
 public class PDGNode extends Node {
 
-    public PDGNode(Graph.NodeId id, String data, int fileNumber) {
-        super(id, data, fileNumber);
+    public PDGNode(Graph.NodeId id, String data, Statement statement) {
+        super(id, data, statement);
     }
 
     public String toString() {
