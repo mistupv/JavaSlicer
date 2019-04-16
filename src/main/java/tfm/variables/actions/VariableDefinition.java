@@ -2,10 +2,10 @@ package tfm.variables.actions;
 
 import tfm.nodes.Node;
 
-public class VariableDefinition extends VariableAction {
+public class VariableDefinition<N extends Node> extends VariableAction<N> {
 
-    public VariableDefinition(Node node) {
-        super(node);
+    public VariableDefinition(String variable, N node) {
+        super(variable, node);
     }
 
     @Override

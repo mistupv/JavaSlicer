@@ -19,34 +19,34 @@ abstract class VariableVisitor extends VoidVisitorAdapter<VariableAction.Actions
 
     @Override
     public void visit(ArrayAccessExpr n, VariableAction.Actions action) {
-        Logger.log("On ArrayAccessExpr: [" + n + "]");
+        // Logger.log("On ArrayAccessExpr: [" + n + "]");
         n.getName().accept(this, action.or(VariableAction.Actions.USE));
         n.getIndex().accept(this, action.or(VariableAction.Actions.USE));
     }
 
     @Override
     public void visit(AssignExpr n, VariableAction.Actions action) {
-        Logger.log("On AssignExpr: [" + n + "]");
+        // Logger.log("On AssignExpr: [" + n + "]");
         n.getTarget().accept(this, action.or(VariableAction.Actions.DEFINITION));
         n.getValue().accept(this, action.or(VariableAction.Actions.USE));
     }
 
     @Override
     public void visit(BinaryExpr n, VariableAction.Actions action) {
-        Logger.log("On BinaryExpr: [" + n + "]");
+        // Logger.log("On BinaryExpr: [" + n + "]");
         n.getLeft().accept(this, action.or(VariableAction.Actions.USE));
         n.getRight().accept(this, action.or(VariableAction.Actions.USE));
     }
 
     @Override
     public void visit(CastExpr n, VariableAction.Actions action) {
-        Logger.log("On CastExpr: [" + n + "]");
+        // Logger.log("On CastExpr: [" + n + "]");
         n.getExpression().accept(this, action.or(VariableAction.Actions.USE));
     }
 
     @Override
     public void visit(ConditionalExpr n, VariableAction.Actions action) {
-        Logger.log("On ConditionalExpr: [" + n + "]");
+        // Logger.log("On ConditionalExpr: [" + n + "]");
         n.getCondition().accept(this, action.or(VariableAction.Actions.USE));
         n.getThenExpr().accept(this, action.or(VariableAction.Actions.USE));
         n.getElseExpr().accept(this, action.or(VariableAction.Actions.USE));
@@ -54,13 +54,13 @@ abstract class VariableVisitor extends VoidVisitorAdapter<VariableAction.Actions
 
     @Override
     public void visit(EnclosedExpr n, VariableAction.Actions action) {
-        Logger.log("On EnclosedExpr: [" + n + "]");
+        // Logger.log("On EnclosedExpr: [" + n + "]");
         n.getInner().accept(this, action.or(VariableAction.Actions.USE));
     }
 
     @Override
     public void visit(FieldAccessExpr n, VariableAction.Actions action) {
-        Logger.log("On FieldAccessExpr: [" + n + "]");
+        // Logger.log("On FieldAccessExpr: [" + n + "]");
         n.getScope().accept(this, action.or(VariableAction.Actions.USE));
     }
 
@@ -72,14 +72,14 @@ abstract class VariableVisitor extends VoidVisitorAdapter<VariableAction.Actions
     // ???
     @Override
     public void visit(MethodCallExpr n, VariableAction.Actions action) {
-        Logger.log("On MethodCallExpr: [" + n + "]");
+        // Logger.log("On MethodCallExpr: [" + n + "]");
         n.getScope().ifPresent(expression -> expression.accept(this, action.or(VariableAction.Actions.USE)));
         n.getArguments().forEach(expression -> expression.accept(this, action.or(VariableAction.Actions.USE)));
     }
 
     @Override
     public void visit(NameExpr n, VariableAction.Actions action) {
-        Logger.log("On NameExpr. Found variable " + n.getNameAsString() + " and action " + action);
+        // Logger.log("On NameExpr. Found variable " + n.getNameAsString() + " and action " + action);
 
         String variable = n.getNameAsString();
 
@@ -109,14 +109,14 @@ abstract class VariableVisitor extends VoidVisitorAdapter<VariableAction.Actions
 
     @Override
     public void visit(UnaryExpr n, VariableAction.Actions action) {
-        Logger.log("On UnaryExpr: [" + n + "]");
+        // Logger.log("On UnaryExpr: [" + n + "]");
         n.getExpression().accept(this, action.or(VariableAction.Actions.USE));
         n.getExpression().accept(this, action.or(VariableAction.Actions.DEFINITION));
     }
 
     @Override
     public void visit(VariableDeclarationExpr n, VariableAction.Actions action) {
-        Logger.log("On VariableDeclarationExpr: [" + n + "]");
+        // Logger.log("On VariableDeclarationExpr: [" + n + "]");
         n.getVariables()
                 .forEach(variableDeclarator -> {
                     variableDeclarator.getNameAsExpression().accept(this, action.or(VariableAction.Actions.DECLARATION)); // Declaration of the variable
@@ -130,7 +130,7 @@ abstract class VariableVisitor extends VoidVisitorAdapter<VariableAction.Actions
 
     @Override
     public void visit(SwitchExpr n, VariableAction.Actions action) {
-        Logger.log("On SwitchExpr: [" + n + "]");
+        // Logger.log("On SwitchExpr: [" + n + "]");
         n.getSelector().accept(this, action.or(VariableAction.Actions.USE));
     }
 

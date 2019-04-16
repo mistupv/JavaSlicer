@@ -7,6 +7,7 @@ import tfm.graphs.CFGGraph;
 import tfm.graphs.Graph;
 import tfm.graphs.PDGGraph;
 import tfm.nodes.PDGNode;
+import tfm.scopes.ScopeHolder;
 import tfm.utils.Logger;
 import tfm.visitors.CFGVisitor;
 import tfm.visitors.PDGVisitor;
@@ -68,9 +69,10 @@ public class Main {
             }
         };
 
-        VoidVisitor<PDGNode> voidVisitor = new PDGVisitor(pdgGraph);
+        ScopeHolder<PDGNode> scopeHolder = new ScopeHolder<>(pdgGraph.getRootNode());
+        PDGVisitor visitor = new PDGVisitor(pdgGraph, scopeHolder);
 
-        cu.accept(voidVisitor, pdgGraph.getRootNode());
+        cu.accept(visitor, scopeHolder);
 
         return pdgGraph;
     }

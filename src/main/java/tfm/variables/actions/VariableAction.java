@@ -2,7 +2,7 @@ package tfm.variables.actions;
 
 import tfm.nodes.Node;
 
-public abstract class VariableAction {
+public abstract class VariableAction<N extends Node> {
 
     public enum Actions {
         DECLARATION,
@@ -23,20 +23,22 @@ public abstract class VariableAction {
             return this == DECLARATION ? "declaration" :
                     (this == USE ? "use" : "definition");
         }
+
     }
+    private N node;
+    private String variable;
 
-    private Node node;
-
-    protected VariableAction(Node node) {
+    protected VariableAction(String variable, N node) {
+        this.variable = variable;
         this.node = node;
     }
 
-    public Node getNode() {
+    public String getVariable() {
+        return variable;
+    }
+
+    public N getNode() {
         return node;
-    }
-
-    public void setNode(Node node) {
-        this.node = node;
     }
 
     public abstract boolean isDeclaration();

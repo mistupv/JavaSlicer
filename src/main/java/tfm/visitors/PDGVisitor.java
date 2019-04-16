@@ -1,78 +1,99 @@
 package tfm.visitors;
 
 import com.github.javaparser.ast.expr.Expression;
-import com.github.javaparser.ast.stmt.*;
+import com.github.javaparser.ast.stmt.ExpressionStmt;
+import com.github.javaparser.ast.stmt.ForEachStmt;
+import com.github.javaparser.ast.stmt.IfStmt;
+import com.github.javaparser.ast.stmt.WhileStmt;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.graphs.PDGGraph;
+import tfm.nodes.Node;
 import tfm.nodes.PDGNode;
-import tfm.variables.VariableSet;
+import tfm.scopes.BranchedScope;
+import tfm.scopes.ScopeHolder;
+import tfm.scopes.VariableScope;
 import tfm.variables.VariableExtractor;
-import tfm.variables.actions.VariableDeclaration;
-import tfm.variables.actions.VariableDefinition;
 
-public class PDGVisitor extends VoidVisitorAdapter<PDGNode> {
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
-    private VariableSet variableSet;
+public class PDGVisitor extends VoidVisitorAdapter<ScopeHolder<PDGNode>> {
+
+//    private VariableSet variableSet;
+
     private PDGGraph graph;
+    private ScopeHolder<PDGNode> globalScope;
 
-    public PDGVisitor(PDGGraph graph) {
+    public PDGVisitor(PDGGraph graph, ScopeHolder<PDGNode> scopeHolder) {
         this.graph = graph;
-        this.variableSet = new VariableSet();
+        this.globalScope = scopeHolder;
     }
 
     @Override
-    public void visit(ExpressionStmt n, PDGNode parent) {
+    public void visit(ExpressionStmt n, ScopeHolder<PDGNode> scope) {
         Expression expression = n.getExpression();
 
         PDGNode expressionNode = graph.addNode(expression.toString(), n);
 
-        graph.addControlDependencyArc(parent, expressionNode);
+        graph.addControlDependencyArc(scope.getRoot(), expressionNode);
+
+        VariableScope<PDGNode> expressionScope = new VariableScope<>(expressionNode);
 
         new VariableExtractor()
                 .setOnVariableDeclarationListener(variable ->
-                        variableSet.addVariable(variable, new VariableDeclaration(expressionNode))
+                        expressionScope.addVariableDeclaration(variable, expressionNode)
                 ).setOnVariableDefinitionListener(variable ->
-                        variableSet.addDefinition(variable, new VariableDefinition(expressionNode))
+                        expressionScope.addVariableDefinition(variable, expressionNode)
                 ).setOnVariableUseListener(variable -> {
-                    variableSet.getLastDefinitionOf(variable, expressionNode)
-                        .ifPresent(variableDefinition -> graph.addDataDependencyArc(
-                                (PDGNode) variableDefinition.getNode(),
-                                expressionNode,
-                                variable
-                        ));
-//                    variableSet.addUse(variable, new VariableUse(expressionNode));
+                        expressionScope.addVariableUse(variable, expressionNode);
+                        globalScope.getLastDefinitions(variable)
+                            .forEach(variableDefinition -> graph.addDataDependencyArc(
+                                    variableDefinition.getNode(),
+                                    expressionNode,
+                                    variable
+                            ));
                 })
                 .visit(expression);
+
+        scope.addSubscope(expressionScope);
     }
 
     @Override
-    public void visit(IfStmt ifStmt, PDGNode parent) {
+    public void visit(IfStmt ifStmt, ScopeHolder<PDGNode> scope) {
         PDGNode ifNode = graph.addNode(
                 String.format("if (%s)", ifStmt.getCondition().toString()),
                 ifStmt
         );
 
-        graph.addControlDependencyArc(parent, ifNode);
+        graph.addControlDependencyArc(scope.getRoot(), ifNode);
+
+        ScopeHolder<PDGNode> ifScope = new BranchedScope<>(ifNode);
 
         new VariableExtractor()
                 .setOnVariableUseListener(variable -> {
-                    variableSet.getLastDefinitionOf(variable, ifNode)
-                            .ifPresent(variableDefinition -> graph.addDataDependencyArc(
-                                    (PDGNode) variableDefinition.getNode(),
-                                    ifNode,
-                                    variable
-                            ));
-//                    variableSet.addUse(variable, new VariableUse(expressionNode));
+                    ifScope.addVariableUse(variable, ifNode);
+                    globalScope.getLastDefinitions(variable)
+                            .forEach(variableDefinition ->
+                                    graph.addDataDependencyArc(
+                                        variableDefinition.getNode(),
+                                        ifNode,
+                                        variable
+                                    )
+                            );
                 })
                 .visit(ifStmt.getCondition());
 
-        // Default adapter visits else before then, we have to visit then branch first
-        ifStmt.getThenStmt().accept(this, ifNode);
-        ifStmt.getElseStmt().ifPresent(statement -> statement.accept(this, ifNode));
+
+        ifStmt.getThenStmt().accept(this, ifScope);
+
+        ifStmt.getElseStmt().ifPresent(statement -> statement.accept(this, ifScope));
+
+        scope.addSubscope(ifScope);
     }
 
     @Override
-    public void visit(WhileStmt whileStmt, PDGNode parent) {
+    public void visit(WhileStmt whileStmt, ScopeHolder<PDGNode> scope) {
         // assert whileStmt.getBegin().isPresent();
 
         PDGNode whileNode = graph.addNode(
@@ -80,25 +101,45 @@ public class PDGVisitor extends VoidVisitorAdapter<PDGNode> {
                 whileStmt
         );
 
-        graph.addControlDependencyArc(parent, whileNode);
+        graph.addControlDependencyArc(scope.getRoot(), whileNode);
+
+        ScopeHolder<PDGNode> whileScope = new ScopeHolder<>(whileNode);
 
         new VariableExtractor()
                 .setOnVariableUseListener(variable -> {
-                    variableSet.getLastDefinitionOf(variable, whileNode)
-                            .ifPresent(variableDefinition -> graph.addDataDependencyArc(
-                                    (PDGNode) variableDefinition.getNode(),
+                    whileScope.addVariableUse(variable, whileNode);
+                    globalScope.getLastDefinitions(variable)
+                            .forEach(variableDefinition -> graph.addDataDependencyArc(
+                                    variableDefinition.getNode(),
                                     whileNode,
                                     variable
                             ));
                 })
                 .visit(whileStmt.getCondition());
 
-        whileStmt.getBody().accept(this, whileNode);
 
+        whileStmt.getBody().accept(this, whileScope);
+
+        Set<String> used = whileScope.getUsedVariables();
+
+        whileScope.getUsedVariables()
+                .forEach(variable ->
+                        whileScope.getVariableUses(variable)
+                            .forEach(variableUse ->
+                                whileScope.getLastDefinitionsBeforeNode(variable, variableUse.getNode())
+                                    .forEach(definition -> graph.addDataDependencyArc(
+                                            definition.getNode(),
+                                            variableUse.getNode(),
+                                            variable
+                                    ))
+                            )
+                );
+
+        scope.addSubscope(whileScope);
     }
 
 //    @Override
-//    public void visit(ForStmt forStmt, PDGNode parent) {
+//    public void visit(ForStmt forStmt, PDGNode node) {
 //        // Add initialization nodes
 //        forStmt.getInitialization().stream()
 //                .map(expression -> graph.addNode(expression.toString()))
@@ -120,7 +161,7 @@ public class PDGVisitor extends VoidVisitorAdapter<PDGNode> {
 //    }
 
     @Override
-    public void visit(ForEachStmt forEachStmt, PDGNode parent) {
+    public void visit(ForEachStmt forEachStmt, ScopeHolder<PDGNode> scope) {
 //        // Initializer
 //        VariableDeclarationExpr iterator = new VariableDeclarationExpr(
 //                new VariableDeclarator(
@@ -188,7 +229,7 @@ public class PDGVisitor extends VoidVisitorAdapter<PDGNode> {
     }
 
 //    @Override
-//    public void visit(SwitchStmt switchStmt, PDGNode parent) {
+//    public void visit(SwitchStmt switchStmt, PDGNode node) {
 //        PDGNode switchNode = graph.addNode(switchStmt.toString());
 //
 //        graph.addControlDependencyArc(parent, switchNode);
