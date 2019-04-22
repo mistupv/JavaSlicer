@@ -8,6 +8,7 @@ import tfm.variables.actions.VariableUse;
 import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -136,6 +137,26 @@ public class ScopeHolder<N extends Node> extends Scope<N> {
         return subscopes.stream()
                 .flatMap(scope -> scope.getUsedVariables().stream())
                 .collect(Collectors.toSet());
+    }
+
+    @Override
+    public List<VariableUse<N>> getVariableUsesBeforeNode(String variable, N node) {
+        return subscopes.stream()
+                .filter(_scope -> _scope.isVariableUsed(variable) && _scope.root.getId() <= node.getId())
+                .flatMap(scope -> scope.getVariableUsesBeforeNode(variable, node).stream())
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<VariableDefinition<N>> getFirstDefinitions(String variable) {
+        Optional<Scope<N>> scope = subscopes.stream()
+                .filter(_scope -> _scope.isVariableDefined(variable))
+                .reduce((first, second) -> second);
+
+        if (!scope.isPresent())
+            return new ArrayList<>(0);
+
+        return scope.get().getFirstDefinitions(variable);
     }
 
     @Override

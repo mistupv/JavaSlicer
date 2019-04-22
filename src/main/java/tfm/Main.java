@@ -3,6 +3,9 @@ package tfm;
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.visitor.VoidVisitor;
+import edg.graphlib.Vertex;
+import guru.nidi.graphviz.engine.Format;
+import guru.nidi.graphviz.engine.Graphviz;
 import tfm.graphs.CFGGraph;
 import tfm.graphs.Graph;
 import tfm.graphs.PDGGraph;
@@ -14,6 +17,7 @@ import tfm.visitors.PDGVisitor;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 
 import static guru.nidi.graphviz.model.Factory.graph;
 import static guru.nidi.graphviz.model.Factory.node;
@@ -22,7 +26,7 @@ public class Main {
 
     private static long t0;
 
-    public static void main(String[] args) throws FileNotFoundException {
+    public static void main(String[] args) throws IOException {
         File file = new File("/home/jacosro/IdeaProjects/TFM/src/main/java/tfm/programs/Example1.java");
         CompilationUnit compilationUnit = JavaParser.parse(file);
 
@@ -43,8 +47,13 @@ public class Main {
                 "*         GRAPHVIZ         *\n" +
                 "****************************"
         );
+//        Graphviz.fromString(graph.toGraphvizRepresentation()).render(Format.PNG).toFile(new File("graph"));
         Logger.log(graph.toGraphvizRepresentation());
         Logger.log();
+//        for (Vertex<?, ?> vertex : graph.getVerticies()) {
+//            PDGNode node = (PDGNode) vertex;
+//            Logger.format("node %s. Level %s\n", node.getId(), node.getLevel());
+//        }
         Logger.format("Done in %.2f ms", (tt - t0) / 10e6);
     }
 

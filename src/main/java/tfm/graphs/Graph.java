@@ -6,6 +6,7 @@ import tfm.arcs.data.ArcData;
 import tfm.nodes.Node;
 
 import java.util.Comparator;
+import java.util.List;
 import java.util.stream.Collectors;
 
 /**

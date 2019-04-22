@@ -7,14 +7,16 @@ import com.github.javaparser.ast.stmt.IfStmt;
 import com.github.javaparser.ast.stmt.WhileStmt;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.graphs.PDGGraph;
-import tfm.nodes.Node;
 import tfm.nodes.PDGNode;
-import tfm.scopes.BranchedScope;
+import tfm.scopes.IfElseScope;
+import tfm.scopes.Scope;
 import tfm.scopes.ScopeHolder;
 import tfm.scopes.VariableScope;
 import tfm.variables.VariableExtractor;
+import tfm.variables.actions.VariableDefinition;
+import tfm.variables.actions.VariableUse;
 
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -22,8 +24,8 @@ public class PDGVisitor extends VoidVisitorAdapter<ScopeHolder<PDGNode>> {
 
 //    private VariableSet variableSet;
 
-    private PDGGraph graph;
-    private ScopeHolder<PDGNode> globalScope;
+    protected PDGGraph graph;
+    protected ScopeHolder<PDGNode> globalScope;
 
     public PDGVisitor(PDGGraph graph, ScopeHolder<PDGNode> scopeHolder) {
         this.graph = graph;
@@ -47,7 +49,10 @@ public class PDGVisitor extends VoidVisitorAdapter<ScopeHolder<PDGNode>> {
                         expressionScope.addVariableDefinition(variable, expressionNode)
                 ).setOnVariableUseListener(variable -> {
                         expressionScope.addVariableUse(variable, expressionNode);
-                        globalScope.getLastDefinitions(variable)
+
+                        Scope<PDGNode> searchScope = scope.isVariableDefined(variable) ? scope : globalScope;
+
+                        searchScope.getLastDefinitions(variable)
                             .forEach(variableDefinition -> graph.addDataDependencyArc(
                                     variableDefinition.getNode(),
                                     expressionNode,
@@ -68,12 +73,15 @@ public class PDGVisitor extends VoidVisitorAdapter<ScopeHolder<PDGNode>> {
 
         graph.addControlDependencyArc(scope.getRoot(), ifNode);
 
-        ScopeHolder<PDGNode> ifScope = new BranchedScope<>(ifNode);
+        ScopeHolder<PDGNode> ifScope = ifStmt.hasElseBranch() ? new IfElseScope<>(ifNode) : new ScopeHolder<>(ifNode);
 
         new VariableExtractor()
                 .setOnVariableUseListener(variable -> {
                     ifScope.addVariableUse(variable, ifNode);
-                    globalScope.getLastDefinitions(variable)
+
+                    Scope<PDGNode> searchScope = scope.isVariableDefined(variable) ? scope : globalScope;
+
+                    searchScope.getLastDefinitions(variable)
                             .forEach(variableDefinition ->
                                     graph.addDataDependencyArc(
                                         variableDefinition.getNode(),
@@ -84,10 +92,15 @@ public class PDGVisitor extends VoidVisitorAdapter<ScopeHolder<PDGNode>> {
                 })
                 .visit(ifStmt.getCondition());
 
+        if (!ifStmt.hasElseBranch()) {
+            ifStmt.getThenStmt().accept(this, ifScope);
+        } else {
+            @SuppressWarnings("unchecked")
+            IfElseScope<PDGNode> ifElseScope = (IfElseScope<PDGNode>) ifScope;
 
-        ifStmt.getThenStmt().accept(this, ifScope);
-
-        ifStmt.getElseStmt().ifPresent(statement -> statement.accept(this, ifScope));
+            ifStmt.getThenStmt().accept(this, ifElseScope.getThenScope());
+            ifStmt.getElseStmt().get().accept(this, ifElseScope.getElseScope());
+        }
 
         scope.addSubscope(ifScope);
     }
@@ -108,7 +121,10 @@ public class PDGVisitor extends VoidVisitorAdapter<ScopeHolder<PDGNode>> {
         new VariableExtractor()
                 .setOnVariableUseListener(variable -> {
                     whileScope.addVariableUse(variable, whileNode);
-                    globalScope.getLastDefinitions(variable)
+
+                    Scope<PDGNode> searchScope = scope.isVariableDefined(variable) ? scope : globalScope;
+
+                    searchScope.getLastDefinitions(variable)
                             .forEach(variableDefinition -> graph.addDataDependencyArc(
                                     variableDefinition.getNode(),
                                     whileNode,
@@ -117,23 +133,30 @@ public class PDGVisitor extends VoidVisitorAdapter<ScopeHolder<PDGNode>> {
                 })
                 .visit(whileStmt.getCondition());
 
-
         whileStmt.getBody().accept(this, whileScope);
 
-        Set<String> used = whileScope.getUsedVariables();
+        whileScope.getDefinedVariables()
+                .forEach(variable -> {
+                    List<VariableDefinition<PDGNode>> firstDef = whileScope.getFirstDefinitions(variable);
+                    List<VariableDefinition<PDGNode>> lastDef = whileScope.getLastDefinitions(variable);
 
-        whileScope.getUsedVariables()
-                .forEach(variable ->
-                        whileScope.getVariableUses(variable)
-                            .forEach(variableUse ->
-                                whileScope.getLastDefinitionsBeforeNode(variable, variableUse.getNode())
-                                    .forEach(definition -> graph.addDataDependencyArc(
-                                            definition.getNode(),
-                                            variableUse.getNode(),
-                                            variable
-                                    ))
-                            )
-                );
+                    Set<VariableUse<PDGNode>> usesFromLastDef = new HashSet<>();
+
+                    firstDef.forEach(variableDefinition -> {
+                            whileScope.getVariableUsesBeforeNode(variable, variableDefinition.getNode())
+                                    .forEach(use -> {
+                                        if (!usesFromLastDef.contains(use)) {
+                                            lastDef.forEach(def -> graph.addDataDependencyArc(
+                                                    def.getNode(),
+                                                    use.getNode(),
+                                                    variable)
+                                            );
+
+                                            usesFromLastDef.add(use);
+                                        }
+                                    });
+                    });
+        });
 
         scope.addSubscope(whileScope);
     }

@@ -36,6 +36,10 @@ public abstract class Scope<N extends Node> {
     public abstract Set<String> getDefinedVariables();
     public abstract Set<String> getUsedVariables();
 
+
+    public abstract List<VariableUse<N>> getVariableUsesBeforeNode(String variable, N node);
+
+    public abstract List<VariableDefinition<N>> getFirstDefinitions(String variable);
     public abstract List<VariableDefinition<N>> getLastDefinitions(String variable);
     public abstract List<VariableDefinition<N>> getLastDefinitionsBeforeNode(String variable, N node);
 }

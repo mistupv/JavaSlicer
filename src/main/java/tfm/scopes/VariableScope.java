@@ -69,6 +69,30 @@ public class VariableScope<N extends Node> extends Scope<N> {
     }
 
     @Override
+    public List<VariableUse<N>> getVariableUsesBeforeNode(String variable, N node) {
+        List<VariableUse<N>> res = getVariableUses(variable);
+
+        if (res.isEmpty())
+            return res;
+
+        return res.stream()
+                .filter(variableUse -> variableUse.getNode().getId() <= node.getId())
+                .max(Comparator.comparingInt(variableUse -> variableUse.getNode().getId()))
+                .map(variableUse -> new ArrayList<>(Collections.singletonList(variableUse)))
+                .orElseGet(ArrayList::new);
+    }
+
+    @Override
+    public List<VariableDefinition<N>> getFirstDefinitions(String variable) {
+        List<VariableDefinition<N>> res = getVariableDefinitions(variable);
+
+        if (res.isEmpty())
+            return res;
+
+        return res.subList(0, 1);
+    }
+
+    @Override
     public List<VariableDefinition<N>> getLastDefinitions(String variable) {
         List<VariableDefinition<N>> res = getVariableDefinitions(variable);
 
@@ -85,11 +109,10 @@ public class VariableScope<N extends Node> extends Scope<N> {
         if (res.isEmpty())
             return res;
 
-        Optional<VariableDefinition<N>> target = res.stream()
+        return res.stream()
                 .filter(variableDefinition -> variableDefinition.getNode().getId() <= node.getId())
-                .max(Comparator.comparingInt(variableDefinition -> variableDefinition.getNode().getId()));
-
-        return target.map(variableDefinition -> new ArrayList<>(Collections.singletonList(variableDefinition)))
+                .max(Comparator.comparingInt(variableDefinition -> variableDefinition.getNode().getId()))
+                .map(variableDefinition -> new ArrayList<>(Collections.singletonList(variableDefinition)))
                 .orElseGet(ArrayList::new);
     }
 

@@ -6,6 +6,9 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import tfm.utils.Logger;
 import tfm.variables.actions.VariableAction;
 
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 abstract class VariableVisitor extends VoidVisitorAdapter<VariableAction.Actions> {
 
     // Start point
@@ -26,7 +29,12 @@ abstract class VariableVisitor extends VoidVisitorAdapter<VariableAction.Actions
 
     @Override
     public void visit(AssignExpr n, VariableAction.Actions action) {
-        // Logger.log("On AssignExpr: [" + n + "]");
+//        Logger.log("On AssignExpr: [" + n + "]");
+
+        if (n.getOperator() != AssignExpr.Operator.ASSIGN) { // if +=, *=, -= ...
+            n.getTarget().accept(this, action.or(VariableAction.Actions.USE));
+        }
+
         n.getTarget().accept(this, action.or(VariableAction.Actions.DEFINITION));
         n.getValue().accept(this, action.or(VariableAction.Actions.USE));
     }

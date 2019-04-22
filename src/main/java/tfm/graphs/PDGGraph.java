@@ -18,6 +18,7 @@ import tfm.variables.actions.VariableDefinition;
 import javax.swing.plaf.nimbus.State;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public abstract class PDGGraph extends Graph<PDGNode> {
 
@@ -52,6 +53,21 @@ public abstract class PDGGraph extends Graph<PDGNode> {
         this.addArc(dataDataDependencyArc);
     }
 
+    public List<PDGNode> getNodesAtLevel(int level) {
+        return getVerticies().stream()
+                .map(vertex -> (PDGNode) vertex)
+                .filter(node -> node.getLevel() == level)
+                .collect(Collectors.toList());
+    }
+
+    public int getLevels() {
+        return getVerticies().stream()
+                .map(vertex -> (PDGNode) vertex)
+                .max(Comparator.comparingInt(PDGNode::getLevel))
+                .map(PDGNode::getLevel)
+                .get() + 1;
+    }
+
     @Override
     public String toGraphvizRepresentation() {
         String lineSep = System.lineSeparator();
@@ -59,6 +75,33 @@ public abstract class PDGGraph extends Graph<PDGNode> {
         String nodesDeclaration = getVerticies().stream()
                 .map(vertex -> ((Node) vertex).toGraphvizRepresentation())
                 .collect(Collectors.joining(lineSep));
+
+        StringBuilder rankedNodes = new StringBuilder();
+
+        // No level 0 is needed (only one node)
+        for (int i = 0; i < getLevels(); i++) {
+            List<PDGNode> levelNodes = getNodesAtLevel(i);
+
+            if (levelNodes.size() <= 1) {
+                continue;
+            }
+
+            // rank same
+            rankedNodes.append("{ rank = same; ")
+                    .append(levelNodes.stream()
+                        .map(node -> String.valueOf(node.getId()))
+                        .collect(Collectors.joining(";")))
+                    .append(" }")
+                    .append(lineSep);
+
+            // invisible arrows for ordering
+            rankedNodes.append(levelNodes.stream()
+                        .sorted(Comparator.comparingInt(PDGNode::getId))
+                        .map(node -> String.valueOf(node.getId()))
+                        .collect(Collectors.joining(" -> ")))
+                    .append("[style = invis];")
+                    .append(lineSep);
+        }
 
         String arrows =
                 getArrows().stream()
@@ -70,6 +113,7 @@ public abstract class PDGGraph extends Graph<PDGNode> {
         return "digraph g{" + lineSep +
                 "splines=true;" + lineSep +
                 nodesDeclaration + lineSep +
+                rankedNodes.toString() +
                 arrows + lineSep +
                 "}";
     }

@@ -8,16 +8,23 @@ public class Example1 {
         int x = 1;
         int y = 2;
 
-        if (x < y) {
+//        if (x < y) {
             while (x < y) {
+//                y = x;
+
+                while(y < x) {
+                    y += x;
+                    x = y;
+                }
+
                 x++;
             }
 
             y = x + 1;
-        } else {
-            x = 4;
-            y *= x;
-        }
+//        } else {
+//            x = 4;
+//            y *= x;
+//        }
 
         int e = (Integer) x;
 

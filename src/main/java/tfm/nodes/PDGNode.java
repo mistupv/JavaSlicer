@@ -2,10 +2,13 @@ package tfm.nodes;
 
 import com.github.javaparser.ast.stmt.Statement;
 import tfm.arcs.Arc;
+import tfm.arcs.pdg.ControlDependencyArc;
 import tfm.graphs.Graph;
+import tfm.graphs.PDGGraph;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class PDGNode extends Node {
 
@@ -51,5 +54,25 @@ public class PDGNode extends Node {
                 controlFrom,
                 controlTo
         );
+    }
+
+    public List<ControlDependencyArc> getControlDependencies() {
+        return getIncomingArrows().stream()
+                .filter(arrow -> ((Arc) arrow).isControlDependencyArrow())
+                .map(arc -> (ControlDependencyArc) arc)
+                .collect(Collectors.toList());
+    }
+
+    public int getLevel() {
+        return getLevel(this);
+    }
+
+    private int getLevel(PDGNode node) {
+        List<ControlDependencyArc> dependencies = node.getControlDependencies();
+
+        if (dependencies.isEmpty())
+            return 0;
+
+        return 1 + getLevel((PDGNode) dependencies.get(0).getFrom());
     }
 }
