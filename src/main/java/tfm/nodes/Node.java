@@ -1,6 +1,7 @@
 package tfm.nodes;
 
 import com.github.javaparser.ast.stmt.Statement;
+import edg.graphlib.Arrow;
 import edg.graphlib.Vertex;
 import tfm.arcs.data.ArcData;
 import tfm.graphs.Graph;

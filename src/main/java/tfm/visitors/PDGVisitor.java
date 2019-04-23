@@ -12,6 +12,7 @@ import tfm.scopes.IfElseScope;
 import tfm.scopes.Scope;
 import tfm.scopes.ScopeHolder;
 import tfm.scopes.VariableScope;
+import tfm.utils.Logger;
 import tfm.variables.VariableExtractor;
 import tfm.variables.actions.VariableDefinition;
 import tfm.variables.actions.VariableUse;
@@ -135,30 +136,34 @@ public class PDGVisitor extends VoidVisitorAdapter<ScopeHolder<PDGNode>> {
 
         whileStmt.getBody().accept(this, whileScope);
 
-        whileScope.getDefinedVariables()
-                .forEach(variable -> {
-                    List<VariableDefinition<PDGNode>> firstDef = whileScope.getFirstDefinitions(variable);
-                    List<VariableDefinition<PDGNode>> lastDef = whileScope.getLastDefinitions(variable);
-
-                    Set<VariableUse<PDGNode>> usesFromLastDef = new HashSet<>();
-
-                    firstDef.forEach(variableDefinition -> {
-                            whileScope.getVariableUsesBeforeNode(variable, variableDefinition.getNode())
-                                    .forEach(use -> {
-                                        if (!usesFromLastDef.contains(use)) {
-                                            lastDef.forEach(def -> graph.addDataDependencyArc(
-                                                    def.getNode(),
-                                                    use.getNode(),
-                                                    variable)
-                                            );
-
-                                            usesFromLastDef.add(use);
-                                        }
-                                    });
-                    });
-        });
+        buildLoopDataDependencies(whileScope);
 
         scope.addSubscope(whileScope);
+    }
+
+    private void buildLoopDataDependencies(ScopeHolder<PDGNode> scope) {
+        scope.getDefinedVariables()
+                .forEach(variable -> {
+                    List<VariableDefinition<PDGNode>> firstDef = scope.getFirstDefinitions(variable);
+                    List<VariableDefinition<PDGNode>> lastDef = scope.getLastDefinitions(variable);
+
+                    Set<Integer> usesFromLastDef = new HashSet<>();
+
+                    firstDef.forEach(variableDefinition -> {
+                        scope.getVariableUsesBeforeNode(variable, variableDefinition.getNode())
+                                .forEach(use -> {
+                                    if (!usesFromLastDef.contains(use.getNode().getId())) {
+                                        lastDef.forEach(def -> graph.addDataDependencyArc(
+                                                def.getNode(),
+                                                use.getNode(),
+                                                variable)
+                                        );
+
+                                        usesFromLastDef.add(use.getNode().getId());
+                                    }
+                                });
+                    });
+        });
     }
 
 //    @Override

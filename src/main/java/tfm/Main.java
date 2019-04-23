@@ -47,13 +47,8 @@ public class Main {
                 "*         GRAPHVIZ         *\n" +
                 "****************************"
         );
-//        Graphviz.fromString(graph.toGraphvizRepresentation()).render(Format.PNG).toFile(new File("graph"));
         Logger.log(graph.toGraphvizRepresentation());
         Logger.log();
-//        for (Vertex<?, ?> vertex : graph.getVerticies()) {
-//            PDGNode node = (PDGNode) vertex;
-//            Logger.format("node %s. Level %s\n", node.getId(), node.getLevel());
-//        }
         Logger.format("Done in %.2f ms", (tt - t0) / 10e6);
     }
 

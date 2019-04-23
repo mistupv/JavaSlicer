@@ -113,8 +113,8 @@ public abstract class PDGGraph extends Graph<PDGNode> {
         return "digraph g{" + lineSep +
                 "splines=true;" + lineSep +
                 nodesDeclaration + lineSep +
-                rankedNodes.toString() +
                 arrows + lineSep +
+                rankedNodes.toString() +
                 "}";
     }
 }
