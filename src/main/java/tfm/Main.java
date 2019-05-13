@@ -15,9 +15,8 @@ import tfm.utils.Logger;
 import tfm.visitors.CFGVisitor;
 import tfm.visitors.PDGVisitor;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
+import java.io.*;
+import java.util.Arrays;
 
 import static guru.nidi.graphviz.model.Factory.graph;
 import static guru.nidi.graphviz.model.Factory.node;
@@ -26,7 +25,7 @@ public class Main {
 
     private static long t0;
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, InterruptedException {
         File file = new File("/home/jacosro/IdeaProjects/TFM/src/main/java/tfm/programs/Example1.java");
         CompilationUnit compilationUnit = JavaParser.parse(file);
 
@@ -50,6 +49,8 @@ public class Main {
         Logger.log(graph.toGraphvizRepresentation());
         Logger.log();
         Logger.format("Done in %.2f ms", (tt - t0) / 10e6);
+
+        openGraphAsPng(graph);
     }
 
     public static CFGGraph cfg(File file, CompilationUnit cu) {
@@ -79,5 +80,23 @@ public class Main {
         cu.accept(visitor, scopeHolder);
 
         return pdgGraph;
+    }
+
+    private static void openGraphAsPng(Graph graph) throws IOException, InterruptedException {
+        PrintWriter printWriter = new PrintWriter("./out/graph.txt");
+        printWriter.println(graph.toGraphvizRepresentation());
+        printWriter.close();
+
+        int exit = new ProcessBuilder(
+                Arrays.asList("dot", "-Tpng", "./out/graph.txt", "-o", "./out/graph.png")
+        ).start()
+        .waitFor();
+
+        if (exit != 0) {
+            Logger.log("Error procesando el archivo de grafo");
+            return;
+        }
+
+        new ProcessBuilder(Arrays.asList("xdg-open", "./output/graph.png")).start();
     }
 }

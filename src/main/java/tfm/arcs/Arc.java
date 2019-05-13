@@ -52,8 +52,13 @@ public abstract class Arc<D extends ArcData> extends edg.graphlib.Arrow<String, 
 
         Arc arc = (Arc) o;
 
+        Node from = (Node) arc.getFrom();
+        Node from2 = (Node) getFrom();
+        Node to = (Node) getTo();
+        Node to2 = (Node) arc.getTo();
+
         return Objects.equals(arc.getData(), getData()) &&
-                Objects.equals(arc.getFrom(), getFrom()) &&
-                Objects.equals(arc.getTo(), getTo());
+                Objects.equals(from.getId(), from2.getId()) &&
+                Objects.equals(to.getId(), to2.getId());
     }
 }

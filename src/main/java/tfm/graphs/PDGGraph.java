@@ -72,8 +72,9 @@ public abstract class PDGGraph extends Graph<PDGNode> {
     public String toGraphvizRepresentation() {
         String lineSep = System.lineSeparator();
 
-        String nodesDeclaration = getVerticies().stream()
-                .map(vertex -> ((Node) vertex).toGraphvizRepresentation())
+        String nodesDeclaration = getNodes().stream()
+                .sorted(Comparator.comparingInt(Node::getId))
+                .map(Node::toGraphvizRepresentation)
                 .collect(Collectors.joining(lineSep));
 
         StringBuilder rankedNodes = new StringBuilder();
@@ -104,9 +105,9 @@ public abstract class PDGGraph extends Graph<PDGNode> {
         }
 
         String arrows =
-                getArrows().stream()
+                getArcs().stream()
                         .sorted(Comparator.comparingInt(arrow -> ((Node) arrow.getFrom()).getId()))
-                        .map(arrow -> ((Arc) arrow).toGraphvizRepresentation())
+                        .map(Arc::toGraphvizRepresentation)
                         .collect(Collectors.joining(lineSep));
 
 

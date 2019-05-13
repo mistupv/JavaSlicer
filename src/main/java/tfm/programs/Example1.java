@@ -10,22 +10,22 @@ public class Example1 {
 
 //        if (x < y) {
             while (x < y) {
-//                y = x;
+                y = x;
 
-                while(y < x) {
-                    y += x;
-                    x = y;
-
-                    while (x > 1) {
-                        y += 12;
-                        x = y;
-                    }
-                }
+//                while(y < x) {
+//                    y += x;
+//                    x = y;
+//
+//                    while (x > 1) {
+//                        y += 12;
+//                        x = y;
+//                    }
+//                }
 
                 x++;
             }
 
-            y = x + 1;
+//            y = x + 1;
 //        } else {
 //            x = 4;
 //            y *= x;

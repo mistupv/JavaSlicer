@@ -7,9 +7,7 @@ import tfm.arcs.Arc;
 import tfm.arcs.data.ArcData;
 import tfm.nodes.Node;
 
-import java.util.Comparator;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -87,9 +85,22 @@ public abstract class Graph<NodeType extends Node> extends edg.graphlib.Graph<St
 
     public abstract NodeType addNode(String instruction, Statement statement);
 
-    public String toString() {
+    @SuppressWarnings("unchecked")
+    public Set<NodeType> getNodes() {
         return getVerticies().stream()
-                .map(edg.graphlib.Vertex::toString)
+                .map(vertex -> (NodeType) vertex)
+                .collect(Collectors.toSet());
+    }
+
+    public Set<Arc<ArcData>> getArcs() {
+        return getArrows().stream()
+                .map(arrow -> (Arc<ArcData>) arrow)
+                .collect(Collectors.toSet());
+    }
+
+    public String toString() {
+        return getNodes().stream()
+                .map(Node::toString)
                 .collect(Collectors.joining(System.lineSeparator()));
     }
 
