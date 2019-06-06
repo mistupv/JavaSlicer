@@ -18,20 +18,17 @@ import tfm.visitors.PDGVisitor;
 import java.io.*;
 import java.util.Arrays;
 
-import static guru.nidi.graphviz.model.Factory.graph;
-import static guru.nidi.graphviz.model.Factory.node;
-
 public class Main {
 
     private static long t0;
 
     public static void main(String[] args) throws IOException, InterruptedException {
-        File file = new File("/home/jacosro/IdeaProjects/TFM/src/main/java/tfm/programs/Example1.java");
+        File file = new File("/home/jacosro/IdeaProjects/TFM/src/main/java/tfm/programs/cfg/Eval_1.java");
         CompilationUnit compilationUnit = JavaParser.parse(file);
 
         t0 = System.nanoTime();
 
-        Graph<?> graph = pdg(file, compilationUnit);
+        Graph<?> graph = cfg(file, compilationUnit);
 
         long tt = System.nanoTime();
 
@@ -82,21 +79,11 @@ public class Main {
         return pdgGraph;
     }
 
-    private static void openGraphAsPng(Graph graph) throws IOException, InterruptedException {
-        PrintWriter printWriter = new PrintWriter("./out/graph.txt");
-        printWriter.println(graph.toGraphvizRepresentation());
-        printWriter.close();
+    private static void openGraphAsPng(Graph graph) throws IOException {
+        Graphviz.fromString(graph.toGraphvizRepresentation())
+                .render(Format.PNG)
+                .toFile(new File("./out/graph.png"));
 
-        int exit = new ProcessBuilder(
-                Arrays.asList("dot", "-Tpng", "./out/graph.txt", "-o", "./out/graph.png")
-        ).start()
-        .waitFor();
-
-        if (exit != 0) {
-            Logger.log("Error procesando el archivo de grafo");
-            return;
-        }
-
-        new ProcessBuilder(Arrays.asList("xdg-open", "./output/graph.png")).start();
+        new ProcessBuilder(Arrays.asList("xdg-open", "./out/graph.png")).start();
     }
 }

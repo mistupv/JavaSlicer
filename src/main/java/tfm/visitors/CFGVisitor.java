@@ -1,16 +1,22 @@
 package tfm.visitors;
 
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.stmt.*;
+import com.github.javaparser.ast.visitor.GenericVisitor;
+import com.github.javaparser.ast.visitor.VoidVisitor;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
+import sun.rmi.runtime.Log;
 import tfm.graphs.CFGGraph;
 import tfm.nodes.CFGNode;
 import tfm.utils.Logger;
+import tfm.utils.Utils;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
@@ -29,13 +35,11 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
     @Override
     public void visit(ExpressionStmt expressionStmt, Void arg) {
-        CFGNode nextNode = addNodeAndArcs(expressionStmt.toString(), expressionStmt);
+        String expression = expressionStmt.toString().replace("\"", "\\\"");
+
+        CFGNode nextNode = addNodeAndArcs(expression, expressionStmt);
 
         lastParentNodes.add(nextNode);
-
-        Logger.log(expressionStmt);
-
-        super.visit(expressionStmt, arg);
     }
 
 //    @Override
@@ -59,7 +63,7 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
         lastParentNodes.add(ifCondition);
 
         // Visit "then"
-        super.visit(blockStmtWrapper(ifStmt.getThenStmt()), arg);
+        ifStmt.getThenStmt().accept(this, arg);
 
         Queue<CFGNode> lastThenNodes = new ArrayDeque<>(lastParentNodes);
 
@@ -67,7 +71,7 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
             lastParentNodes.clear();
             lastParentNodes.add(ifCondition); // Set if nodes as root
 
-            super.visit(ifStmt.getElseStmt().get().asBlockStmt(), arg);
+            ifStmt.getElseStmt().get().accept(this, arg);
 
             lastParentNodes.addAll(lastThenNodes);
         } else {
@@ -84,7 +88,7 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
         lastParentNodes.add(whileCondition);
 
-        super.visit(whileStmt.getBody().asBlockStmt(), arg);
+        whileStmt.getBody().accept(this, arg);
 
         while (!lastParentNodes.isEmpty()) {
             graph.addControlFlowEdge(lastParentNodes.poll(), whileCondition);
@@ -94,104 +98,114 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
     }
 
     @Override
+    public void visit(DoStmt doStmt, Void arg) {
+        BlockStmt body = Utils.blockWrapper(doStmt.getBody());
+
+        body.accept(this, arg);
+
+        CFGNode doWhileNode = addNodeAndArcs(
+                String.format("while (%s)", doStmt.getCondition()),
+                doStmt
+        );
+
+        if (!body.isEmpty()) {
+            Statement firstBodyStatement = body.getStatement(0);
+
+            graph.findNodeByStatement(firstBodyStatement)
+                    .ifPresent(node -> graph.addControlFlowEdge(doWhileNode, node));
+        }
+
+        lastParentNodes.add(doWhileNode);
+    }
+
+    @Override
     public void visit(ForStmt forStmt, Void arg) {
-        forStmt.getInitialization().forEach(expression -> new ExpressionStmt(expression).accept(this, null));
+        String inizialization = forStmt.getInitialization().stream()
+                .map(Node::toString)
+                .collect(Collectors.joining(","));
 
-        BlockStmt blockStatement = blockStmtWrapper(forStmt.getBody());
-
-        forStmt.getUpdate().forEach(blockStatement::addStatement);
+        String update = forStmt.getUpdate().stream()
+                .map(Node::toString)
+                .collect(Collectors.joining(","));
 
         Expression comparison = forStmt.getCompare().orElse(new BooleanLiteralExpr(true));
 
-        visit(new WhileStmt(comparison, blockStatement), null);
+        CFGNode forNode = addNodeAndArcs(
+                String.format("for (%s;%s;%s)", inizialization, comparison, update),
+                forStmt
+        );
+
+        lastParentNodes.add(forNode);
+
+        forStmt.getInitialization().forEach(expression -> new ExpressionStmt(expression).accept(this, null));
+
+        BlockStmt body = Utils.blockWrapper(forStmt.getBody());
+
+        forStmt.getUpdate().forEach(body::addStatement);
+
+        body.accept(this, arg);
+
+        while (!lastParentNodes.isEmpty()) {
+            graph.addControlFlowEdge(lastParentNodes.poll(), forNode);
+        }
+
+        lastParentNodes.add(forNode);
     }
 
     @Override
     public void visit(ForEachStmt forEachStmt, Void arg) {
-        // init
-        NodeList<Expression> initialization = new NodeList<>();
-        // Iterable iterable = var.getClass().isArray() ? Arrays.asList(var) : (Iterable) (Object) var;
-//        VariableDeclarationExpr variableDeclarationExpr = new VariableDeclarationExpr(
-//                new ClassOrInterfaceType("Iterable"),
-//                Utils.wrapIntoList(
-//                        new VariableDeclarator(
-//                                new VariableDeclaratorId("iterable"),
-//                                new ConditionalExpr(
-//                                        new MethodCallExpr(
-//                                                new MethodCallExpr(foreachStmt.getIterable(), "getClass"),
-//                                                "isArray"
-//                                        ),
-//                                        new MethodCallExpr(
-//                                                new NameExpr("Arrays"),
-//                                                "asList",
-//                                                Utils.wrapIntoList(foreachStmt.getIterable())
-//                                        ),
-//                                        new CastExpr(
-//                                                new ClassOrInterfaceType("Iterable"),
-//                                                new CastExpr(
-//                                                        new ClassOrInterfaceType("Object"),
-//                                                        foreachStmt.getIterable()
-//                                                )
-//                                        )
-//                                )
-//                        )
-//                )
-//        );
-
-//        VariableDeclarationExpr variableDeclarationExpr = new VariableDeclarationExpr(
-//                new VariableDeclarator(
-//                        JavaParser.parseClassOrInterfaceType("Iterator"),
-//                        "iterator",
-//                        new ConditionalExpr(
-//                                new MethodCallExpr(
-//                                        new MethodCallExpr(
-//                                                forEachStmt.getVariable().getVariables().get(0).getNameAsExpression(),
-//                                                "getClass"
-//                                        ),
-//                                        "isArray"
-//                                ),
-//                                new MethodCallExpr(
-//                                        new MethodCallExpr(
-//                                                new NameExpr("Arrays"),
-//                                                "asList",
-//                                                forEachStmt.getVariable().getVariables().get(0).getNameAsExpression()
-//                                        ),
-//                                        "iterator"
-//                                ),
-//
-//                        )
-//                )
-//        );
-
-//        initialization.add(variableDeclarationExpr);
-
-        // condition
-        Expression condition =
-                new MethodCallExpr(
-                        new NameExpr("iterator"),
-                        "hasNext"
-                );
-
-        BlockStmt body = blockStmtWrapper(forEachStmt.getBody());
-        NodeList<Statement> stmts = body.getStatements();
-        stmts.addFirst(
-            new ExpressionStmt(
-                new VariableDeclarationExpr(
-                    new VariableDeclarator(
-                            forEachStmt.getVariable().getCommonType(),
-                            forEachStmt.getVariable().getVariables().get(0).getNameAsString(),
-                            new CastExpr(forEachStmt.getVariable().getCommonType(),
-                                new MethodCallExpr(
-                                    new NameExpr("iterator"),
-                                    "next"
-                                )
-                            )
-                    )
-                )
-            )
+        CFGNode foreachNode = addNodeAndArcs(
+                String.format("for (%s : %s)", forEachStmt.getVariable(), forEachStmt.getIterable()),
+                forEachStmt
         );
 
-        visit(new ForStmt(initialization, condition, new NodeList<>(), body), null);
+        lastParentNodes.add(foreachNode);
+
+        forEachStmt.getBody().accept(this, arg);
+
+        while (!lastParentNodes.isEmpty()) {
+            graph.addControlFlowEdge(lastParentNodes.poll(), foreachNode);
+        }
+
+        lastParentNodes.add(foreachNode);
+    }
+
+    @Override
+    public void visit(SwitchStmt switchStmt, Void arg) {
+        CFGNode switchNode = addNodeAndArcs(
+                String.format("switch (%s)", switchStmt.getSelector()),
+                switchStmt
+        );
+
+        lastParentNodes.add(switchNode);
+
+        List<CFGNode> lastEntryParents = new ArrayList<>();
+
+        switchStmt.getEntries().forEach(entry -> {
+            Optional<BreakStmt> entryBreak = entry.findFirst(BreakStmt.class, breakStmt -> {
+                Optional<Node> parent = breakStmt.getParentNode();
+
+                return parent.isPresent() && parent.get().equals(entry);
+            });
+
+            new BlockStmt(entry.getStatements()).accept(this, arg);
+
+            if (entryBreak.isPresent()) {
+                while (!lastParentNodes.isEmpty()) {
+                    lastEntryParents.add(lastParentNodes.poll());
+                }
+            }
+
+            lastParentNodes.add(switchNode);
+        });
+
+        lastParentNodes.clear();
+        lastParentNodes.addAll(lastEntryParents);
+    }
+
+    @Override
+    public void visit(SwitchEntryStmt switchEntryStmt, Void arg) {
+
     }
 
     @Override
@@ -213,15 +227,5 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
         }
 
         return node;
-    }
-
-    private BlockStmt blockStmtWrapper(Statement node) {
-        if (node.isBlockStmt()) {
-            return (BlockStmt) node;
-        }
-
-        NodeList<Statement> nodeList = new NodeList<>();
-        nodeList.add(node);
-        return new BlockStmt(nodeList);
     }
 }

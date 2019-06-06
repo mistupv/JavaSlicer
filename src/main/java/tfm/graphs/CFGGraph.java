@@ -3,6 +3,7 @@ package tfm.graphs;
 import com.github.javaparser.ast.stmt.EmptyStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import edg.graphlib.Arrow;
+import edg.graphlib.Vertex;
 import tfm.arcs.Arc;
 import tfm.arcs.cfg.ControlFlowArc;
 import tfm.nodes.CFGNode;
@@ -37,6 +38,11 @@ public abstract class CFGGraph extends Graph<CFGNode> {
     public String toGraphvizRepresentation() {
         String lineSep = System.lineSeparator();
 
+        String nodes = getNodes().stream()
+                .sorted(Comparator.comparingInt(Node::getId))
+                .map(node -> String.format("%s [label=\"%s: %s\"]", node.getId(), node.getId(), node.getData()))
+                .collect(Collectors.joining(lineSep));
+
         String arrows =
                 getArrows().stream()
                         .sorted(Comparator.comparingInt(arrow -> ((Node) arrow.getFrom()).getId()))
@@ -44,6 +50,7 @@ public abstract class CFGGraph extends Graph<CFGNode> {
                         .collect(Collectors.joining(lineSep));
 
         return "digraph g{" + lineSep +
+                nodes + lineSep +
                 arrows + lineSep +
                 "}";
     }

@@ -85,6 +85,12 @@ public abstract class Graph<NodeType extends Node> extends edg.graphlib.Graph<St
 
     public abstract NodeType addNode(String instruction, Statement statement);
 
+    public Optional<NodeType> findNodeByStatement(Statement statement) {
+        return getNodes().stream()
+                .filter(node -> Objects.equals(node.getStatement(), statement))
+                .findFirst();
+    }
+
     @SuppressWarnings("unchecked")
     public Set<NodeType> getNodes() {
         return getVerticies().stream()
@@ -100,6 +106,7 @@ public abstract class Graph<NodeType extends Node> extends edg.graphlib.Graph<St
 
     public String toString() {
         return getNodes().stream()
+                .sorted(Comparator.comparingInt(Node::getId))
                 .map(Node::toString)
                 .collect(Collectors.joining(System.lineSeparator()));
     }

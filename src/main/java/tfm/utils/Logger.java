@@ -17,6 +17,6 @@ public class Logger {
     }
 
     public static void format(String message, Object... args) {
-        System.out.printf(message, args);
+        log(String.format(message, args));
     }
 }

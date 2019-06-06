@@ -1,4 +1,4 @@
-package tfm.programs;
+package tfm.programs.pdg;
 
 import tfm.utils.Logger;
 
