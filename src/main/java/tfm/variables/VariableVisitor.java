@@ -1,24 +1,13 @@
 package tfm.variables;
 
 import com.github.javaparser.ast.expr.*;
+import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import tfm.utils.Logger;
 import tfm.variables.actions.VariableAction;
 
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
 abstract class VariableVisitor extends VoidVisitorAdapter<VariableAction.Actions> {
-
-    // Start point
-    public void visit(@NonNull Expression expression) {
-        expression.accept(this, VariableAction.Actions.USE);
-    }
-
-//    public void visit(@NonNull Statement statement) {
-//        statement.accept(this, Actions.USE);
-//    }
 
     @Override
     public void visit(ArrayAccessExpr n, VariableAction.Actions action) {
@@ -47,6 +36,11 @@ abstract class VariableVisitor extends VoidVisitorAdapter<VariableAction.Actions
     }
 
     @Override
+    public void visit(BlockStmt n, VariableAction.Actions arg) {
+        Logger.log("On blockStmt: " + n);
+    }
+
+    @Override
     public void visit(CastExpr n, VariableAction.Actions action) {
         // Logger.log("On CastExpr: [" + n + "]");
         n.getExpression().accept(this, action.or(VariableAction.Actions.USE));
@@ -70,6 +64,27 @@ abstract class VariableVisitor extends VoidVisitorAdapter<VariableAction.Actions
     public void visit(FieldAccessExpr n, VariableAction.Actions action) {
         // Logger.log("On FieldAccessExpr: [" + n + "]");
         n.getScope().accept(this, action.or(VariableAction.Actions.USE));
+    }
+
+    @Override
+    public void visit(ForEachStmt n, VariableAction.Actions action) {
+        Logger.log("On forEachStmt: " + n);
+        n.getIterable().accept(this, VariableAction.Actions.USE);
+        n.getVariable().accept(this, VariableAction.Actions.USE);
+    }
+
+    @Override
+    public void visit(ForStmt n, VariableAction.Actions arg) {
+        Logger.log("On forStmt: " + n);
+//        n.getInitialization().forEach(stmt -> stmt.accept(this, VariableAction.Actions.USE));
+        n.getCompare().ifPresent(expression -> expression.accept(this, VariableAction.Actions.USE));
+//        n.getUpdate().forEach(stmt -> stmt.accept(this, VariableAction.Actions.USE));
+    }
+
+    @Override
+    public void visit(IfStmt n, VariableAction.Actions arg) {
+        Logger.log("On ifStmt: " + n);
+        n.getCondition().accept(this, VariableAction.Actions.USE);
     }
 
 //        @Override
@@ -102,7 +117,18 @@ abstract class VariableVisitor extends VoidVisitorAdapter<VariableAction.Actions
                 onVariableUse(variable);
                 break;
         }
+    }
 
+    @Override
+    public void visit(SwitchEntryStmt n, VariableAction.Actions arg) {
+        Logger.log("On switchEntryStmt: " + n);
+        n.getLabel().ifPresent(expression -> expression.accept(this, VariableAction.Actions.USE));
+    }
+
+    @Override
+    public void visit(SwitchStmt n, VariableAction.Actions arg) {
+        Logger.log("On switchStmt: " + n);
+        n.getSelector().accept(this, VariableAction.Actions.USE);
     }
 
 //        @Override
@@ -134,6 +160,12 @@ abstract class VariableVisitor extends VoidVisitorAdapter<VariableAction.Actions
                                 expression.accept(this, action.or(VariableAction.Actions.USE)); // Use of the variables in the initialization
                             });
                 });
+    }
+
+    @Override
+    public void visit(WhileStmt n, VariableAction.Actions arg) {
+        Logger.log("On whileStmt: " + n);
+        n.getCondition().accept(this, VariableAction.Actions.USE);
     }
 
     @Override

@@ -9,6 +9,7 @@ import guru.nidi.graphviz.engine.Graphviz;
 import tfm.graphs.CFGGraph;
 import tfm.graphs.Graph;
 import tfm.graphs.PDGGraph;
+import tfm.nodes.Node;
 import tfm.nodes.PDGNode;
 import tfm.scopes.ScopeHolder;
 import tfm.utils.Logger;
@@ -17,6 +18,8 @@ import tfm.visitors.PDGVisitor;
 
 import java.io.*;
 import java.util.Arrays;
+import java.util.Comparator;
+import java.util.stream.Collectors;
 
 public class Main {
 
@@ -46,6 +49,20 @@ public class Main {
         Logger.log(graph.toGraphvizRepresentation());
         Logger.log();
         Logger.format("Done in %.2f ms", (tt - t0) / 10e6);
+
+
+        Logger.log("Nodes with variable info");
+        Logger.log(
+                graph.getNodes().stream()
+                    .sorted(Comparator.comparingInt(Node::getId))
+                    .map(node ->
+                            String.format("Node { id: %s, declared: %s, defined: %s, used: %s }",
+                                node.getId(),
+                                node.getDeclaredVariables(),
+                                node.getDefinedVariables(),
+                                node.getUsedVariables())
+                    ).collect(Collectors.joining(System.lineSeparator()))
+        );
 
         openGraphAsPng(graph);
     }

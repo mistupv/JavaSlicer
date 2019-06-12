@@ -120,24 +120,24 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
     @Override
     public void visit(ForStmt forStmt, Void arg) {
-        String inizialization = forStmt.getInitialization().stream()
-                .map(Node::toString)
-                .collect(Collectors.joining(","));
-
-        String update = forStmt.getUpdate().stream()
-                .map(Node::toString)
-                .collect(Collectors.joining(","));
+//        String inizialization = forStmt.getInitialization().stream()
+//                .map(Node::toString)
+//                .collect(Collectors.joining(","));
+//
+//        String update = forStmt.getUpdate().stream()
+//                .map(Node::toString)
+//                .collect(Collectors.joining(","));
 
         Expression comparison = forStmt.getCompare().orElse(new BooleanLiteralExpr(true));
 
+        forStmt.getInitialization().forEach(expression -> new ExpressionStmt(expression).accept(this, null));
+
         CFGNode forNode = addNodeAndArcs(
-                String.format("for (%s;%s;%s)", inizialization, comparison, update),
+                String.format("for (;%s;)", comparison),
                 forStmt
         );
 
         lastParentNodes.add(forNode);
-
-        forStmt.getInitialization().forEach(expression -> new ExpressionStmt(expression).accept(this, null));
 
         BlockStmt body = Utils.blockWrapper(forStmt.getBody());
 
@@ -185,7 +185,7 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
             Optional<BreakStmt> entryBreak = entry.findFirst(BreakStmt.class, breakStmt -> {
                 Optional<Node> parent = breakStmt.getParentNode();
 
-                return parent.isPresent() && parent.get().equals(entry);
+                return parent.isPresent() && parent.get()   .equals(entry);
             });
 
             new BlockStmt(entry.getStatements()).accept(this, arg);

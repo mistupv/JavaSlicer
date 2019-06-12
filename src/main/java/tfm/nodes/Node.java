@@ -1,27 +1,53 @@
 package tfm.nodes;
 
+import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.stmt.Statement;
-import edg.graphlib.Arrow;
 import edg.graphlib.Vertex;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import tfm.arcs.data.ArcData;
 import tfm.graphs.Graph;
+import tfm.variables.VariableExtractor;
 
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class Node extends Vertex<String, ArcData> {
 
     private Statement statement;
 
-//    public Node(Graph.NodeId id, String instruction) {
-//        this(id, instruction, null);
-//    }
+    private Set<String> declaredVariables;
 
-    public Node(Graph.NodeId id, String representation, Statement statement) {
-        super(id.toString(), representation);
+    private Set<String> definedVariables;
+    private Set<String> usedVariables;
+    public <N extends Node> Node(N node) {
+        this(node.getId(), node.getData(), node.getStatement());
+    }
+
+    public Node(Graph.NodeId id, String representation, @NonNull Statement statement) {
+        this(id.getId(), representation, statement);
+    }
+
+    private Node(int id, String representation, @NonNull Statement statement) {
+        super(String.valueOf(id), representation);
 
         this.statement = statement;
+
+        this.declaredVariables = new HashSet<>();
+        this.definedVariables = new HashSet<>();
+        this.usedVariables = new HashSet<>();
+
+        extractVariables(statement);
+    }
+
+    private void extractVariables(@NonNull Statement statement) {
+        new VariableExtractor()
+                .setOnVariableDeclarationListener(variable -> this.declaredVariables.add(variable))
+                .setOnVariableDefinitionListener(variable -> this.definedVariables.add(variable))
+                .setOnVariableUseListener(variable -> this.usedVariables.add(variable))
+                .visit(statement);
     }
 
     public int getId() {
@@ -63,5 +89,17 @@ public class Node extends Vertex<String, ArcData> {
 
     public String toGraphvizRepresentation() {
         return String.format("%s[label=\"%s: %s\"];", getId(), getId(), getData());
+    }
+
+    public Set<String> getDeclaredVariables() {
+        return declaredVariables;
+    }
+
+    public Set<String> getDefinedVariables() {
+        return definedVariables;
+    }
+
+    public Set<String> getUsedVariables() {
+        return usedVariables;
     }
 }
