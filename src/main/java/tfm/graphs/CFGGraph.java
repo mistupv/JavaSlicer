@@ -16,12 +16,12 @@ public abstract class CFGGraph extends Graph<CFGNode> {
 
     public CFGGraph() {
         super();
-        setRootVertex(new CFGNode(NodeId.getVertexId(), getRootNodeData(), new EmptyStmt()));
+        setRootVertex(new CFGNode(getNextVertexId(), getRootNodeData(), new EmptyStmt()));
     }
 
     @Override
     public CFGNode addNode(String instruction, Statement statement) {
-        CFGNode vertex = new CFGNode(NodeId.getVertexId(), instruction, statement);
+        CFGNode vertex = new CFGNode(getNextVertexId(), instruction, statement);
         this.addVertex(vertex);
 
         return vertex;

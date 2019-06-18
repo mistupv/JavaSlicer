@@ -11,7 +11,7 @@ public class Eval_4 {
 
 		while (x<=3)
 		{
-			System.out.println(" "+x);
+			System.out.println(" " + x);
 
 			for (String fruit : fruits) {
 				System.out.println(fruit);
@@ -21,7 +21,7 @@ public class Eval_4 {
 			}
 			x++;
 		}
-		while (x<=6)
+		while (x <= 6)
 		{
 			for (String animal : animals) {
 				System.out.println(animal);

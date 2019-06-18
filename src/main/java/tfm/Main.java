@@ -14,6 +14,7 @@ import tfm.nodes.PDGNode;
 import tfm.scopes.ScopeHolder;
 import tfm.utils.Logger;
 import tfm.visitors.CFGVisitor;
+import tfm.visitors.PDGCFGVisitor;
 import tfm.visitors.PDGVisitor;
 
 import java.io.*;
@@ -26,12 +27,12 @@ public class Main {
     private static long t0;
 
     public static void main(String[] args) throws IOException, InterruptedException {
-        File file = new File("/home/jacosro/IdeaProjects/TFM/src/main/java/tfm/programs/cfg/Eval_1.java");
+        File file = new File("/home/jacosro/IdeaProjects/TFM/src/main/java/tfm/programs/pdg/Example1.java");
         CompilationUnit compilationUnit = JavaParser.parse(file);
 
         t0 = System.nanoTime();
 
-        Graph<?> graph = cfg(file, compilationUnit);
+        Graph<?> graph = pdg(file, compilationUnit);
 
         long tt = System.nanoTime();
 
@@ -88,10 +89,12 @@ public class Main {
             }
         };
 
-        ScopeHolder<PDGNode> scopeHolder = new ScopeHolder<>(pdgGraph.getRootNode());
-        PDGVisitor visitor = new PDGVisitor(pdgGraph, scopeHolder);
+//        ScopeHolder<PDGNode> scopeHolder = new ScopeHolder<>(pdgGraph.getRootNode());
+//        PDGVisitor visitor = new PDGVisitor(pdgGraph, scopeHolder);
 
-        cu.accept(visitor, scopeHolder);
+        PDGCFGVisitor visitor = new PDGCFGVisitor(pdgGraph);
+
+        cu.accept(visitor, pdgGraph.getRootNode());
 
         return pdgGraph;
     }

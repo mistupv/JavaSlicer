@@ -23,14 +23,21 @@ import java.util.stream.Stream;
 public abstract class PDGGraph extends Graph<PDGNode> {
 
     public PDGGraph() {
-        setRootVertex(new PDGNode(NodeId.getVertexId(), getRootNodeData(), new EmptyStmt()));
+        setRootVertex(new PDGNode(getNextVertexId(), getRootNodeData(), new EmptyStmt()));
     }
 
     protected abstract String getRootNodeData();
 
+    public <N extends Node> PDGNode addNode(N node) {
+        PDGNode vertex = new PDGNode(getNextVertexId(), node);
+        super.addVertex(vertex);
+
+        return vertex;
+    }
+
     @Override
     public PDGNode addNode(String instruction, Statement statement) {
-        PDGNode vertex = new PDGNode(NodeId.getVertexId(), instruction, statement);
+        PDGNode vertex = new PDGNode(getNextVertexId(), instruction, statement);
         super.addVertex(vertex);
 
         return vertex;

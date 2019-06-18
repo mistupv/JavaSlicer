@@ -37,6 +37,14 @@ public abstract class Arc<D extends ArcData> extends edg.graphlib.Arrow<String, 
         );
     }
 
+    public Node getFromNode() {
+        return (Node) super.getFrom();
+    }
+
+    public Node getToNode() {
+        return (Node) super.getTo();
+    }
+
     @Override
     public int hashCode() {
         return Objects.hashCode(getData()) + getFrom().hashCode() + getTo().hashCode();

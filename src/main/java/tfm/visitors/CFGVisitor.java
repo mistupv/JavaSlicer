@@ -204,7 +204,12 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
     }
 
     @Override
-    public void visit(SwitchEntryStmt switchEntryStmt, Void arg) {
+    public void visit(BreakStmt breakStmt, Void arg) {
+
+    }
+
+    @Override
+    public void visit(ContinueStmt continueStmt, Void arg) {
 
     }
 

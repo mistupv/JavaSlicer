@@ -18,19 +18,15 @@ public class Node extends Vertex<String, ArcData> {
 
     private Statement statement;
 
-    private Set<String> declaredVariables;
+    protected Set<String> declaredVariables;
+    protected Set<String> definedVariables;
+    protected Set<String> usedVariables;
 
-    private Set<String> definedVariables;
-    private Set<String> usedVariables;
     public <N extends Node> Node(N node) {
         this(node.getId(), node.getData(), node.getStatement());
     }
 
-    public Node(Graph.NodeId id, String representation, @NonNull Statement statement) {
-        this(id.getId(), representation, statement);
-    }
-
-    private Node(int id, String representation, @NonNull Statement statement) {
+    public Node(int id, String representation, @NonNull Statement statement) {
         super(String.valueOf(id), representation);
 
         this.statement = statement;
@@ -68,6 +64,18 @@ public class Node extends Vertex<String, ArcData> {
 
     public Optional<Integer> getFileLineNumber() {
         return statement.getBegin().isPresent() ? Optional.of(statement.getBegin().get().line) : Optional.empty();
+    }
+
+    public void addDeclaredVariable(String variable) {
+        declaredVariables.add(variable);
+    }
+
+    public void addDefinedVariable(String variable) {
+        definedVariables.add(variable);
+    }
+
+    public void addUsedVariable(String variable) {
+        usedVariables.add(variable);
     }
 
     @Override

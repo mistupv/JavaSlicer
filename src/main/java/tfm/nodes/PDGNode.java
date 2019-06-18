@@ -12,7 +12,15 @@ import java.util.stream.Collectors;
 
 public class PDGNode extends Node {
 
-    public PDGNode(Graph.NodeId id, String data, Statement statement) {
+    public <N extends Node> PDGNode(int id, N node) {
+        this(id, node.getData(), node.getStatement());
+
+        usedVariables = node.getUsedVariables();
+        definedVariables = node.getDefinedVariables();
+        declaredVariables = node.getDeclaredVariables();
+    }
+
+    public PDGNode(int id, String data, Statement statement) {
         super(id, data, statement);
     }
 

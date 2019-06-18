@@ -15,28 +15,30 @@ import java.util.stream.Collectors;
  * */
 public abstract class Graph<NodeType extends Node> extends edg.graphlib.Graph<String, ArcData> {
 
-    public final static class NodeId {
-        private static int nextVertexId = 0;
+    private int nextVertexId = 0;
 
-        private int id;
-
-        private NodeId(int id) {
-            this.id = id;
-        }
-
-        static synchronized NodeId getVertexId() {
-            return new NodeId(nextVertexId++);
-        }
-
-        public int getId() {
-            return id;
-        }
-
-        @Override
-        public String toString() {
-            return String.valueOf(id);
-        }
-    }
+//    public final static class NodeId {
+//        private static int nextVertexId = 0;
+//
+//        private int id;
+//
+//        private NodeId(int id) {
+//            this.id = id;
+//        }
+//
+//        static synchronized NodeId getVertexId() {
+//            return new NodeId(nextVertexId++);
+//        }
+//
+//        public int getId() {
+//            return id;
+//        }
+//
+//        @Override
+//        public String toString() {
+//            return String.valueOf(id);
+//        }
+//    }
 
     public Graph() {
         super();
@@ -91,6 +93,16 @@ public abstract class Graph<NodeType extends Node> extends edg.graphlib.Graph<St
                 .findFirst();
     }
 
+    public Optional<NodeType> findNodeById(int id) {
+        return findNodeById(String.valueOf(id));
+    }
+
+    public Optional<NodeType> findNodeById(String id) {
+        return getNodes().stream()
+                .filter(node -> Objects.equals(node.getName(), id))
+                .findFirst();
+    }
+
     @SuppressWarnings("unchecked")
     public Set<NodeType> getNodes() {
         return getVerticies().stream()
@@ -113,4 +125,8 @@ public abstract class Graph<NodeType extends Node> extends edg.graphlib.Graph<St
 
     public abstract String toGraphvizRepresentation();
 
+
+    protected synchronized int getNextVertexId() {
+        return nextVertexId++;
+    }
 }
