@@ -16,10 +16,10 @@ public class Example1 {
                     y += x;
                     x = y;
 
-                    while (x > 1) {
-                        y += 12;
-                        x = y;
-                    }
+//                    while (x > 1) {
+//                        y += 12;
+//                        x = y;
+//                    }
                 }
 
                 x++;

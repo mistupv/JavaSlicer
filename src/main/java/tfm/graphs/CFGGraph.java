@@ -10,6 +10,7 @@ import tfm.nodes.CFGNode;
 import tfm.nodes.Node;
 
 import java.util.Comparator;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public abstract class CFGGraph extends Graph<CFGNode> {
