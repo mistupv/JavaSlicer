@@ -18,7 +18,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
-public class DataDependencyVisitor extends VoidVisitorAdapter<PDGNode> {
+public class DataDependencyVisitor extends VoidVisitorAdapter<Void> {
 
     private CFGGraph cfgGraph;
     private PDGGraph pdgGraph;
@@ -29,7 +29,7 @@ public class DataDependencyVisitor extends VoidVisitorAdapter<PDGNode> {
     }
 
     @Override
-    public void visit(ExpressionStmt expressionStmt, PDGNode parent) {
+    public void visit(ExpressionStmt expressionStmt, Void ignored) {
         buildDataDependency(expressionStmt);
     }
 
@@ -75,7 +75,7 @@ public class DataDependencyVisitor extends VoidVisitorAdapter<PDGNode> {
     }
 
     @Override
-    public void visit(IfStmt ifStmt, PDGNode parent) {
+    public void visit(IfStmt ifStmt, Void ignored) {
         buildDataDependency(ifStmt);
 
         ifStmt.getThenStmt().accept(this, null);
@@ -84,21 +84,25 @@ public class DataDependencyVisitor extends VoidVisitorAdapter<PDGNode> {
     }
 
     @Override
-    public void visit(WhileStmt whileStmt, PDGNode parent) {
+    public void visit(WhileStmt whileStmt, Void ignored) {
         buildDataDependency(whileStmt);
 
         whileStmt.getBody().accept(this, null);
     }
 
     @Override
-    public void visit(ForStmt forStmt, PDGNode parent) {
+    public void visit(ForStmt forStmt, Void ignored) {
         buildDataDependency(forStmt);
 
+        forStmt.getInitialization().accept(this, null);
+
         forStmt.getBody().accept(this, null);
+
+        forStmt.getUpdate().accept(this, null);
     }
 
     @Override
-    public void visit(ForEachStmt forEachStmt, PDGNode parent) {
+    public void visit(ForEachStmt forEachStmt, Void ignored) {
         buildDataDependency(forEachStmt);
 
         forEachStmt.getBody().accept(this, null);

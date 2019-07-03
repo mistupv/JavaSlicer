@@ -52,6 +52,6 @@ public class PDGCFGVisitor extends VoidVisitorAdapter<PDGNode> {
 
         // Build data dependency
         DataDependencyVisitor dataDependencyVisitor = new DataDependencyVisitor(pdgGraph, cfgGraph);
-        blockStmt.accept(dataDependencyVisitor, parent);
+        blockStmt.accept(dataDependencyVisitor, null);
     }
 }
