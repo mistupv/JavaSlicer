@@ -14,8 +14,8 @@ public class Example1 {
             while (x < y) {
                 y = x;
 
-                for(int i : Arrays.asList(1, 2, 3, 4,5 )) {
-                    y += x;
+                for(int i=0; i < y; i++) {
+                    y += i;
                     if (x > y)
                         continue;
                     x = y;

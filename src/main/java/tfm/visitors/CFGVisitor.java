@@ -10,6 +10,7 @@ import tfm.nodes.CFGNode;
 import tfm.utils.Utils;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
@@ -120,20 +121,20 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
     @Override
     public void visit(ForStmt forStmt, Void arg) {
-//        String inizialization = forStmt.getInitialization().stream()
-//                .map(Node::toString)
-//                .collect(Collectors.joining(","));
-//
-//        String update = forStmt.getUpdate().stream()
-//                .map(Node::toString)
-//                .collect(Collectors.joining(","));
+        String inizialization = forStmt.getInitialization().stream()
+                .map(Node::toString)
+                .collect(Collectors.joining(","));
+
+        String update = forStmt.getUpdate().stream()
+                .map(Node::toString)
+                .collect(Collectors.joining(","));
 
         Expression comparison = forStmt.getCompare().orElse(new BooleanLiteralExpr(true));
-
-        forStmt.getInitialization().forEach(expression -> new ExpressionStmt(expression).accept(this, null));
+//
+//        forStmt.getInitialization().forEach(expression -> new ExpressionStmt(expression).accept(this, null));
 
         CFGNode forNode = addNodeAndArcs(
-                String.format("for (;%s;)", comparison),
+                String.format("for (%s;%s;%s)", inizialization, comparison, update),
                 forStmt
         );
 
@@ -141,7 +142,7 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
         BlockStmt body = Utils.blockWrapper(forStmt.getBody());
 
-        forStmt.getUpdate().forEach(body::addStatement);
+//        forStmt.getUpdate().forEach(body::addStatement);
 
         body.accept(this, arg);
 
