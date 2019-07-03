@@ -1,28 +1,22 @@
 package tfm.visitors;
 
 import com.github.javaparser.ast.Node;
-import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.stmt.*;
-import com.github.javaparser.ast.visitor.GenericVisitor;
-import com.github.javaparser.ast.visitor.VoidVisitor;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import sun.rmi.runtime.Log;
 import tfm.graphs.CFGGraph;
 import tfm.nodes.CFGNode;
-import tfm.utils.Logger;
 import tfm.utils.Utils;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
     private CFGGraph graph;
 
     private Queue<CFGNode> lastParentNodes;
+    private List<CFGNode> bodyBreaks;
 
     public CFGVisitor(CFGGraph graph) {
         this.graph = graph;
@@ -31,6 +25,8 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
                         Collections.singletonList(graph.getRootNode())
                 )
         );
+
+        this.bodyBreaks = new ArrayList<>();
     }
 
     @Override
@@ -95,6 +91,8 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
         }
 
         lastParentNodes.add(whileCondition);
+        lastParentNodes.addAll(bodyBreaks);
+        bodyBreaks.clear();
     }
 
     @Override
@@ -116,6 +114,8 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
         }
 
         lastParentNodes.add(doWhileNode);
+        lastParentNodes.addAll(bodyBreaks);
+        bodyBreaks.clear();
     }
 
     @Override
@@ -150,6 +150,8 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
         }
 
         lastParentNodes.add(forNode);
+        lastParentNodes.addAll(bodyBreaks);
+        bodyBreaks.clear();
     }
 
     @Override
@@ -168,6 +170,8 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
         }
 
         lastParentNodes.add(foreachNode);
+        lastParentNodes.addAll(bodyBreaks);
+        bodyBreaks.clear();
     }
 
     @Override
@@ -179,38 +183,59 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
         lastParentNodes.add(switchNode);
 
-        List<CFGNode> lastEntryParents = new ArrayList<>();
+//        List<CFGNode> lastEntryParents = new ArrayList<>();
+//
+//        switchStmt.getEntries().forEach(entry -> {
+//            Optional<BreakStmt> entryBreak = entry.findFirst(BreakStmt.class, breakStmt -> {
+//                Optional<Node> parent = breakStmt.getParentNode();
+//
+//                return parent.isPresent() && parent.get()   .equals(entry);
+//            });
+//
+//            new BlockStmt(entry.getStatements()).accept(this, arg);
+//
+//            if (entryBreak.isPresent()) {
+//                while (!lastParentNodes.isEmpty()) {
+//                    lastEntryParents.add(lastParentNodes.poll());
+//                }
+//            }
+//
+//            lastParentNodes.add(switchNode);
+//        });
+//
+//        lastParentNodes.clear();
+//        lastParentNodes.addAll(lastEntryParents);
 
-        switchStmt.getEntries().forEach(entry -> {
-            Optional<BreakStmt> entryBreak = entry.findFirst(BreakStmt.class, breakStmt -> {
-                Optional<Node> parent = breakStmt.getParentNode();
+        List<CFGNode> allEntryBreaks = new ArrayList<>();
 
-                return parent.isPresent() && parent.get()   .equals(entry);
-            });
+        switchStmt.getEntries().forEach(switchEntryStmt -> {
+            switchEntryStmt.getStatements().accept(this, null);
 
-            new BlockStmt(entry.getStatements()).accept(this, arg);
+            if (!bodyBreaks.isEmpty()) { // means it has no break
+                allEntryBreaks.addAll(bodyBreaks); // save breaks of entry
 
-            if (entryBreak.isPresent()) {
-                while (!lastParentNodes.isEmpty()) {
-                    lastEntryParents.add(lastParentNodes.poll());
-                }
+                lastParentNodes.clear();
+                lastParentNodes.add(switchNode); // Set switch as the only parent
+
+                bodyBreaks.clear(); // Clear breaks
             }
-
-            lastParentNodes.add(switchNode);
         });
 
-        lastParentNodes.clear();
-        lastParentNodes.addAll(lastEntryParents);
+        lastParentNodes.addAll(allEntryBreaks);
     }
 
     @Override
     public void visit(BreakStmt breakStmt, Void arg) {
-
+        bodyBreaks.addAll(lastParentNodes);
     }
 
     @Override
     public void visit(ContinueStmt continueStmt, Void arg) {
+        Statement continuableStatement = Utils.findFirstAncestorStatementFrom(continueStmt, Utils::isLoop);
 
+        CFGNode continuableNode = graph.findNodeByStatement(continuableStatement).get();
+
+        lastParentNodes.forEach(parentNode -> graph.addControlFlowEdge(parentNode, continuableNode));
     }
 
     @Override
@@ -233,4 +258,6 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
         return node;
     }
+
+
 }
