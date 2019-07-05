@@ -16,12 +16,7 @@ public class CFGLog extends GraphLog<CFGGraph, CFGVisitor> {
 
     @Override
     public void visit(Node node) {
-        this.graph = new CFGGraph() {
-            @Override
-            protected String getRootNodeData() {
-                return "Start";
-            }
-        };
+        this.graph = new CFGGraph();
 
         this.visitor = new CFGVisitor(graph);
 

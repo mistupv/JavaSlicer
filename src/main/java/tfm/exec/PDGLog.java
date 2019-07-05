@@ -18,12 +18,7 @@ public class PDGLog extends GraphLog<PDGGraph, PDGCFGVisitor> {
 
     @Override
     void visit(com.github.javaparser.ast.Node node) {
-        this.graph = new PDGGraph() {
-            @Override
-            protected String getRootNodeData() {
-                return "Entry";
-            }
-        };
+        this.graph = new PDGGraph();
 
         this.visitor = new PDGCFGVisitor(graph);
 
