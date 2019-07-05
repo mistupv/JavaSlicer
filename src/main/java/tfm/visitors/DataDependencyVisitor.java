@@ -1,6 +1,5 @@
 package tfm.visitors;
 
-import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import edg.graphlib.Arrow;
@@ -10,7 +9,6 @@ import tfm.graphs.PDGGraph;
 import tfm.nodes.CFGNode;
 import tfm.nodes.PDGNode;
 import tfm.utils.Logger;
-import tfm.utils.Utils;
 import tfm.variables.VariableExtractor;
 
 import java.util.HashSet;
@@ -109,7 +107,7 @@ public class DataDependencyVisitor extends VoidVisitorAdapter<Void> {
     }
 
     private void buildDataDependency(Statement statement) {
-        buildDataDependency(pdgGraph.findNodeByStatement(statement).get());
+        buildDataDependency(pdgGraph.findNodeByASTNode(statement).get());
     }
 
     private void buildDataDependency(PDGNode node) {
@@ -117,7 +115,7 @@ public class DataDependencyVisitor extends VoidVisitorAdapter<Void> {
                 .setOnVariableUseListener(variable -> {
                     node.addUsedVariable(variable);
 
-                    Optional<CFGNode> nodeOptional = cfgGraph.findNodeByStatement(node.getStatement());
+                    Optional<CFGNode> nodeOptional = cfgGraph.findNodeByASTNode(node.getAstNode());
 
                     if (!nodeOptional.isPresent()) {
                         return;
@@ -128,12 +126,12 @@ public class DataDependencyVisitor extends VoidVisitorAdapter<Void> {
                     Set<CFGNode> lastDefinitions = findLastDefinitionsFrom(cfgNode, variable);
 
                     for (CFGNode definitionNode : lastDefinitions) {
-                        pdgGraph.findNodeByStatement(definitionNode.getStatement())
+                        pdgGraph.findNodeByASTNode(definitionNode.getAstNode())
                                 .ifPresent(pdgNode -> pdgGraph.addDataDependencyArc(pdgNode, node, variable));
                     }
                 })
                 .setOnVariableDefinitionListener(node::addDefinedVariable)
                 .setOnVariableDeclarationListener(node::addDeclaredVariable)
-                .visit(node.getStatement());
+                .visit(node.getAstNode());
     }
 }

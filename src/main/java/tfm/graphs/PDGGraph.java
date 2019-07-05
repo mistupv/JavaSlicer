@@ -20,13 +20,15 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public abstract class PDGGraph extends Graph<PDGNode> {
+public class PDGGraph extends Graph<PDGNode> {
 
     public PDGGraph() {
         setRootVertex(new PDGNode(getNextVertexId(), getRootNodeData(), new EmptyStmt()));
     }
 
-    protected abstract String getRootNodeData();
+    protected String getRootNodeData() {
+        return "Entry";
+    }
 
     public <N extends Node> PDGNode addNode(N node) {
         PDGNode vertex = new PDGNode(getNextVertexId(), node);

@@ -1,11 +1,9 @@
 package tfm.nodes;
 
-import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.stmt.Statement;
 import edg.graphlib.Vertex;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import tfm.arcs.data.ArcData;
-import tfm.graphs.Graph;
 import tfm.variables.VariableExtractor;
 
 import java.util.HashSet;
@@ -14,28 +12,31 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class Node extends Vertex<String, ArcData> {
+public class Node<ASTNode extends com.github.javaparser.ast.Node> extends Vertex<String, ArcData> {
 
-    private Statement statement;
+    private ASTNode astNode;
 
     protected Set<String> declaredVariables;
     protected Set<String> definedVariables;
     protected Set<String> usedVariables;
 
-    public <N extends Node> Node(N node) {
-        this(node.getId(), node.getData(), node.getStatement());
+    public <N extends Node<ASTNode>> Node(N node) {
+        this(node.getId(), node.getData(), node.getAstNode());
     }
 
-    public Node(int id, String representation, @NonNull Statement statement) {
+    public Node(int id, String representation, @NonNull ASTNode astNode) {
         super(String.valueOf(id), representation);
 
-        this.statement = statement;
+        this.astNode = astNode;
 
         this.declaredVariables = new HashSet<>();
         this.definedVariables = new HashSet<>();
         this.usedVariables = new HashSet<>();
 
-        extractVariables(statement);
+        if (astNode instanceof Statement) {
+            extractVariables((Statement) astNode);
+        }
+
     }
 
     private void extractVariables(@NonNull Statement statement) {
@@ -58,12 +59,12 @@ public class Node extends Vertex<String, ArcData> {
                 getOutgoingArrows().stream().map(arc -> arc.getTo().getName()).collect(Collectors.toList()));
     }
 
-    public Statement getStatement() {
-        return statement;
+    public ASTNode getAstNode() {
+        return astNode;
     }
 
     public Optional<Integer> getFileLineNumber() {
-        return statement.getBegin().isPresent() ? Optional.of(statement.getBegin().get().line) : Optional.empty();
+        return astNode.getBegin().isPresent() ? Optional.of(astNode.getBegin().get().line) : Optional.empty();
     }
 
     public void addDeclaredVariable(String variable) {
@@ -91,7 +92,7 @@ public class Node extends Vertex<String, ArcData> {
         return Objects.equals(getData(), other.getData())
                 && Objects.equals(getIncomingArrows(), other.getIncomingArrows())
                 && Objects.equals(getOutgoingArrows(), other.getOutgoingArrows())
-                && Objects.equals(statement, other.statement);
+                && Objects.equals(astNode, other.astNode);
                 // && Objects.equals(getName(), other.getName()) ID IS ALWAYS UNIQUE, SO IT WILL NEVER BE THE SAME
     }
 

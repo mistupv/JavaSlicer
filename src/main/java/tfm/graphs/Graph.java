@@ -87,9 +87,9 @@ public abstract class Graph<NodeType extends Node> extends edg.graphlib.Graph<St
 
     public abstract NodeType addNode(String instruction, Statement statement);
 
-    public Optional<NodeType> findNodeByStatement(Statement statement) {
+    public <ASTNode extends com.github.javaparser.ast.Node> Optional<NodeType> findNodeByASTNode(ASTNode astNode) {
         return getNodes().stream()
-                .filter(node -> Objects.equals(node.getStatement(), statement))
+                .filter(node -> Objects.equals(node.getAstNode(), astNode))
                 .findFirst();
     }
 

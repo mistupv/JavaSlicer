@@ -3,17 +3,15 @@ package tfm.nodes;
 import com.github.javaparser.ast.stmt.Statement;
 import tfm.arcs.Arc;
 import tfm.arcs.pdg.ControlDependencyArc;
-import tfm.graphs.Graph;
-import tfm.graphs.PDGGraph;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class PDGNode extends Node {
+public class PDGNode extends Node<Statement> {
 
-    public <N extends Node> PDGNode(int id, N node) {
-        this(id, node.getData(), node.getStatement());
+    public <N extends Node<Statement>> PDGNode(int id, N node) {
+        this(id, node.getData(), node.getAstNode());
 
         usedVariables = node.getUsedVariables();
         definedVariables = node.getDefinedVariables();

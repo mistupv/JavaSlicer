@@ -13,7 +13,7 @@ import java.util.Comparator;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public abstract class CFGGraph extends Graph<CFGNode> {
+public class CFGGraph extends Graph<CFGNode> {
 
     public CFGGraph() {
         super();
@@ -28,7 +28,9 @@ public abstract class CFGGraph extends Graph<CFGNode> {
         return vertex;
     }
 
-    protected abstract String getRootNodeData();
+    protected String getRootNodeData() {
+        return "Start";
+    }
 
     @SuppressWarnings("unchecked")
     public void addControlFlowEdge(CFGNode from, CFGNode to) {

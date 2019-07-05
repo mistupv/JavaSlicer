@@ -1,6 +1,5 @@
 package tfm.visitors;
 
-import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.graphs.CFGGraph;
@@ -67,7 +66,7 @@ public class ControlDependencyVisitor extends VoidVisitorAdapter<PDGNode> {
     }
 
     private PDGNode addNodeAndControlDependency(Statement statement, PDGNode parent) {
-        PDGNode node = pdgGraph.addNode(cfgGraph.findNodeByStatement(statement).get());
+        PDGNode node = pdgGraph.addNode(cfgGraph.findNodeByASTNode(statement).get());
         pdgGraph.addControlDependencyArc(parent, node);
 
         return node;

@@ -1,7 +1,6 @@
 package tfm.visitors;
 
 import com.github.javaparser.ast.Node;
-import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.stmt.*;
@@ -111,7 +110,7 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
         if (!body.isEmpty()) {
             Statement firstBodyStatement = body.getStatement(0);
 
-            graph.findNodeByStatement(firstBodyStatement)
+            graph.findNodeByASTNode(firstBodyStatement)
                     .ifPresent(node -> graph.addControlFlowEdge(doWhileNode, node));
         }
 
@@ -251,7 +250,7 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
     public void visit(ContinueStmt continueStmt, Void arg) {
         Statement continuableStatement = Utils.findFirstAncestorStatementFrom(continueStmt, Utils::isLoop);
 
-        CFGNode continuableNode = graph.findNodeByStatement(continuableStatement).get();
+        CFGNode continuableNode = graph.findNodeByASTNode(continuableStatement).get();
 
         lastParentNodes.forEach(parentNode -> graph.addControlFlowEdge(parentNode, continuableNode));
     }

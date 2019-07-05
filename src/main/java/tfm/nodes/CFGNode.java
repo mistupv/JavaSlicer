@@ -8,7 +8,7 @@ import tfm.graphs.Graph;
 import java.util.stream.Collectors;
 
 
-public class CFGNode extends Node {
+public class CFGNode extends Node<Statement> {
 
     public <N extends Node> CFGNode(N node) {
         super(node);
