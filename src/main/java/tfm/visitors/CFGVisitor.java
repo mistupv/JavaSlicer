@@ -1,6 +1,7 @@
 package tfm.visitors;
 
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.stmt.*;
@@ -209,16 +210,32 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
         List<CFGNode> allEntryBreaks = new ArrayList<>();
 
+        List<CFGNode> lastEntryStatementsWithNoBreak = new ArrayList<>();
+
         switchStmt.getEntries().forEach(switchEntryStmt -> {
+            String label = switchEntryStmt.getLabel()
+                    .map(expression -> "case " + expression)
+                    .orElse("default");
+
+            CFGNode switchEntryNode = addNodeAndArcs(label, switchEntryStmt);
+
+            lastParentNodes.add(switchEntryNode);
+            lastParentNodes.addAll(lastEntryStatementsWithNoBreak);
+            lastEntryStatementsWithNoBreak.clear();
+
             switchEntryStmt.getStatements().accept(this, null);
 
-            if (!bodyBreaks.isEmpty()) { // means it has no break
+            if (!bodyBreaks.isEmpty()) { // means it has break
                 allEntryBreaks.addAll(bodyBreaks); // save breaks of entry
 
                 lastParentNodes.clear();
-                lastParentNodes.add(switchNode); // Set switch as the only parent
+                lastParentNodes.add(switchEntryNode); // Set switch as the only parent
 
                 bodyBreaks.clear(); // Clear breaks
+            } else {
+                lastEntryStatementsWithNoBreak.addAll(lastParentNodes);
+                lastParentNodes.clear();
+                lastParentNodes.add(switchEntryNode);
             }
         });
 

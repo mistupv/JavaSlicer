@@ -55,9 +55,9 @@ public abstract class Graph<NodeType extends Node> extends edg.graphlib.Graph<St
         ArcData data = arrow.getData();
 
         if (!verticies.contains(from))
-            throw new IllegalArgumentException("from is not in graph");
+            throw new IllegalArgumentException(String.format("from (%s) is not in graph", from));
         if (!verticies.contains(to))
-            throw new IllegalArgumentException("to is not in graph");
+            throw new IllegalArgumentException(String.format("to (%s) is not in graph", to));
 
         List<Arrow<String, ArcData>> es2 = from.findEdges(to);
 

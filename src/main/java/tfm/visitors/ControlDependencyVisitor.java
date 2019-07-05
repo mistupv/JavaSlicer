@@ -52,6 +52,20 @@ public class ControlDependencyVisitor extends VoidVisitorAdapter<PDGNode> {
         forEachStmt.getBody().accept(this, node);
     }
 
+    @Override
+    public void visit(SwitchStmt switchStmt, PDGNode parent) {
+        PDGNode node = addNodeAndControlDependency(switchStmt, parent);
+
+        switchStmt.getEntries().accept(this, node);
+    }
+
+    @Override
+    public void visit(SwitchEntryStmt switchEntryStmt, PDGNode parent) {
+        PDGNode node = addNodeAndControlDependency(switchEntryStmt, parent);
+
+        switchEntryStmt.getStatements().accept(this, node);
+    }
+
     private PDGNode addNodeAndControlDependency(Statement statement, PDGNode parent) {
         PDGNode node = pdgGraph.addNode(cfgGraph.findNodeByStatement(statement).get());
         pdgGraph.addControlDependencyArc(parent, node);

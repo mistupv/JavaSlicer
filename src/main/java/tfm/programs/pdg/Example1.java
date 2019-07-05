@@ -35,31 +35,31 @@ public class Example1 {
             y *= x;
         }
 
-//        int e = (Integer) x;
-//
-//        switch (x) {
-//            case 1:
-//                e = 2;
-//
-//                while (1 < 4) {
-//                    y = 2;
-//
-//                    if (4 < 1) {
-//                        break;
-//                    }
-//                }
-//
-//                e = 5;
-//
-//                break;
-//            case 2:
-//                e = 3;
-//            case 3:
-//                e = 4;
-//                break;
-//            default:
-//        }
+        int e = (Integer) x;
 
-        Logger.log(y);
+        switch (x) {
+            case 1:
+                e = 2;
+
+                while (1 < 4) {
+                    y = 2;
+
+                    if (4 < 1) {
+                        break;
+                    }
+                }
+
+                e = 5;
+
+                break;
+            case 2:
+                e = 3;
+            case 3:
+                e = 4;
+                break;
+            default:
+        }
+
+        Logger.log(e);
     }
 }
