@@ -184,29 +184,6 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
         lastParentNodes.add(switchNode);
 
-//        List<CFGNode> lastEntryParents = new ArrayList<>();
-//
-//        switchStmt.getEntries().forEach(entry -> {
-//            Optional<BreakStmt> entryBreak = entry.findFirst(BreakStmt.class, breakStmt -> {
-//                Optional<Node> parent = breakStmt.getParentNode();
-//
-//                return parent.isPresent() && parent.get()   .equals(entry);
-//            });
-//
-//            new BlockStmt(entry.getStatements()).accept(this, arg);
-//
-//            if (entryBreak.isPresent()) {
-//                while (!lastParentNodes.isEmpty()) {
-//                    lastEntryParents.add(lastParentNodes.poll());
-//                }
-//            }
-//
-//            lastParentNodes.add(switchNode);
-//        });
-//
-//        lastParentNodes.clear();
-//        lastParentNodes.addAll(lastEntryParents);
-
         List<CFGNode> allEntryBreaks = new ArrayList<>();
 
         List<CFGNode> lastEntryStatementsWithNoBreak = new ArrayList<>();
@@ -257,9 +234,13 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
     @Override
     public void visit(MethodDeclaration methodDeclaration, Void arg) {
+        if (!lastParentNodes.isEmpty() && Objects.equals(lastParentNodes.peek().getData(), "Stop")) {
+            throw new IllegalStateException("CFG is only allowed for one method, not multiple!");
+        }
+
         super.visit(methodDeclaration, arg);
 
-        addNodeAndArcs("Stop", new EmptyStmt());
+        lastParentNodes.add(addNodeAndArcs("Stop", new EmptyStmt()));
     }
 
     private CFGNode addNodeAndArcs(String nodeData, Statement statement) {

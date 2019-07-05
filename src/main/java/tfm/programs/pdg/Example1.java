@@ -2,8 +2,6 @@ package tfm.programs.pdg;
 
 import tfm.utils.Logger;
 
-import java.util.Arrays;
-
 public class Example1 {
 
     public static void main(String[] args) {
@@ -62,4 +60,14 @@ public class Example1 {
 
         Logger.log(e);
     }
+
+//    public static void main2() {
+//        int x = 4;
+//        int z = 2;
+//        int p = x;
+//
+//        int t = z * p;
+//
+//        Logger.log(t);
+//    }
 }

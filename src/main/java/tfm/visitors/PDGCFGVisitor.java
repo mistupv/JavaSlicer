@@ -1,5 +1,6 @@
 package tfm.visitors;
 
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
@@ -39,8 +40,6 @@ public class PDGCFGVisitor extends VoidVisitorAdapter<PDGNode> {
     }
 
     public void visit(MethodDeclaration methodDeclaration, PDGNode parent) {
-        methodDeclaration.accept(new CFGVisitor(cfgGraph), null);
-
         if (!methodDeclaration.getBody().isPresent())
             return;
 
@@ -53,5 +52,14 @@ public class PDGCFGVisitor extends VoidVisitorAdapter<PDGNode> {
         // Build data dependency
         DataDependencyVisitor dataDependencyVisitor = new DataDependencyVisitor(pdgGraph, cfgGraph);
         blockStmt.accept(dataDependencyVisitor, null);
+    }
+
+    @Override
+    public void visit(ClassOrInterfaceDeclaration classOrInterfaceDeclaration, PDGNode parent) {
+        // build CFG
+        classOrInterfaceDeclaration.accept(new CFGVisitor(cfgGraph), null);
+
+        // Visit normally...
+        super.visit(classOrInterfaceDeclaration, parent);
     }
 }
