@@ -10,6 +10,8 @@ import tfm.nodes.CFGNode;
 import tfm.nodes.Node;
 
 import java.util.Comparator;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -57,4 +59,10 @@ public class CFGGraph extends Graph<CFGNode> {
                 arrows + lineSep +
                 "}";
     }
+
+    @Override
+    public Set<CFGNode> slice(String variable, int lineNumber) {
+        return new HashSet<>();
+    }
+
 }

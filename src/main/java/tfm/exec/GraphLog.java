@@ -20,10 +20,18 @@ public abstract class GraphLog<G extends Graph<?>, V extends VoidVisitor<?>> {
     G graph;
     V visitor;
 
-    abstract void visit(Node node);
+    public GraphLog() {
+
+    }
+
+    public GraphLog(G graph) {
+        this.graph = graph;
+    }
+
+    public abstract void visit(Node node);
 
 
-    void log() throws IOException {
+    public void log() throws IOException {
         Logger.log(
                 "****************************\n" +
                 "*           GRAPH          *\n" +
@@ -41,7 +49,7 @@ public abstract class GraphLog<G extends Graph<?>, V extends VoidVisitor<?>> {
         generatePNGs();
     }
 
-    abstract void generatePNGs() throws IOException;
+    public abstract void generatePNGs() throws IOException;
 
-    abstract void openVisualRepresentation() throws IOException;
+    public abstract void openVisualRepresentation() throws IOException;
 }

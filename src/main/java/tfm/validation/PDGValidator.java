@@ -1,0 +1,82 @@
+package tfm.validation;
+
+import com.github.javaparser.JavaParser;
+import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.Modifier;
+import com.github.javaparser.ast.NodeList;
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.Parameter;
+import com.github.javaparser.ast.stmt.BlockStmt;
+import com.github.javaparser.ast.type.ArrayType;
+import com.github.javaparser.ast.type.ClassOrInterfaceType;
+import com.github.javaparser.ast.type.Type;
+import com.github.javaparser.ast.type.VoidType;
+import edg.graphlib.Graph;
+import edg.graphlib.Vertex;
+import edg.graphlib.Visitor;
+import tfm.arcs.data.ArcData;
+import tfm.graphs.PDGGraph;
+import tfm.nodes.PDGNode;
+import tfm.utils.Logger;
+import tfm.utils.Utils;
+import tfm.visitors.NodeVisitor;
+import tfm.visitors.PDGCFGVisitor;
+import tfm.visitors.PDGVisitor;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.PrintWriter;
+import java.util.Arrays;
+
+public class PDGValidator {
+
+    private static final String PROGRAM_FOLDER = Utils.PROGRAMS_FOLDER + "pdg";
+    private static final String PROGRAM_NAME = "Example2";
+
+    public static void main(String[] args) throws FileNotFoundException {
+        JavaParser.getStaticConfiguration().setAttributeComments(false);
+
+        CompilationUnit originalProgram = JavaParser.parse(new File(String.format("%s/%s.java", PROGRAM_FOLDER, PROGRAM_NAME)));
+
+        PDGGraph graph = new PDGGraph();
+
+        originalProgram.accept(new PDGCFGVisitor(graph), graph.getRootNode());
+
+        CompilationUnit generatedProgram = new CompilationUnit();
+
+        ClassOrInterfaceDeclaration clazz = generatedProgram.addClass("Generated" + PROGRAM_NAME).setPublic(true);
+
+        MethodDeclaration methodDeclaration = clazz.addMethod("main", Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC);
+        methodDeclaration.setType(new VoidType());
+
+        Parameter parameter = new Parameter(
+                new ArrayType(JavaParser.parseClassOrInterfaceType("String")),
+                "args"
+        );
+
+        methodDeclaration.setParameters(new NodeList<>(Arrays.asList(parameter)));
+
+        BlockStmt methodBody = new BlockStmt();
+        methodDeclaration.setBody(methodBody);
+
+        graph.getNodesAtLevel(1).forEach(node -> methodBody.addStatement(node.getAstNode()));
+
+//        graph.depthFirstSearch(graph.getRootNode(), new NodeVisitor<PDGNode>() {
+//            @Override
+//            public void visit(PDGNode node) {
+//                if (node.equals(graph.getRootNode()))
+//                    return;
+//
+//                Logger.log(node);
+//
+//                methodBody.addStatement(node.get);
+//            }
+//        });
+
+        PrintWriter printWriter = new PrintWriter(new File(String.format("out/%s.java", "Generated" + PROGRAM_NAME)));
+
+        printWriter.print(clazz.toString());
+        printWriter.close();
+    }
+}

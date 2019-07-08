@@ -9,7 +9,7 @@ import java.io.IOException;
 public class SDGLog extends GraphLog<SDGGraph, SDGVisitor> {
 
     @Override
-    void visit(Node node) {
+    public void visit(Node node) {
         SDGGraph sdgGraph = new SDGGraph();
 
         SDGVisitor sdgVisitor = new SDGVisitor(sdgGraph);
@@ -18,12 +18,12 @@ public class SDGLog extends GraphLog<SDGGraph, SDGVisitor> {
     }
 
     @Override
-    void generatePNGs() throws IOException {
+    public void generatePNGs() throws IOException {
 
     }
 
     @Override
-    void openVisualRepresentation() throws IOException {
+    public void openVisualRepresentation() throws IOException {
 
     }
 }

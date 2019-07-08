@@ -11,6 +11,7 @@ import java.util.function.Predicate;
 
 public class Utils {
 
+    public static final String PROGRAMS_FOLDER = "src/main/java/tfm/programs/";
 
     public static BlockStmt blockWrapper(Statement statement) {
         if (statement.isBlockStmt())

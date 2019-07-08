@@ -15,10 +15,14 @@ public class Example2 {
 
         int z = 10;
 
+        y = z + x;
+
+        x += y;
+
         Iterable<Integer> integers = Arrays.asList(1, 2, 3);
 
         for(int i : integers) {
-            Logger.log(i);
+            Logger.log(x + i);
         }
     }
 }

@@ -1,15 +1,20 @@
 package tfm.graphs;
 
+import com.github.javaparser.Position;
 import com.github.javaparser.ast.stmt.EmptyStmt;
 import com.github.javaparser.ast.stmt.Statement;
+import edg.graphlib.Arrow;
 import edg.graphlib.Vertex;
 import edg.graphlib.Visitor;
 import tfm.arcs.Arc;
+import tfm.arcs.cfg.ControlFlowArc;
 import tfm.arcs.data.ArcData;
 import tfm.arcs.pdg.ControlDependencyArc;
 import tfm.arcs.pdg.DataDependencyArc;
+import tfm.nodes.CFGNode;
 import tfm.nodes.PDGNode;
 import tfm.nodes.Node;
+import tfm.utils.Logger;
 import tfm.variables.*;
 import tfm.variables.actions.VariableDeclaration;
 import tfm.variables.actions.VariableUse;
@@ -126,5 +131,60 @@ public class PDGGraph extends Graph<PDGNode> {
                 arrows + lineSep +
                 rankedNodes.toString() +
                 "}";
+    }
+
+    @Override
+    public Set<PDGNode> slice(String variable, int lineNumber) {
+        PDGNode sliceNode = null;
+
+        // find node by line number
+        for (PDGNode node : getNodes()) {
+            Statement statement = node.getAstNode();
+
+            if (!statement.getBegin().isPresent() || !statement.getEnd().isPresent())
+                continue;
+
+            int begin = statement.getBegin().get().line;
+            int end = statement.getEnd().get().line;
+
+            Logger.format("begin %s end %s", begin, end);
+
+            if (lineNumber == begin || lineNumber == end) {
+                sliceNode = node;
+                break;
+            }
+        }
+
+        if (sliceNode == null) {
+            Logger.format("Warning: Slicing node not found for slicing criterion: (%s, %s)", variable, lineNumber);
+            return new HashSet<>();
+        }
+
+        Logger.log("Slice node: " + sliceNode);
+
+        return getSliceNodes(new HashSet<>(), sliceNode);
+    }
+
+    private Set<PDGNode> getSliceNodes(Set<PDGNode> visited, PDGNode root) {
+        visited.add(root);
+
+        for (Arrow arrow : root.getIncomingArrows()) {
+            Arc arc = (Arc) arrow;
+
+            PDGNode from = (PDGNode) arc.getFromNode();
+
+            Logger.log("Arrow from node: " + from);
+
+            if (visited.contains(from)) {
+                Logger.log("It's already visited. Continuing...");
+                continue;
+            }
+
+            getSliceNodes(visited, from);
+        }
+
+        Logger.format("Done with node %s", root.getId());
+
+        return visited;
     }
 }

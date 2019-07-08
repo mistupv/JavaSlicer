@@ -16,8 +16,16 @@ import java.util.stream.Collectors;
 
 public class PDGLog extends GraphLog<PDGGraph, PDGCFGVisitor> {
 
+    public PDGLog() {
+        super();
+    }
+
+    public PDGLog(PDGGraph pdgGraph) {
+        super(pdgGraph);
+    }
+
     @Override
-    void visit(com.github.javaparser.ast.Node node) {
+    public void visit(com.github.javaparser.ast.Node node) {
         this.graph = new PDGGraph();
 
         this.visitor = new PDGCFGVisitor(graph);
@@ -26,7 +34,7 @@ public class PDGLog extends GraphLog<PDGGraph, PDGCFGVisitor> {
     }
 
     @Override
-    void log() throws IOException {
+    public void log() throws IOException {
         super.log();
 
         Logger.log("Nodes with variable info");
@@ -44,10 +52,10 @@ public class PDGLog extends GraphLog<PDGGraph, PDGCFGVisitor> {
     }
 
     @Override
-    void generatePNGs() throws IOException {
-        Graphviz.fromString(visitor.getCfgGraph().toGraphvizRepresentation())
-                .render(Format.PNG)
-                .toFile(new File("./out/pdg-cfg.png"));
+    public void generatePNGs() throws IOException {
+//        Graphviz.fromString(visitor.getCfgGraph().toGraphvizRepresentation())
+//                .render(Format.PNG)
+//                .toFile(new File("./out/pdg-cfg.png"));
 
         Graphviz.fromString(graph.toGraphvizRepresentation())
                 .render(Format.PNG)
@@ -55,7 +63,7 @@ public class PDGLog extends GraphLog<PDGGraph, PDGCFGVisitor> {
     }
 
     @Override
-    void openVisualRepresentation() throws IOException {
+    public void openVisualRepresentation() throws IOException {
         new ProcessBuilder(Arrays.asList("xdg-open", "./out/pdg-cfg.png")).start();
         new ProcessBuilder(Arrays.asList("xdg-open", "./out/pdg.png")).start();
     }

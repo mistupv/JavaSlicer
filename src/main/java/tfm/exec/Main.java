@@ -5,6 +5,7 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import tfm.utils.Logger;
+import tfm.utils.Utils;
 
 import java.io.File;
 import java.io.IOException;
@@ -13,7 +14,7 @@ import java.util.Optional;
 
 public class Main {
 
-    public static final String PROGRAM = "src/main/java/tfm/programs/pdg/Example1.java";
+    public static final String PROGRAM = Utils.PROGRAMS_FOLDER + "pdg/Example2.java";
     public static final String METHOD = "";
     public static final String GRAPH = GraphLog.PDG;
 
