@@ -43,9 +43,24 @@ public class PDGValidator {
 
         originalProgram.accept(new PDGCFGVisitor(graph), graph.getRootNode());
 
-        CompilationUnit generatedProgram = new CompilationUnit();
+//        graph.depthFirstSearch(graph.getRootNode(), new NodeVisitor<PDGNode>() {
+//            @Override
+//            public void visit(PDGNode node) {
+//                if (node.equals(graph.getRootNode()))
+//                    return;
+//
+//                Logger.log(node);
+//
+//                methodBody.addStatement(node.get);
+//            }
+//        });
 
-        ClassOrInterfaceDeclaration clazz = generatedProgram.addClass("Generated" + PROGRAM_NAME).setPublic(true);
+        printPDGProgram("Generated" + PROGRAM_NAME, graph);
+    }
+
+    public static void printPDGProgram(String fileName, PDGGraph graph) throws FileNotFoundException {
+        CompilationUnit generatedProgram = new CompilationUnit();
+        ClassOrInterfaceDeclaration clazz = generatedProgram.addClass(fileName).setPublic(true);
 
         MethodDeclaration methodDeclaration = clazz.addMethod("main", Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC);
         methodDeclaration.setType(new VoidType());
@@ -62,19 +77,7 @@ public class PDGValidator {
 
         graph.getNodesAtLevel(1).forEach(node -> methodBody.addStatement(node.getAstNode()));
 
-//        graph.depthFirstSearch(graph.getRootNode(), new NodeVisitor<PDGNode>() {
-//            @Override
-//            public void visit(PDGNode node) {
-//                if (node.equals(graph.getRootNode()))
-//                    return;
-//
-//                Logger.log(node);
-//
-//                methodBody.addStatement(node.get);
-//            }
-//        });
-
-        PrintWriter printWriter = new PrintWriter(new File(String.format("out/%s.java", "Generated" + PROGRAM_NAME)));
+        PrintWriter printWriter = new PrintWriter(new File(String.format("out/%s.java", fileName)));
 
         printWriter.print(clazz.toString());
         printWriter.close();

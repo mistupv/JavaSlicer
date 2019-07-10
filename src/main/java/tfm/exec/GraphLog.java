@@ -45,8 +45,6 @@ public abstract class GraphLog<G extends Graph<?>, V extends VoidVisitor<?>> {
         );
         Logger.log(graph.toGraphvizRepresentation());
         Logger.log();
-
-        generatePNGs();
     }
 
     public abstract void generatePNGs() throws IOException;

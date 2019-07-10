@@ -1,25 +1,31 @@
 package tfm.nodes;
 
 import com.github.javaparser.ast.stmt.Statement;
+import edg.graphlib.Arrow;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import tfm.arcs.Arc;
+import tfm.arcs.data.ArcData;
 import tfm.arcs.pdg.ControlDependencyArc;
+import tfm.utils.Logger;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class PDGNode extends Node<Statement> {
 
-    public <N extends Node<Statement>> PDGNode(int id, N node) {
-        this(id, node.getData(), node.getAstNode());
-
-        usedVariables = node.getUsedVariables();
-        definedVariables = node.getDefinedVariables();
-        declaredVariables = node.getDeclaredVariables();
-    }
-
     public PDGNode(int id, String data, Statement statement) {
         super(id, data, statement);
+    }
+
+    public PDGNode(int id, String representation, @NonNull Statement statement, Collection<? extends Arrow<String, ArcData>> incomingArcs, Collection<? extends Arrow<String, ArcData>> outgoingArcs, Set<String> declaredVariables, Set<String> definedVariables, Set<String> usedVariables) {
+        super(id, representation, statement, incomingArcs, outgoingArcs, declaredVariables, definedVariables, usedVariables);
+    }
+
+    public <N extends Node> PDGNode(N node) {
+        super(node);
     }
 
     public String toString() {
@@ -29,6 +35,7 @@ public class PDGNode extends Node<Statement> {
         List<Integer> controlTo = new ArrayList<>();
 
         getIncomingArrows().forEach(arrow -> {
+            Logger.log(arrow);
             Arc arc = (Arc) arrow;
             Node from = (Node) arc.getFrom();
 

@@ -5,8 +5,7 @@ import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.EmptyStmt;
 import com.github.javaparser.ast.stmt.Statement;
 
-import java.util.Collection;
-import java.util.Collections;
+import java.util.*;
 import java.util.function.Predicate;
 
 public class Utils {
@@ -37,5 +36,13 @@ public class Utils {
         }
 
         return findFirstAncestorStatementFrom((Statement) statement.getParentNode().get(), predicate);
+    }
+
+    public static <E> List<E> emptyList() {
+        return new ArrayList<>(0);
+    }
+
+    public static <E> Set<E> emptySet() {
+        return new HashSet<>(0);
     }
 }

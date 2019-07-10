@@ -4,6 +4,10 @@ import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.visitor.GenericVisitor;
+import tfm.graphs.CFGGraph;
+import tfm.graphs.Graph;
+import tfm.graphs.PDGGraph;
 import tfm.utils.Logger;
 import tfm.utils.Utils;
 
@@ -14,7 +18,7 @@ import java.util.Optional;
 
 public class Main {
 
-    public static final String PROGRAM = Utils.PROGRAMS_FOLDER + "pdg/Example2.java";
+    public static final String PROGRAM = Utils.PROGRAMS_FOLDER + "pdg/Example1.java";
     public static final String METHOD = "";
     public static final String GRAPH = GraphLog.PDG;
 
@@ -24,9 +28,6 @@ public class Main {
         // File
         File file = new File(PROGRAM);
         Node root = JavaParser.parse(file);
-
-        // GraphLog
-        GraphLog<?, ?> graphLog = getGraphLog(args.length == 1 ? args[0] : GRAPH);
 
         if (!METHOD.isEmpty()) {
             Optional<MethodDeclaration> methodDeclarationOptional = root.findFirst(MethodDeclaration.class,
@@ -40,7 +41,9 @@ public class Main {
             root = methodDeclarationOptional.get();
         }
 
-        // Generate Graph and measure time
+        // GraphLog
+        GraphLog<?, ?> graphLog = getGraphLog(args.length == 1 ? args[0] : GRAPH);
+
         long t0 = System.nanoTime();
         graphLog.visit(root);
         long tf = System.nanoTime();
@@ -65,7 +68,6 @@ public class Main {
                 graphLog = new CFGLog();
                 break;
             case GraphLog.PDG:
-//                main(new String[]{GraphLog.CFG});
                 graphLog = new PDGLog();
                 break;
             default:

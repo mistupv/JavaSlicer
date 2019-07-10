@@ -1,15 +1,15 @@
 package tfm.nodes;
 
 import com.github.javaparser.ast.stmt.Statement;
+import edg.graphlib.Arrow;
 import edg.graphlib.Vertex;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.jetbrains.annotations.NotNull;
 import tfm.arcs.data.ArcData;
+import tfm.utils.Utils;
 import tfm.variables.VariableExtractor;
 
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class Node<ASTNode extends com.github.javaparser.ast.Node> extends Vertex<String, ArcData> {
@@ -21,22 +21,55 @@ public class Node<ASTNode extends com.github.javaparser.ast.Node> extends Vertex
     protected Set<String> usedVariables;
 
     public <N extends Node<ASTNode>> Node(N node) {
-        this(node.getId(), node.getData(), node.getAstNode());
+        this(
+                node.getId(),
+                node.getData(),
+                node.getAstNode(),
+                node.getIncomingArrows(),
+                node.getOutgoingArrows(),
+                node.getDeclaredVariables(),
+                node.getDefinedVariables(),
+                node.getUsedVariables()
+        );
     }
 
-    public Node(int id, String representation, @NonNull ASTNode astNode) {
+    public Node(int id, String representation, @NotNull ASTNode astNode) {
+        this(
+                id,
+                representation,
+                astNode,
+                Utils.emptyList(),
+                Utils.emptyList(),
+                Utils.emptySet(),
+                Utils.emptySet(),
+                Utils.emptySet()
+        );
+    }
+
+    public Node(
+                int id,
+                String representation,
+                @NonNull ASTNode astNode,
+                Collection<? extends Arrow<String, ArcData>> incomingArcs,
+                Collection<? extends Arrow<String, ArcData>> outgoingArcs,
+                Set<String> declaredVariables,
+                Set<String> definedVariables,
+                Set<String> usedVariables
+    ) {
         super(String.valueOf(id), representation);
 
         this.astNode = astNode;
 
-        this.declaredVariables = new HashSet<>();
-        this.definedVariables = new HashSet<>();
-        this.usedVariables = new HashSet<>();
+        this.declaredVariables = declaredVariables;
+        this.definedVariables = definedVariables;
+        this.usedVariables = usedVariables;
+
+        this.setIncomingArcs(incomingArcs);
+        this.setOutgoingArcs(outgoingArcs);
 
         if (astNode instanceof Statement) {
             extractVariables((Statement) astNode);
         }
-
     }
 
     private void extractVariables(@NonNull Statement statement) {
@@ -90,8 +123,8 @@ public class Node<ASTNode extends com.github.javaparser.ast.Node> extends Vertex
         Node other = (Node) o;
 
         return Objects.equals(getData(), other.getData())
-                && Objects.equals(getIncomingArrows(), other.getIncomingArrows())
-                && Objects.equals(getOutgoingArrows(), other.getOutgoingArrows())
+//                && Objects.equals(getIncomingArrows(), other.getIncomingArrows())
+//                && Objects.equals(getOutgoingArrows(), other.getOutgoingArrows())
                 && Objects.equals(astNode, other.astNode);
                 // && Objects.equals(getName(), other.getName()) ID IS ALWAYS UNIQUE, SO IT WILL NEVER BE THE SAME
     }
@@ -110,5 +143,17 @@ public class Node<ASTNode extends com.github.javaparser.ast.Node> extends Vertex
 
     public Set<String> getUsedVariables() {
         return usedVariables;
+    }
+
+    public <A extends Arrow<String, ArcData>, C extends Collection<A>> void setIncomingArcs(C arcs) {
+        for (A arc : arcs) {
+            this.addIncomingEdge(arc.getFrom(), arc.getCost());
+        }
+    }
+
+    public <A extends Arrow<String, ArcData>, C extends Collection<A>> void setOutgoingArcs(C arcs) {
+        for (A arc : arcs) {
+            this.addOutgoingEdge(arc.getTo(), arc.getCost());
+        }
     }
 }

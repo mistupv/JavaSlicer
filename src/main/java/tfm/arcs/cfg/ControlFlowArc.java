@@ -25,4 +25,12 @@ public class ControlFlowArc extends Arc<VoidArcData> {
         return false;
     }
 
+    @Override
+    public String toString() {
+        return String.format("ControlFlowArc{%s -> %s}",
+                getFromNode().getId(),
+                getToNode().getId()
+        );
+    }
+
 }

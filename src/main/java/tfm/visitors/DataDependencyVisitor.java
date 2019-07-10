@@ -32,9 +32,9 @@ public class DataDependencyVisitor extends VoidVisitorAdapter<Void> {
     }
 
     private Set<CFGNode> findLastDefinitionsFrom(CFGNode startNode, String variable) {
-        Logger.log("=======================================================");
-        Logger.log("Starting from " + startNode);
-        Logger.log("Looking for variable " + variable);
+//        Logger.log("=======================================================");
+//        Logger.log("Starting from " + startNode);
+//        Logger.log("Looking for variable " + variable);
 //        Logger.log(cfgGraph.toString());
         return findLastDefinitionsFrom(new HashSet<>(), startNode, startNode, variable);
     }
@@ -42,7 +42,7 @@ public class DataDependencyVisitor extends VoidVisitorAdapter<Void> {
     private Set<CFGNode> findLastDefinitionsFrom(Set<Integer> visited, CFGNode startNode, CFGNode currentNode, String variable) {
         visited.add(currentNode.getId());
 
-        Logger.log("On " + currentNode);
+//        Logger.log("On " + currentNode);
 
         Set<CFGNode> res = new HashSet<>();
 
@@ -51,23 +51,23 @@ public class DataDependencyVisitor extends VoidVisitorAdapter<Void> {
 
             CFGNode from = (CFGNode) controlFlowArc.getFromNode();
 
-            Logger.log("Arrow from node: " + from);
+//            Logger.log("Arrow from node: " + from);
 
             if (!Objects.equals(startNode, from) && visited.contains(from.getId())) {
-                Logger.log("It's already visited. Continuing...");
+//                Logger.log("It's already visited. Continuing...");
                 continue;
             }
 
             if (from.getDefinedVariables().contains(variable)) {
-                Logger.log("Contains defined variable: " + variable);
+//                Logger.log("Contains defined variable: " + variable);
                 res.add(from);
             } else {
-                Logger.log("Doesn't contain the variable, searching inside it");
+//                Logger.log("Doesn't contain the variable, searching inside it");
                 res.addAll(findLastDefinitionsFrom(visited, startNode, from, variable));
             }
         }
 
-        Logger.format("Done with node %s", currentNode.getId());
+//        Logger.format("Done with node %s", currentNode.getId());
 
         return res;
     }

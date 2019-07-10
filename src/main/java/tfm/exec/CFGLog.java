@@ -6,6 +6,7 @@ import guru.nidi.graphviz.engine.Format;
 import guru.nidi.graphviz.engine.Graphviz;
 import tfm.graphs.CFGGraph;
 import tfm.graphs.Graph;
+import tfm.graphs.PDGGraph;
 import tfm.visitors.CFGVisitor;
 
 import java.io.File;
@@ -13,6 +14,14 @@ import java.io.IOException;
 import java.util.Arrays;
 
 public class CFGLog extends GraphLog<CFGGraph, CFGVisitor> {
+
+    public CFGLog() {
+
+    }
+
+    public CFGLog(CFGGraph graph) {
+        this.graph = graph;
+    }
 
     @Override
     public void visit(Node node) {

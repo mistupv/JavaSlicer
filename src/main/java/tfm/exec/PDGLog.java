@@ -53,9 +53,11 @@ public class PDGLog extends GraphLog<PDGGraph, PDGCFGVisitor> {
 
     @Override
     public void generatePNGs() throws IOException {
-//        Graphviz.fromString(visitor.getCfgGraph().toGraphvizRepresentation())
-//                .render(Format.PNG)
-//                .toFile(new File("./out/pdg-cfg.png"));
+        if (visitor != null) {
+            Graphviz.fromString(this.visitor.getCfgGraph().toGraphvizRepresentation())
+                    .render(Format.PNG)
+                    .toFile(new File("./out/pdg-cfg.png"));
+        }
 
         Graphviz.fromString(graph.toGraphvizRepresentation())
                 .render(Format.PNG)
@@ -64,7 +66,10 @@ public class PDGLog extends GraphLog<PDGGraph, PDGCFGVisitor> {
 
     @Override
     public void openVisualRepresentation() throws IOException {
-        new ProcessBuilder(Arrays.asList("xdg-open", "./out/pdg-cfg.png")).start();
+        if (visitor != null) {
+            new ProcessBuilder(Arrays.asList("xdg-open", "./out/pdg-cfg.png")).start();
+        }
+
         new ProcessBuilder(Arrays.asList("xdg-open", "./out/pdg.png")).start();
     }
 }

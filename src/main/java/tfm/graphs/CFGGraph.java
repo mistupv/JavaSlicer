@@ -8,6 +8,7 @@ import tfm.arcs.Arc;
 import tfm.arcs.cfg.ControlFlowArc;
 import tfm.nodes.CFGNode;
 import tfm.nodes.Node;
+import tfm.slicing.SlicingCriterion;
 
 import java.util.Comparator;
 import java.util.HashSet;
@@ -61,8 +62,7 @@ public class CFGGraph extends Graph<CFGNode> {
     }
 
     @Override
-    public Set<CFGNode> slice(String variable, int lineNumber) {
-        return new HashSet<>();
+    public Graph<CFGNode> slice(SlicingCriterion slicingCriterion) {
+        return this;
     }
-
 }

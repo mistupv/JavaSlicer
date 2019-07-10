@@ -14,7 +14,9 @@ import tfm.arcs.pdg.DataDependencyArc;
 import tfm.nodes.CFGNode;
 import tfm.nodes.PDGNode;
 import tfm.nodes.Node;
+import tfm.slicing.SlicingCriterion;
 import tfm.utils.Logger;
+import tfm.utils.NodeNotFoundException;
 import tfm.variables.*;
 import tfm.variables.actions.VariableDeclaration;
 import tfm.variables.actions.VariableUse;
@@ -35,8 +37,8 @@ public class PDGGraph extends Graph<PDGNode> {
         return "Entry";
     }
 
-    public <N extends Node> PDGNode addNode(N node) {
-        PDGNode vertex = new PDGNode(getNextVertexId(), node);
+    public PDGNode addNode(PDGNode node) {
+        PDGNode vertex = new PDGNode(node);
         super.addVertex(vertex);
 
         return vertex;
@@ -44,7 +46,11 @@ public class PDGGraph extends Graph<PDGNode> {
 
     @Override
     public PDGNode addNode(String instruction, Statement statement) {
-        PDGNode vertex = new PDGNode(getNextVertexId(), instruction, statement);
+        return addNode(getNextVertexId(), instruction, statement);
+    }
+
+    public PDGNode addNode(int id, String instruction, Statement statement) {
+        PDGNode vertex = new PDGNode(id, instruction, statement);
         super.addVertex(vertex);
 
         return vertex;
@@ -134,56 +140,78 @@ public class PDGGraph extends Graph<PDGNode> {
     }
 
     @Override
-    public Set<PDGNode> slice(String variable, int lineNumber) {
-        PDGNode sliceNode = null;
+    public PDGGraph slice(SlicingCriterion slicingCriterion) {
+        Optional<PDGNode> optionalPDGNode = slicingCriterion.findNode(this);
 
-        // find node by line number
-        for (PDGNode node : getNodes()) {
-            Statement statement = node.getAstNode();
+        if (!optionalPDGNode.isPresent()) {
+            throw new NodeNotFoundException(slicingCriterion);
+        }
 
-            if (!statement.getBegin().isPresent() || !statement.getEnd().isPresent())
-                continue;
+        PDGNode node = optionalPDGNode.get();
 
-            int begin = statement.getBegin().get().line;
-            int end = statement.getEnd().get().line;
+        Logger.format("Slicing node: %s", node);
 
-            Logger.format("begin %s end %s", begin, end);
+        Set<Integer> sliceNodes = getSliceNodes(new HashSet<>(), node);
 
-            if (lineNumber == begin || lineNumber == end) {
-                sliceNode = node;
-                break;
+        PDGGraph sliceGraph = new PDGGraph();
+
+        for (PDGNode graphNode : getNodes()) {
+            sliceGraph.addNode(new PDGNode(graphNode.getId(), graphNode.getData(), graphNode.getAstNode().clone()));
+        }
+
+        for (PDGNode sliceNode : sliceGraph.getNodes()) {
+            if (!sliceNodes.contains(sliceNode.getId())) {
+                sliceNode.getAstNode().removeForced();
+                sliceGraph.removeVertex(sliceNode);
             }
         }
 
-        if (sliceNode == null) {
-            Logger.format("Warning: Slicing node not found for slicing criterion: (%s, %s)", variable, lineNumber);
-            return new HashSet<>();
+        for (Arc arc : getArcs()) {
+            Optional<PDGNode> fromOptional = sliceGraph.findNodeById(arc.getFromNode().getId());
+            Optional<PDGNode> toOptional = sliceGraph.findNodeById(arc.getToNode().getId());
+
+            if (fromOptional.isPresent() && toOptional.isPresent()) {
+                PDGNode from = fromOptional.get();
+                PDGNode to = toOptional.get();
+
+                if (arc.isControlDependencyArrow()) {
+                    sliceGraph.addControlDependencyArc(from, to);
+                } else {
+                    DataDependencyArc dataDependencyArc = (DataDependencyArc) arc;
+                    sliceGraph.addDataDependencyArc(from, to, dataDependencyArc.getData().getVariables().get(0));
+                }
+            }
         }
 
-        Logger.log("Slice node: " + sliceNode);
-
-        return getSliceNodes(new HashSet<>(), sliceNode);
+        return sliceGraph;
     }
 
-    private Set<PDGNode> getSliceNodes(Set<PDGNode> visited, PDGNode root) {
-        visited.add(root);
+    private Set<Integer> getSliceNodes(Set<Integer> visited, PDGNode root) {
+        visited.add(root.getId());
+
+//        Set<String> searchVariables = new HashSet<>(variables);
 
         for (Arrow arrow : root.getIncomingArrows()) {
             Arc arc = (Arc) arrow;
 
+//            if (arc.isDataDependencyArrow()
+//                    && Collections.disjoint(((DataDependencyArc) arc).getData().getVariables(), searchVariables)) {
+//                continue;
+//            }
+
             PDGNode from = (PDGNode) arc.getFromNode();
 
-            Logger.log("Arrow from node: " + from);
+//            Logger.log("Arrow from node: " + from);
 
-            if (visited.contains(from)) {
-                Logger.log("It's already visited. Continuing...");
+            if (visited.contains(from.getId())) {
+//                Logger.log("It's already visited. Continuing...");
                 continue;
             }
 
             getSliceNodes(visited, from);
         }
 
-        Logger.format("Done with node %s", root.getId());
+//        Logger.format("Done with node %s", root.getId());
 
         return visited;
     }

@@ -39,6 +39,14 @@ public class DataDependencyArc extends Arc<VariableArcData> {
     }
 
     @Override
+    public String toString() {
+        return String.format("DataDependencyArc{%s, %s -> %s}",
+                getData(),
+                getFromNode().getId(),
+                getToNode().getId());
+    }
+
+    @Override
     public String toGraphvizRepresentation() {
         return String.format("%s [style=dashed, color=red, label=\"%s\"];", super.toGraphvizRepresentation(), getData().toString());
     }

@@ -7,6 +7,7 @@ import edg.graphlib.Visitor;
 import tfm.arcs.Arc;
 import tfm.arcs.data.ArcData;
 import tfm.nodes.Node;
+import tfm.slicing.SlicingCriterion;
 import tfm.visitors.NodeVisitor;
 
 import java.util.*;
@@ -132,5 +133,5 @@ public abstract class Graph<NodeType extends Node> extends edg.graphlib.Graph<St
         return nextVertexId++;
     }
 
-    public abstract Set<NodeType> slice(String variable, int lineNumber);
+    public abstract Graph<NodeType> slice(SlicingCriterion slicingCriterion);
 }
