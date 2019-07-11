@@ -17,6 +17,7 @@ import edg.graphlib.Vertex;
 import edg.graphlib.Visitor;
 import tfm.arcs.data.ArcData;
 import tfm.graphs.PDGGraph;
+import tfm.nodes.Node;
 import tfm.nodes.PDGNode;
 import tfm.utils.Logger;
 import tfm.utils.Utils;
@@ -28,6 +29,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.util.Arrays;
+import java.util.Comparator;
 
 public class PDGValidator {
 
@@ -75,7 +77,9 @@ public class PDGValidator {
         BlockStmt methodBody = new BlockStmt();
         methodDeclaration.setBody(methodBody);
 
-        graph.getNodesAtLevel(1).forEach(node -> methodBody.addStatement(node.getAstNode()));
+        graph.getNodesAtLevel(1).stream()
+                .sorted(Comparator.comparingInt(Node::getId))
+                .forEach(node -> methodBody.addStatement(node.getAstNode()));
 
         PrintWriter printWriter = new PrintWriter(new File(String.format("out/%s.java", fileName)));
 

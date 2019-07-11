@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
 public class Slice {
 
     public static final String PROGRAM_FOLDER = Utils.PROGRAMS_FOLDER + "pdg/";
-    public static final String PROGRAM_NAME = "Example3";
+    public static final String PROGRAM_NAME = "Example2";
 
     public static void main(String[] args) throws IOException {
         CompilationUnit compilationUnit = JavaParser.parse(new File(PROGRAM_FOLDER + PROGRAM_NAME + ".java"));
@@ -41,7 +41,7 @@ public class Slice {
         Logger.log("= Starting slice =");
         Logger.log("==================");
 
-        PDGGraph sliced = pdgGraph.slice(new LineNumberCriterion(22, "product"));
+        PDGGraph sliced = pdgGraph.slice(new LineNumberCriterion(20, "x"));
 
 //        for (PDGNode node : slice) {
 //            sliced.addNode(new PDGNode(node.getId(), node.getData(), node.getAstNode()));
@@ -86,9 +86,10 @@ public class Slice {
 
         PDGLog pdgLog = new PDGLog(sliced);
         pdgLog.log();
-        pdgLog.generatePNGs();
+        pdgLog.generatePNGs(PROGRAM_NAME + "-sliced");
         pdgLog.openVisualRepresentation();
 
-        PDGValidator.printPDGProgram("Slice" + PROGRAM_NAME, pdgGraph);
+        PDGValidator.printPDGProgram("Slice" + PROGRAM_NAME, sliced);
+        PDGValidator.printPDGProgram("Generated" + PROGRAM_NAME, pdgGraph);
     }
 }

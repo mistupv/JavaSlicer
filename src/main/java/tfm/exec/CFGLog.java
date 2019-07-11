@@ -34,9 +34,14 @@ public class CFGLog extends GraphLog<CFGGraph, CFGVisitor> {
 
     @Override
     public void generatePNGs() throws IOException {
+        this.generatePNGs("cfg");
+    }
+
+    @Override
+    public void generatePNGs(String pngName) throws IOException {
         Graphviz.fromString(graph.toGraphvizRepresentation())
                 .render(Format.PNG)
-                .toFile(new File("./out/cfg.png"));
+                .toFile(new File("./out/" + pngName + ".png"));
     }
 
     @Override

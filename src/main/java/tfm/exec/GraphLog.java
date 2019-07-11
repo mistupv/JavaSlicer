@@ -20,6 +20,8 @@ public abstract class GraphLog<G extends Graph<?>, V extends VoidVisitor<?>> {
     G graph;
     V visitor;
 
+    protected String pngName;
+
     public GraphLog() {
 
     }
@@ -48,6 +50,8 @@ public abstract class GraphLog<G extends Graph<?>, V extends VoidVisitor<?>> {
     }
 
     public abstract void generatePNGs() throws IOException;
+
+    public abstract void generatePNGs(String pngName) throws IOException;
 
     public abstract void openVisualRepresentation() throws IOException;
 }

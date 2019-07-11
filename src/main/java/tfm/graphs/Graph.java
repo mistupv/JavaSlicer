@@ -134,4 +134,20 @@ public abstract class Graph<NodeType extends Node> extends edg.graphlib.Graph<St
     }
 
     public abstract Graph<NodeType> slice(SlicingCriterion slicingCriterion);
+
+    /**
+     * Deprecated for incorrect behaviour. Use removeNode instead
+     */
+    @Override
+    @Deprecated
+    public boolean removeVertex(Vertex<String, ArcData> vertex) {
+        throw new UnsupportedOperationException("Deprecated method. Use removeNode instead");
+    }
+
+    public void removeNode(Node node) {
+        verticies.remove(node);
+
+        edges.removeAll(node.getOutgoingArrows());
+        edges.removeAll(node.getIncomingArrows());
+    }
 }

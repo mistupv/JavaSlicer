@@ -21,6 +21,7 @@ import tfm.variables.*;
 import tfm.variables.actions.VariableDeclaration;
 import tfm.variables.actions.VariableUse;
 import tfm.variables.actions.VariableDefinition;
+import tfm.visitors.PDGCFGVisitor;
 
 import javax.swing.plaf.nimbus.State;
 import java.util.*;
@@ -73,11 +74,11 @@ public class PDGGraph extends Graph<PDGNode> {
         this.addArc(dataDataDependencyArc);
     }
 
-    public List<PDGNode> getNodesAtLevel(int level) {
+    public Set<PDGNode> getNodesAtLevel(int level) {
         return getVerticies().stream()
                 .map(vertex -> (PDGNode) vertex)
                 .filter(node -> node.getLevel() == level)
-                .collect(Collectors.toList());
+                .collect(Collectors.toSet());
     }
 
     public int getLevels() {
@@ -101,7 +102,7 @@ public class PDGGraph extends Graph<PDGNode> {
 
         // No level 0 is needed (only one node)
         for (int i = 0; i < getLevels(); i++) {
-            List<PDGNode> levelNodes = getNodesAtLevel(i);
+            Set<PDGNode> levelNodes = getNodesAtLevel(i);
 
             if (levelNodes.size() <= 1) {
                 continue;
@@ -155,33 +156,34 @@ public class PDGGraph extends Graph<PDGNode> {
 
         PDGGraph sliceGraph = new PDGGraph();
 
-        for (PDGNode graphNode : getNodes()) {
-            sliceGraph.addNode(new PDGNode(graphNode.getId(), graphNode.getData(), graphNode.getAstNode().clone()));
-        }
+        com.github.javaparser.ast.Node astCopy = node.getAstNode().findRootNode().clone();
+
+        astCopy.accept(new PDGCFGVisitor(sliceGraph), sliceGraph.getRootNode());
 
         for (PDGNode sliceNode : sliceGraph.getNodes()) {
             if (!sliceNodes.contains(sliceNode.getId())) {
+                Logger.log("Removing node " + sliceNode.getId());
                 sliceNode.getAstNode().removeForced();
-                sliceGraph.removeVertex(sliceNode);
+                sliceGraph.removeNode(sliceNode);
             }
         }
 
-        for (Arc arc : getArcs()) {
-            Optional<PDGNode> fromOptional = sliceGraph.findNodeById(arc.getFromNode().getId());
-            Optional<PDGNode> toOptional = sliceGraph.findNodeById(arc.getToNode().getId());
-
-            if (fromOptional.isPresent() && toOptional.isPresent()) {
-                PDGNode from = fromOptional.get();
-                PDGNode to = toOptional.get();
-
-                if (arc.isControlDependencyArrow()) {
-                    sliceGraph.addControlDependencyArc(from, to);
-                } else {
-                    DataDependencyArc dataDependencyArc = (DataDependencyArc) arc;
-                    sliceGraph.addDataDependencyArc(from, to, dataDependencyArc.getData().getVariables().get(0));
-                }
-            }
-        }
+//        for (Arc arc : getArcs()) {
+//            Optional<PDGNode> fromOptional = sliceGraph.findNodeById(arc.getFromNode().getId());
+//            Optional<PDGNode> toOptional = sliceGraph.findNodeById(arc.getToNode().getId());
+//
+//            if (fromOptional.isPresent() && toOptional.isPresent()) {
+//                PDGNode from = fromOptional.get();
+//                PDGNode to = toOptional.get();
+//
+//                if (arc.isControlDependencyArrow()) {
+//                    sliceGraph.addControlDependencyArc(from, to);
+//                } else {
+//                    DataDependencyArc dataDependencyArc = (DataDependencyArc) arc;
+//                    sliceGraph.addDataDependencyArc(from, to, dataDependencyArc.getData().getVariables().get(0));
+//                }
+//            }
+//        }
 
         return sliceGraph;
     }

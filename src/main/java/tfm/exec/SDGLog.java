@@ -23,6 +23,11 @@ public class SDGLog extends GraphLog<SDGGraph, SDGVisitor> {
     }
 
     @Override
+    public void generatePNGs(String pngName) throws IOException {
+
+    }
+
+    @Override
     public void openVisualRepresentation() throws IOException {
 
     }
