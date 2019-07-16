@@ -1,13 +1,8 @@
 package tfm.exec;
 
 import com.github.javaparser.JavaParser;
-import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.visitor.GenericVisitor;
-import tfm.graphs.CFGGraph;
-import tfm.graphs.Graph;
-import tfm.graphs.PDGGraph;
 import tfm.utils.Logger;
 import tfm.utils.Utils;
 

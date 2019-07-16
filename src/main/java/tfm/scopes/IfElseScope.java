@@ -2,7 +2,6 @@ package tfm.scopes;
 
 import tfm.nodes.Node;
 import tfm.variables.actions.VariableDefinition;
-import tfm.variables.actions.VariableUse;
 
 import java.util.List;
 import java.util.stream.Collectors;

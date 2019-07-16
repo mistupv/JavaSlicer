@@ -6,11 +6,7 @@ import tfm.variables.actions.VariableDefinition;
 import tfm.variables.actions.VariableUse;
 
 import java.util.*;
-import java.util.function.BiFunction;
-import java.util.function.Function;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class ScopeHolder<N extends Node> extends Scope<N> {
 

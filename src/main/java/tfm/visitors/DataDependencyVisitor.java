@@ -8,7 +8,6 @@ import tfm.graphs.CFGGraph;
 import tfm.graphs.PDGGraph;
 import tfm.nodes.CFGNode;
 import tfm.nodes.PDGNode;
-import tfm.utils.Logger;
 import tfm.variables.VariableExtractor;
 
 import java.util.HashSet;

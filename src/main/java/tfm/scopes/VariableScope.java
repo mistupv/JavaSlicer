@@ -7,7 +7,6 @@ import tfm.variables.actions.VariableDefinition;
 import tfm.variables.actions.VariableUse;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class VariableScope<N extends Node> extends Scope<N> {
 

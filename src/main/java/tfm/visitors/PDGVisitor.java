@@ -12,10 +12,8 @@ import tfm.scopes.IfElseScope;
 import tfm.scopes.Scope;
 import tfm.scopes.ScopeHolder;
 import tfm.scopes.VariableScope;
-import tfm.utils.Logger;
 import tfm.variables.VariableExtractor;
 import tfm.variables.actions.VariableDefinition;
-import tfm.variables.actions.VariableUse;
 
 import java.util.HashSet;
 import java.util.List;

@@ -3,15 +3,12 @@ package tfm.graphs;
 import com.github.javaparser.ast.stmt.Statement;
 import edg.graphlib.Arrow;
 import edg.graphlib.Vertex;
-import edg.graphlib.Visitor;
 import tfm.arcs.Arc;
 import tfm.arcs.data.ArcData;
 import tfm.nodes.Node;
 import tfm.slicing.SlicingCriterion;
-import tfm.visitors.NodeVisitor;
 
 import java.util.*;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**

@@ -1,15 +1,10 @@
 package tfm.exec;
 
-import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
-import com.github.javaparser.ast.visitor.GenericVisitor;
-import com.github.javaparser.ast.visitor.VoidVisitor;
 import tfm.graphs.Graph;
 import tfm.utils.Logger;
 
 import java.io.IOException;
-import java.util.Comparator;
-import java.util.stream.Collectors;
 
 public abstract class GraphLog<G extends Graph<?>> {
 

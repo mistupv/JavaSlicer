@@ -1,14 +1,11 @@
 package tfm.slicing;
 
 import tfm.graphs.CFGGraph;
-import tfm.graphs.Graph;
 import tfm.graphs.PDGGraph;
 import tfm.graphs.SDGGraph;
 import tfm.nodes.CFGNode;
-import tfm.nodes.Node;
 import tfm.nodes.PDGNode;
 import tfm.nodes.SDGNode;
-import tfm.utils.Logger;
 
 import java.util.Optional;
 

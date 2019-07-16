@@ -5,7 +5,6 @@ import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import tfm.utils.Logger;
 import tfm.variables.actions.VariableAction;
 
 abstract class VariableVisitor extends VoidVisitorAdapter<VariableAction.Actions> {

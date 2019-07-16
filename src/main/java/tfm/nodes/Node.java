@@ -9,7 +9,10 @@ import tfm.arcs.data.ArcData;
 import tfm.utils.Utils;
 import tfm.variables.VariableExtractor;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class Node<ASTNode extends com.github.javaparser.ast.Node> extends Vertex<String, ArcData> {

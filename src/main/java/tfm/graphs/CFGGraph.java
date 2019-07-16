@@ -3,7 +3,6 @@ package tfm.graphs;
 import com.github.javaparser.ast.stmt.EmptyStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import edg.graphlib.Arrow;
-import edg.graphlib.Vertex;
 import tfm.arcs.Arc;
 import tfm.arcs.cfg.ControlFlowArc;
 import tfm.nodes.CFGNode;
@@ -11,9 +10,6 @@ import tfm.nodes.Node;
 import tfm.slicing.SlicingCriterion;
 
 import java.util.Comparator;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class CFGGraph extends Graph<CFGNode> {

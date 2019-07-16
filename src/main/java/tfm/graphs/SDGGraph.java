@@ -4,8 +4,6 @@ import com.github.javaparser.ast.stmt.Statement;
 import tfm.nodes.SDGNode;
 import tfm.slicing.SlicingCriterion;
 
-import java.util.Set;
-
 public class SDGGraph extends Graph<SDGNode> {
 
     @Override

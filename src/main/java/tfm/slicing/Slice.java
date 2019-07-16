@@ -2,28 +2,15 @@ package tfm.slicing;
 
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.CompilationUnit;
-import sun.rmi.runtime.Log;
-import tfm.arcs.Arc;
-import tfm.arcs.pdg.DataDependencyArc;
-import tfm.exec.GraphLog;
 import tfm.exec.PDGLog;
 import tfm.graphs.PDGGraph;
-import tfm.nodes.Node;
-import tfm.nodes.PDGNode;
 import tfm.utils.Logger;
 import tfm.utils.Utils;
 import tfm.validation.PDGValidator;
 import tfm.visitors.PDGCFGVisitor;
 
-import javax.xml.crypto.Data;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.Comparator;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 public class Slice {
 
