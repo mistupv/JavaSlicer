@@ -14,7 +14,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.stream.Collectors;
 
-public class PDGLog extends GraphLog<PDGGraph, PDGCFGVisitor> {
+public class PDGLog extends GraphLog<PDGGraph> {
 
     public PDGLog() {
         super();
@@ -28,9 +28,7 @@ public class PDGLog extends GraphLog<PDGGraph, PDGCFGVisitor> {
     public void visit(com.github.javaparser.ast.Node node) {
         this.graph = new PDGGraph();
 
-        this.visitor = new PDGCFGVisitor(graph);
-
-        node.accept(this.visitor, this.graph.getRootNode());
+        node.accept(new PDGCFGVisitor(graph), this.graph.getRootNode());
     }
 
     @Override
@@ -60,8 +58,8 @@ public class PDGLog extends GraphLog<PDGGraph, PDGCFGVisitor> {
     public void generatePNGs(String pngName) throws IOException {
         this.pngName = pngName;
 
-        if (visitor != null) {
-            Graphviz.fromString(this.visitor.getCfgGraph().toGraphvizRepresentation())
+        if (graph.getCfgGraph() != null) {
+            Graphviz.fromString(this.graph.getCfgGraph().toGraphvizRepresentation())
                     .render(Format.PNG)
                     .toFile(new File("./out/" + pngName + "-cfg.png"));
         }
@@ -73,7 +71,7 @@ public class PDGLog extends GraphLog<PDGGraph, PDGCFGVisitor> {
 
     @Override
     public void openVisualRepresentation() throws IOException {
-        if (visitor != null) {
+        if (this.graph.getCfgGraph() != null) {
             new ProcessBuilder(Arrays.asList("xdg-open", "./out/" + pngName + "-cfg.png")).start();
         }
 

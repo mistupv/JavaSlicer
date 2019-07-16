@@ -1,37 +1,35 @@
 package tfm.graphs;
 
-import com.github.javaparser.Position;
 import com.github.javaparser.ast.stmt.EmptyStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import edg.graphlib.Arrow;
-import edg.graphlib.Vertex;
-import edg.graphlib.Visitor;
 import tfm.arcs.Arc;
-import tfm.arcs.cfg.ControlFlowArc;
-import tfm.arcs.data.ArcData;
 import tfm.arcs.pdg.ControlDependencyArc;
 import tfm.arcs.pdg.DataDependencyArc;
-import tfm.nodes.CFGNode;
-import tfm.nodes.PDGNode;
 import tfm.nodes.Node;
+import tfm.nodes.PDGNode;
 import tfm.slicing.SlicingCriterion;
 import tfm.utils.Logger;
 import tfm.utils.NodeNotFoundException;
-import tfm.variables.*;
-import tfm.variables.actions.VariableDeclaration;
-import tfm.variables.actions.VariableUse;
-import tfm.variables.actions.VariableDefinition;
 import tfm.visitors.PDGCFGVisitor;
 
-import javax.swing.plaf.nimbus.State;
-import java.util.*;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class PDGGraph extends Graph<PDGNode> {
 
+    private CFGGraph cfgGraph;
+
     public PDGGraph() {
         setRootVertex(new PDGNode(getNextVertexId(), getRootNodeData(), new EmptyStmt()));
+    }
+
+    public PDGGraph(CFGGraph cfgGraph) {
+        this();
+        this.cfgGraph = cfgGraph;
     }
 
     protected String getRootNodeData() {
@@ -87,6 +85,10 @@ public class PDGGraph extends Graph<PDGNode> {
                 .max(Comparator.comparingInt(PDGNode::getLevel))
                 .map(PDGNode::getLevel)
                 .get() + 1;
+    }
+
+    public void setCfgGraph(CFGGraph cfgGraph) {
+        this.cfgGraph = cfgGraph;
     }
 
     @Override
@@ -216,5 +218,9 @@ public class PDGGraph extends Graph<PDGNode> {
 //        Logger.format("Done with node %s", root.getId());
 
         return visited;
+    }
+
+    public CFGGraph getCfgGraph() {
+        return cfgGraph;
     }
 }

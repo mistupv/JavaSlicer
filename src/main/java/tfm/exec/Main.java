@@ -42,7 +42,7 @@ public class Main {
         }
 
         // GraphLog
-        GraphLog<?, ?> graphLog = getGraphLog(args.length == 1 ? args[0] : GRAPH);
+        GraphLog<?> graphLog = getGraphLog(args.length == 1 ? args[0] : GRAPH);
 
         long t0 = System.nanoTime();
         graphLog.visit(root);
@@ -60,8 +60,8 @@ public class Main {
         Logger.format("Graph generated in %.2f ms", tt / 10e6);
     }
 
-    private static GraphLog<?, ?> getGraphLog(String graph) throws IOException {
-        GraphLog<?, ?> graphLog = null;
+    private static GraphLog<?> getGraphLog(String graph) throws IOException {
+        GraphLog<?> graphLog = null;
 
         switch (graph) {
             case GraphLog.CFG:

@@ -11,14 +11,13 @@ import java.io.IOException;
 import java.util.Comparator;
 import java.util.stream.Collectors;
 
-public abstract class GraphLog<G extends Graph<?>, V extends VoidVisitor<?>> {
+public abstract class GraphLog<G extends Graph<?>> {
 
     static final String CFG = "cfg";
     static final String PDG = "pdg";
     static final String SDG = "sdg";
 
     G graph;
-    V visitor;
 
     protected String pngName;
 

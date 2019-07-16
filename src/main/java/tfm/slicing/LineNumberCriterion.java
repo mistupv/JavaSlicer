@@ -9,7 +9,6 @@ import tfm.nodes.PDGNode;
 import tfm.nodes.SDGNode;
 import tfm.utils.Logger;
 
-import java.util.HashSet;
 import java.util.Optional;
 
 public class LineNumberCriterion extends SlicingCriterion {
@@ -29,27 +28,20 @@ public class LineNumberCriterion extends SlicingCriterion {
 
     @Override
     public Optional<PDGNode> findNode(PDGGraph graph) {
-        PDGNode sliceNode = null;
-
         // find node by line number
-        for (PDGNode node : graph.getNodes()) {
+        return graph.getNodes().stream().filter(node -> {
             Statement statement = node.getAstNode();
 
             if (!statement.getBegin().isPresent() || !statement.getEnd().isPresent())
-                continue;
+                return false;
 
             int begin = statement.getBegin().get().line;
             int end = statement.getEnd().get().line;
 
             Logger.format("begin %s end %s", begin, end);
 
-            if (lineNumber == begin || lineNumber == end) {
-                sliceNode = node;
-                break;
-            }
-        }
-
-        return Optional.ofNullable(sliceNode);
+            return lineNumber == begin || lineNumber == end;
+        }).findFirst();
     }
 
     @Override

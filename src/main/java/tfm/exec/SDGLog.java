@@ -6,13 +6,13 @@ import tfm.visitors.SDGVisitor;
 
 import java.io.IOException;
 
-public class SDGLog extends GraphLog<SDGGraph, SDGVisitor> {
+public class SDGLog extends GraphLog<SDGGraph> {
 
     @Override
     public void visit(Node node) {
-        SDGGraph sdgGraph = new SDGGraph();
+        this.graph = new SDGGraph();
 
-        SDGVisitor sdgVisitor = new SDGVisitor(sdgGraph);
+        SDGVisitor sdgVisitor = new SDGVisitor(this.graph);
 
         node.accept(sdgVisitor, null);
     }

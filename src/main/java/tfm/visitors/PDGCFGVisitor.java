@@ -37,6 +37,8 @@ public class PDGCFGVisitor extends VoidVisitorAdapter<PDGNode> {
     public PDGCFGVisitor(PDGGraph pdgGraph, CFGGraph cfgGraph) {
         this.pdgGraph = pdgGraph;
         this.cfgGraph = cfgGraph;
+
+        this.pdgGraph.setCfgGraph(cfgGraph);
     }
 
     public void visit(MethodDeclaration methodDeclaration, PDGNode parent) {

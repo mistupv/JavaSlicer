@@ -13,7 +13,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 
-public class CFGLog extends GraphLog<CFGGraph, CFGVisitor> {
+public class CFGLog extends GraphLog<CFGGraph> {
 
     public CFGLog() {
 
@@ -27,9 +27,7 @@ public class CFGLog extends GraphLog<CFGGraph, CFGVisitor> {
     public void visit(Node node) {
         this.graph = new CFGGraph();
 
-        this.visitor = new CFGVisitor(graph);
-
-        node.accept(visitor, null);
+        node.accept(new CFGVisitor(graph), null);
     }
 
     @Override
