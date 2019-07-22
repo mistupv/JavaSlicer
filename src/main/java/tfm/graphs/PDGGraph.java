@@ -6,11 +6,13 @@ import edg.graphlib.Arrow;
 import tfm.arcs.Arc;
 import tfm.arcs.pdg.ControlDependencyArc;
 import tfm.arcs.pdg.DataDependencyArc;
+import tfm.nodes.CFGNode;
 import tfm.nodes.Node;
 import tfm.nodes.PDGNode;
 import tfm.slicing.SlicingCriterion;
 import tfm.utils.Logger;
 import tfm.utils.NodeNotFoundException;
+import tfm.utils.Utils;
 import tfm.visitors.PDGCFGVisitor;
 
 import java.util.Comparator;
@@ -152,9 +154,21 @@ public class PDGGraph extends Graph<PDGNode> {
 
         PDGNode node = optionalPDGNode.get();
 
+        // Find CFGNode and find last definition of variable
+        CFGNode cfgNode = this.cfgGraph.findNodeByASTNode(node.getAstNode())
+                .orElseThrow(() -> new NodeNotFoundException("CFGNode not found"));
+
+        Set<CFGNode> definitionNodes = Utils.findLastDefinitionsFrom(cfgNode, slicingCriterion.getVariable());
+
         Logger.format("Slicing node: %s", node);
 
-        Set<Integer> sliceNodes = getSliceNodes(new HashSet<>(), node);
+        Set<Integer> sliceNodes = definitionNodes.stream()
+                .flatMap(definitionNode -> getSliceNodes(new HashSet<>(), this.findNodeByASTNode(definitionNode.getAstNode()).get()).stream())
+                .collect(Collectors.toSet());
+
+        sliceNodes.add(node.getId());
+
+//        Set<Integer> sliceNodes = getSliceNodes(new HashSet<>(), node);
 
         PDGGraph sliceGraph = new PDGGraph();
 
@@ -193,29 +207,17 @@ public class PDGGraph extends Graph<PDGNode> {
     private Set<Integer> getSliceNodes(Set<Integer> visited, PDGNode root) {
         visited.add(root.getId());
 
-//        Set<String> searchVariables = new HashSet<>(variables);
-
         for (Arrow arrow : root.getIncomingArrows()) {
             Arc arc = (Arc) arrow;
 
-//            if (arc.isDataDependencyArrow()
-//                    && Collections.disjoint(((DataDependencyArc) arc).getData().getVariables(), searchVariables)) {
-//                continue;
-//            }
-
             PDGNode from = (PDGNode) arc.getFromNode();
 
-//            Logger.log("Arrow from node: " + from);
-
             if (visited.contains(from.getId())) {
-//                Logger.log("It's already visited. Continuing...");
                 continue;
             }
 
             getSliceNodes(visited, from);
         }
-
-//        Logger.format("Done with node %s", root.getId());
 
         return visited;
     }

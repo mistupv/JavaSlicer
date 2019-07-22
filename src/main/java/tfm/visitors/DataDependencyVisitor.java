@@ -8,6 +8,7 @@ import tfm.graphs.CFGGraph;
 import tfm.graphs.PDGGraph;
 import tfm.nodes.CFGNode;
 import tfm.nodes.PDGNode;
+import tfm.utils.Utils;
 import tfm.variables.VariableExtractor;
 
 import java.util.HashSet;
@@ -28,47 +29,6 @@ public class DataDependencyVisitor extends VoidVisitorAdapter<Void> {
     @Override
     public void visit(ExpressionStmt expressionStmt, Void ignored) {
         buildDataDependency(expressionStmt);
-    }
-
-    private Set<CFGNode> findLastDefinitionsFrom(CFGNode startNode, String variable) {
-//        Logger.log("=======================================================");
-//        Logger.log("Starting from " + startNode);
-//        Logger.log("Looking for variable " + variable);
-//        Logger.log(cfgGraph.toString());
-        return findLastDefinitionsFrom(new HashSet<>(), startNode, startNode, variable);
-    }
-
-    private Set<CFGNode> findLastDefinitionsFrom(Set<Integer> visited, CFGNode startNode, CFGNode currentNode, String variable) {
-        visited.add(currentNode.getId());
-
-//        Logger.log("On " + currentNode);
-
-        Set<CFGNode> res = new HashSet<>();
-
-        for (Arrow arrow : currentNode.getIncomingArrows()) {
-            ControlFlowArc controlFlowArc = (ControlFlowArc) arrow;
-
-            CFGNode from = (CFGNode) controlFlowArc.getFromNode();
-
-//            Logger.log("Arrow from node: " + from);
-
-            if (!Objects.equals(startNode, from) && visited.contains(from.getId())) {
-//                Logger.log("It's already visited. Continuing...");
-                continue;
-            }
-
-            if (from.getDefinedVariables().contains(variable)) {
-//                Logger.log("Contains defined variable: " + variable);
-                res.add(from);
-            } else {
-//                Logger.log("Doesn't contain the variable, searching inside it");
-                res.addAll(findLastDefinitionsFrom(visited, startNode, from, variable));
-            }
-        }
-
-//        Logger.format("Done with node %s", currentNode.getId());
-
-        return res;
     }
 
     @Override
@@ -122,7 +82,7 @@ public class DataDependencyVisitor extends VoidVisitorAdapter<Void> {
 
                     CFGNode cfgNode = nodeOptional.get();
 
-                    Set<CFGNode> lastDefinitions = findLastDefinitionsFrom(cfgNode, variable);
+                    Set<CFGNode> lastDefinitions = Utils.findLastDefinitionsFrom(cfgNode, variable);
 
                     for (CFGNode definitionNode : lastDefinitions) {
                         pdgGraph.findNodeByASTNode(definitionNode.getAstNode())

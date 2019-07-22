@@ -10,59 +10,78 @@ import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.type.ArrayType;
 import com.github.javaparser.ast.type.VoidType;
+import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.graphs.PDGGraph;
 import tfm.nodes.Node;
+import tfm.utils.Logger;
 import tfm.utils.Utils;
 import tfm.visitors.PDGCFGVisitor;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
-import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Objects;
+import java.util.Optional;
 
 public class PDGValidator {
 
     private static final String PROGRAM_FOLDER = Utils.PROGRAMS_FOLDER + "pdg";
     private static final String PROGRAM_NAME = "Example2";
+    private static final String METHOD_NAME = "main";
 
     public static void main(String[] args) throws FileNotFoundException {
         JavaParser.getStaticConfiguration().setAttributeComments(false);
 
         CompilationUnit originalProgram = JavaParser.parse(new File(String.format("%s/%s.java", PROGRAM_FOLDER, PROGRAM_NAME)));
 
-        PDGGraph graph = new PDGGraph();
+        if (METHOD_NAME.isEmpty()) {
+            originalProgram.accept(new VoidVisitorAdapter<Void>() {
+                @Override
+                public void visit(MethodDeclaration n, Void arg) {
+                    Logger.format("On method: %s. Generating and comparing...", n.getNameAsString());
+                    boolean check = generateAndCheck(n);
 
-        originalProgram.accept(new PDGCFGVisitor(graph), graph.getRootNode());
+                    Logger.format("Result: %s", check ? "equal" : "not equal");
+                }
+            }, null);
+        } else {
+            Optional<MethodDeclaration> optionalTarget = originalProgram.findFirst(MethodDeclaration.class,
+                    methodDeclaration -> Objects.equals(methodDeclaration.getNameAsString(), METHOD_NAME));
 
-//        graph.depthFirstSearch(graph.getRootNode(), new NodeVisitor<PDGNode>() {
-//            @Override
-//            public void visit(PDGNode node) {
-//                if (node.equals(graph.getRootNode()))
-//                    return;
-//
-//                Logger.log(node);
-//
-//                methodBody.addStatement(node.get);
-//            }
-//        });
+            if (!optionalTarget.isPresent()) {
+                throw new RuntimeException(String.format("Method '%s' not found", METHOD_NAME));
+            }
 
-        printPDGProgram("Generated" + PROGRAM_NAME, graph);
+            Logger.format("On method: %s. Generating and comparing...", METHOD_NAME);
+
+            boolean check = generateAndCheck(optionalTarget.get());
+
+            Logger.format("Result: %s", check ? "equal" : "not equal");
+        }
     }
 
-    public static void printPDGProgram(String fileName, PDGGraph graph) throws FileNotFoundException {
-        CompilationUnit generatedProgram = new CompilationUnit();
-        ClassOrInterfaceDeclaration clazz = generatedProgram.addClass(fileName).setPublic(true);
+    public static boolean generateAndCheck(MethodDeclaration methodDeclaration) {
+        PDGGraph graph = new PDGGraph();
 
-        MethodDeclaration methodDeclaration = clazz.addMethod("main", Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC);
-        methodDeclaration.setType(new VoidType());
+        methodDeclaration.accept(new PDGCFGVisitor(graph), graph.getRootNode());
 
-        Parameter parameter = new Parameter(
-                new ArrayType(JavaParser.parseClassOrInterfaceType("String")),
-                "args"
-        );
+        return check(methodDeclaration, graph);
+    }
 
-        methodDeclaration.setParameters(new NodeList<>(Arrays.asList(parameter)));
+    public static boolean check(MethodDeclaration methodDeclaration, PDGGraph graph) {
+        MethodDeclaration generatedMethod = generateMethod(methodDeclaration, graph);
+
+        return ProgramComparator.areEqual(methodDeclaration, generatedMethod);
+    }
+
+    public static MethodDeclaration generateMethod(MethodDeclaration info, PDGGraph graph) {
+        MethodDeclaration methodDeclaration = new MethodDeclaration();
+
+        methodDeclaration.setName(info.getNameAsString());
+        methodDeclaration.setModifiers(info.getModifiers());
+        methodDeclaration.setType(info.getType());
+        methodDeclaration.setParameters(info.getParameters());
 
         BlockStmt methodBody = new BlockStmt();
         methodDeclaration.setBody(methodBody);
@@ -71,9 +90,33 @@ public class PDGValidator {
                 .sorted(Comparator.comparingInt(Node::getId))
                 .forEach(node -> methodBody.addStatement(node.getAstNode()));
 
+        return methodDeclaration;
+    }
+
+    public static void printPDGProgram(String fileName, PDGGraph graph) throws FileNotFoundException {
+        CompilationUnit generatedProgram = new CompilationUnit();
+        ClassOrInterfaceDeclaration clazz = generatedProgram.addClass(fileName).setPublic(true);
+
+        MethodDeclaration info = new MethodDeclaration();
+
+        info.setModifiers(Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC);
+        info.setType(new VoidType());
+        info.setName("main");
+
+        Parameter parameter = new Parameter(
+                new ArrayType(JavaParser.parseClassOrInterfaceType("String")),
+                "args"
+        );
+        info.setParameters(new NodeList<>(parameter));
+
+        MethodDeclaration generated = generateMethod(info, graph);
+
+        clazz.addMember(generated);
+
         PrintWriter printWriter = new PrintWriter(new File(String.format("out/%s.java", fileName)));
 
         printWriter.print(clazz.toString());
+
         printWriter.close();
     }
 }
