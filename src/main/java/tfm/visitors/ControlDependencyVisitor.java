@@ -5,7 +5,10 @@ import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.graphs.CFGGraph;
 import tfm.graphs.PDGGraph;
 import tfm.nodes.CFGNode;
+import tfm.nodes.Node;
 import tfm.nodes.PDGNode;
+
+import java.util.stream.Collectors;
 
 public class ControlDependencyVisitor extends VoidVisitorAdapter<PDGNode> {
 
@@ -40,9 +43,27 @@ public class ControlDependencyVisitor extends VoidVisitorAdapter<PDGNode> {
 
     @Override
     public void visit(ForStmt forStmt, PDGNode parent) {
-        PDGNode node = addNodeAndControlDependency(forStmt, parent);
+        String initialization = forStmt.getInitialization().stream()
+                .map(com.github.javaparser.ast.Node::toString)
+                .collect(Collectors.joining(","));
 
-        forStmt.getBody().accept(this, node);
+        String update = forStmt.getUpdate().stream()
+                .map(com.github.javaparser.ast.Node::toString)
+                .collect(Collectors.joining(","));
+
+        String compare = forStmt.getCompare()
+                .map(com.github.javaparser.ast.Node::toString)
+                .orElse("true");
+
+
+        PDGNode forNode = pdgGraph.addNode(
+                String.format("for (%s;%s;%s)", initialization, compare, update),
+                forStmt
+        );
+
+        pdgGraph.addControlDependencyArc(parent, forNode);
+
+        forStmt.getBody().accept(this, forNode);
     }
 
     @Override

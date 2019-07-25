@@ -1,9 +1,8 @@
 package tfm.visitors;
 
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import edg.graphlib.Arrow;
-import tfm.arcs.cfg.ControlFlowArc;
 import tfm.graphs.CFGGraph;
 import tfm.graphs.PDGGraph;
 import tfm.nodes.CFGNode;
@@ -11,8 +10,6 @@ import tfm.nodes.PDGNode;
 import tfm.utils.Utils;
 import tfm.variables.VariableExtractor;
 
-import java.util.HashSet;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -49,13 +46,19 @@ public class DataDependencyVisitor extends VoidVisitorAdapter<Void> {
 
     @Override
     public void visit(ForStmt forStmt, Void ignored) {
-        buildDataDependency(forStmt);
+        PDGNode forNode = pdgGraph.findNodeByASTNode(forStmt).get();
 
-        forStmt.getInitialization().accept(this, null);
+        forStmt.getInitialization().stream()
+                .map(ExpressionStmt::new)
+                .forEach(expressionStmt -> buildDataDependency(forNode, expressionStmt));
+
+        buildDataDependency(forStmt); // Only for comparison
+
+        forStmt.getUpdate().stream()
+                .map(ExpressionStmt::new)
+                .forEach(expressionStmt -> buildDataDependency(forNode, expressionStmt));
 
         forStmt.getBody().accept(this, null);
-
-        forStmt.getUpdate().accept(this, null);
     }
 
     @Override
@@ -92,5 +95,24 @@ public class DataDependencyVisitor extends VoidVisitorAdapter<Void> {
                 .setOnVariableDefinitionListener(node::addDefinedVariable)
                 .setOnVariableDeclarationListener(node::addDeclaredVariable)
                 .visit(node.getAstNode());
+    }
+
+    // For statement special case
+    private void buildDataDependency(PDGNode forNode, Statement statement) {
+        new VariableExtractor()
+                .setOnVariableUseListener(variable -> {
+                    forNode.addUsedVariable(variable);
+
+                    Optional<CFGNode> nodeOptional = cfgGraph.findNodeByASTNode(statement);
+
+                    if (!nodeOptional.isPresent()) {
+                        return;
+                    }
+
+                    pdgGraph.addDataDependencyArc(forNode, forNode, variable);
+                })
+                .setOnVariableDefinitionListener(forNode::addDefinedVariable)
+                .setOnVariableDeclarationListener(forNode::addDeclaredVariable)
+                .visit(statement);
     }
 }

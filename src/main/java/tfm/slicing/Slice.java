@@ -28,7 +28,7 @@ public class Slice {
         Logger.log("= Starting slice =");
         Logger.log("==================");
 
-        PDGGraph sliced = pdgGraph.slice(new LineNumberCriterion(18, "x"));
+        PDGGraph sliced = pdgGraph.slice(new LineNumberCriterion(16, "x"));
 
         PDGLog pdgLog = new PDGLog(sliced);
         pdgLog.log();

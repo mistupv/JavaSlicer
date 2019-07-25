@@ -6,6 +6,7 @@ import com.github.javaparser.ast.expr.BooleanLiteralExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
+import jdk.nashorn.internal.ir.Block;
 import tfm.graphs.CFGGraph;
 import tfm.nodes.CFGNode;
 import tfm.utils.Utils;
@@ -122,28 +123,28 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
     @Override
     public void visit(ForStmt forStmt, Void arg) {
-        String inizialization = forStmt.getInitialization().stream()
-                .map(Node::toString)
-                .collect(Collectors.joining(","));
-
-        String update = forStmt.getUpdate().stream()
-                .map(Node::toString)
-                .collect(Collectors.joining(","));
+//        String inizialization = forStmt.getInitialization().stream()
+//                .map(Node::toString)
+//                .collect(Collectors.joining(","));
+//
+//        String update = forStmt.getUpdate().stream()
+//                .map(Node::toString)
+//                .collect(Collectors.joining(","));
 
         Expression comparison = forStmt.getCompare().orElse(new BooleanLiteralExpr(true));
 //
-//        forStmt.getInitialization().forEach(expression -> new ExpressionStmt(expression).accept(this, null));
+        forStmt.getInitialization().forEach(expression -> new ExpressionStmt(expression).accept(this, null));
 
         CFGNode forNode = addNodeAndArcs(
-                String.format("for (%s;%s;%s)", inizialization, comparison, update),
+                String.format("for (;%s;)", comparison),
                 forStmt
         );
 
         lastParentNodes.add(forNode);
 
-        BlockStmt body = Utils.blockWrapper(forStmt.getBody());
+        BlockStmt body = Utils.blockWrapper(forStmt.getBody()).clone();
 
-//        forStmt.getUpdate().forEach(body::addStatement);
+        forStmt.getUpdate().forEach(body::addStatement);
 
         body.accept(this, arg);
 

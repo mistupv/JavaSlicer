@@ -1,5 +1,7 @@
 package tfm.programs.pdg;
 
+import tfm.utils.Logger;
+
 import java.util.Arrays;
 
 public class Example2 {
@@ -22,5 +24,15 @@ public class Example2 {
         for(int i : integers) {
             System.out.println(x + i);
         }
+
+        int a = 8;
+
+        int b = 2;
+
+        for (int i = 0; a < 100; a++, i++) {
+            b++;
+        }
+
+        Logger.log(b);
     }
 }
