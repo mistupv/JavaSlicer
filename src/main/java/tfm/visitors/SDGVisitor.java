@@ -12,8 +12,6 @@ public class SDGVisitor extends VoidVisitorAdapter<Void> {
 
     SDGGraph sdgGraph;
 
-    List<PDGGraph> allPDGs = new ArrayList<>();
-
     public SDGVisitor(SDGGraph sdgGraph) {
         this.sdgGraph = sdgGraph;
     }
@@ -27,8 +25,8 @@ public class SDGVisitor extends VoidVisitorAdapter<Void> {
 
         PDGCFGVisitor pdgcfgVisitor = new PDGCFGVisitor(pdgGraph);
 
-        pdgcfgVisitor.visit(methodDeclaration.getBody().get(), pdgGraph.getRootNode());
+        pdgcfgVisitor.visit(methodDeclaration, pdgGraph.getRootNode());
 
-        allPDGs.add(pdgGraph);
+        sdgGraph.addPDG(pdgGraph);
     }
 }

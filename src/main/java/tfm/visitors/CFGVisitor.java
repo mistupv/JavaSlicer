@@ -4,6 +4,7 @@ import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.BooleanLiteralExpr;
 import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import jdk.nashorn.internal.ir.Block;
@@ -232,6 +233,16 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
         CFGNode continuableNode = graph.findNodeByASTNode(continuableStatement).get();
 
         lastParentNodes.forEach(parentNode -> graph.addControlFlowEdge(parentNode, continuableNode));
+    }
+
+    @Override
+    public void visit(ReturnStmt returnStmt, Void arg) {
+        CFGNode node = addNodeAndArcs(
+                returnStmt.toString(),
+                returnStmt
+        );
+
+        lastParentNodes.add(node);
     }
 
     @Override

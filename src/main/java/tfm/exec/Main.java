@@ -13,9 +13,9 @@ import java.util.Optional;
 
 public class Main {
 
-    public static final String PROGRAM = Utils.PROGRAMS_FOLDER + "pdg/Example2.java";
+    public static final String PROGRAM = Utils.PROGRAMS_FOLDER + "sdg/Example1.java";
     public static final String METHOD = "";
-    public static final String GRAPH = GraphLog.PDG;
+    public static final String GRAPH = GraphLog.SDG;
 
     public static void main(String[] args) throws IOException {
         JavaParser.getStaticConfiguration().setAttributeComments(false);
@@ -64,6 +64,9 @@ public class Main {
                 break;
             case GraphLog.PDG:
                 graphLog = new PDGLog();
+                break;
+            case GraphLog.SDG:
+                graphLog = new SDGLog();
                 break;
             default:
                 Logger.log("Unkown graph type");

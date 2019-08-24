@@ -12,4 +12,8 @@ public class SDGNode extends Node {
     public SDGNode(int id, String representation, @NonNull Statement statement) {
         super(id, representation, statement);
     }
+
+    public String toString() {
+        return String.format("SDGNode{id: %s, data: %s, ");
+    }
 }
