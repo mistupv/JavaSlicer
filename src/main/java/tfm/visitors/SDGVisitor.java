@@ -16,14 +16,14 @@ import java.util.Objects;
 
 /**
  * 31/8/19
- * Asumimos que procesamos 1 clase con uno o mas metodos estaticos
+ * Asumimos que procesamos 1 clase con uno o mas metodos estaticos donde el primer metodo es el main
  *
  */
 public class SDGVisitor extends VoidVisitorAdapter<Void> {
 
     SDGGraph sdgGraph;
     List<PDGGraph> pdgGraphs;
-    private SDGNode currentClassNode;
+    private SDGNode<ClassOrInterfaceDeclaration> currentClassNode;
 
     public SDGVisitor(SDGGraph sdgGraph) {
         this.sdgGraph = sdgGraph;
@@ -55,22 +55,22 @@ public class SDGVisitor extends VoidVisitorAdapter<Void> {
         if (!methodDeclaration.getBody().isPresent())
             return;
 
-
         PDGGraph pdgGraph = new PDGGraph();
 
         PDGCFGVisitor pdgcfgVisitor = new PDGCFGVisitor(pdgGraph) {
             @Override
-            public void visit(MethodCallExpr methodCallExpr, PDGNode parent) {
+            public void visit(MethodCallExpr methodCallExpr, PDGNode<?> parent) {
                 if (methodCallExpr.getScope().isPresent()) {
                     String scopeName = methodCallExpr.getScope().get().toString();
 
-                    if (Objects.equals(scopeName, currentClassNode.getAstNode()));
+                    if (Objects.equals(scopeName, currentClassNode.getAstNode())) {
+
+                    }
                 }
             }
         };
 
         pdgcfgVisitor.visit(methodDeclaration, pdgGraph.getRootNode());
-
 
         sdgGraph.addPDG(pdgGraph, methodDeclaration);
 
