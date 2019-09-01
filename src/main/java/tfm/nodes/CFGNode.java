@@ -1,18 +1,19 @@
 package tfm.nodes;
 
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.stmt.Statement;
 
 import java.util.stream.Collectors;
 
 
-public class CFGNode extends Node<Statement> {
+public class CFGNode<N extends Node> extends GraphNode<N> {
 
-    public <N extends Node> CFGNode(N node) {
+    public <N1 extends GraphNode<N>> CFGNode(N1 node) {
         super(node);
     }
 
-    public CFGNode(int nextVertexId, String rootNodeData, Statement statement) {
-        super(nextVertexId, rootNodeData, statement);
+    public CFGNode(int nextVertexId, String rootNodeData, N node) {
+        super(nextVertexId, rootNodeData, node);
     }
 
     @Override

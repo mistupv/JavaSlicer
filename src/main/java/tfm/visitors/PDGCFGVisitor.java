@@ -7,7 +7,7 @@ import tfm.graphs.CFGGraph;
 import tfm.graphs.PDGGraph;
 import tfm.nodes.PDGNode;
 
-public class PDGCFGVisitor extends VoidVisitorAdapter<PDGNode> {
+public class PDGCFGVisitor extends VoidVisitorAdapter<PDGNode<?>> {
 
     private PDGGraph pdgGraph;
     private CFGGraph cfgGraph;
@@ -28,7 +28,7 @@ public class PDGCFGVisitor extends VoidVisitorAdapter<PDGNode> {
         this.pdgGraph.setCfgGraph(cfgGraph);
     }
 
-    public void visit(MethodDeclaration methodDeclaration, PDGNode parent) {
+    public void visit(MethodDeclaration methodDeclaration, PDGNode<?> parent) {
         if (!methodDeclaration.getBody().isPresent())
             return;
 

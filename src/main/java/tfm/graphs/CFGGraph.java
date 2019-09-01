@@ -1,31 +1,33 @@
 package tfm.graphs;
 
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.stmt.EmptyStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import edg.graphlib.Arrow;
 import tfm.arcs.Arc;
 import tfm.arcs.cfg.ControlFlowArc;
 import tfm.nodes.CFGNode;
-import tfm.nodes.Node;
+import tfm.nodes.GraphNode;
 import tfm.slicing.SlicingCriterion;
 
 import java.util.Comparator;
 import java.util.stream.Collectors;
 
-public class CFGGraph extends Graph<CFGNode> {
+public class CFGGraph extends Graph<CFGNode<?>> {
 
     public CFGGraph() {
         super();
-        setRootVertex(new CFGNode(getNextVertexId(), getRootNodeData(), new EmptyStmt()));
+        setRootVertex(new CFGNode<>(getNextVertexId(), getRootNodeData(), new EmptyStmt()));
     }
 
     @Override
-    public CFGNode addNode(String instruction, Statement statement) {
-        CFGNode vertex = new CFGNode(getNextVertexId(), instruction, statement);
+    public <ASTNode extends Node> CFGNode<?> addNode(String instruction, ASTNode node) {
+        CFGNode<?> vertex = new CFGNode<>(getNextVertexId(), instruction, node);
         this.addVertex(vertex);
 
         return vertex;
     }
+
 
     protected String getRootNodeData() {
         return "Start";
@@ -41,13 +43,13 @@ public class CFGGraph extends Graph<CFGNode> {
         String lineSep = System.lineSeparator();
 
         String nodes = getNodes().stream()
-                .sorted(Comparator.comparingInt(Node::getId))
+                .sorted(Comparator.comparingInt(GraphNode::getId))
                 .map(node -> String.format("%s [label=\"%s: %s\"]", node.getId(), node.getId(), node.getData()))
                 .collect(Collectors.joining(lineSep));
 
         String arrows =
                 getArrows().stream()
-                        .sorted(Comparator.comparingInt(arrow -> ((Node) arrow.getFrom()).getId()))
+                        .sorted(Comparator.comparingInt(arrow -> ((GraphNode) arrow.getFrom()).getId()))
                         .map(arrow -> ((Arc) arrow).toGraphvizRepresentation())
                         .collect(Collectors.joining(lineSep));
 
@@ -58,7 +60,7 @@ public class CFGGraph extends Graph<CFGNode> {
     }
 
     @Override
-    public Graph<CFGNode> slice(SlicingCriterion slicingCriterion) {
+    public Graph<CFGNode<?>> slice(SlicingCriterion slicingCriterion) {
         return this;
     }
 }

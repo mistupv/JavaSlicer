@@ -2,11 +2,11 @@ package tfm.arcs.cfg;
 
 import tfm.arcs.Arc;
 import tfm.arcs.data.VoidArcData;
-import tfm.nodes.Node;
+import tfm.nodes.GraphNode;
 
 public class ControlFlowArc extends Arc<VoidArcData> {
 
-    public ControlFlowArc(Node from, Node to) {
+    public ControlFlowArc(GraphNode from, GraphNode to) {
         super(from, to);
     }
 

@@ -13,9 +13,9 @@ import java.util.Optional;
 
 public class Main {
 
-    public static final String PROGRAM = Utils.PROGRAMS_FOLDER + "sdg/Example1.java";
+    public static final String PROGRAM = Utils.PROGRAMS_FOLDER + "cfg/Eval_1.java";
     public static final String METHOD = "";
-    public static final String GRAPH = GraphLog.SDG;
+    public static final String GRAPH = GraphLog.CFG;
 
     public static void main(String[] args) throws IOException {
         JavaParser.getStaticConfiguration().setAttributeComments(false);

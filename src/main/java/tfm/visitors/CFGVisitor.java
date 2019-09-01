@@ -125,11 +125,11 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
     @Override
     public void visit(ForStmt forStmt, Void arg) {
 //        String inizialization = forStmt.getInitialization().stream()
-//                .map(Node::toString)
+//                .map(GraphNode::toString)
 //                .collect(Collectors.joining(","));
 //
 //        String update = forStmt.getUpdate().stream()
-//                .map(Node::toString)
+//                .map(GraphNode::toString)
 //                .collect(Collectors.joining(","));
 
         Expression comparison = forStmt.getCompare().orElse(new BooleanLiteralExpr(true));

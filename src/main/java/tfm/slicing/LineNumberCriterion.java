@@ -1,5 +1,6 @@
 package tfm.slicing;
 
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.stmt.Statement;
 import tfm.graphs.CFGGraph;
 import tfm.graphs.PDGGraph;
@@ -22,21 +23,21 @@ public class LineNumberCriterion extends SlicingCriterion {
     }
 
     @Override
-    public Optional<CFGNode> findNode(CFGGraph graph) {
+    public Optional<CFGNode<?>> findNode(CFGGraph graph) {
         return Optional.empty();
     }
 
     @Override
-    public Optional<PDGNode> findNode(PDGGraph graph) {
+    public Optional<PDGNode<?>> findNode(PDGGraph graph) {
         // find node by line number
         return graph.getNodes().stream().filter(node -> {
-            Statement statement = node.getAstNode();
+            Node astNode = node.getAstNode();
 
-            if (!statement.getBegin().isPresent() || !statement.getEnd().isPresent())
+            if (!astNode.getBegin().isPresent() || !astNode.getEnd().isPresent())
                 return false;
 
-            int begin = statement.getBegin().get().line;
-            int end = statement.getEnd().get().line;
+            int begin = astNode.getBegin().get().line;
+            int end = astNode.getEnd().get().line;
 
             Logger.format("begin %s end %s", begin, end);
 
@@ -45,7 +46,7 @@ public class LineNumberCriterion extends SlicingCriterion {
     }
 
     @Override
-    public Optional<SDGNode> findNode(SDGGraph graph) {
+    public Optional<SDGNode<?>> findNode(SDGGraph graph) {
         return Optional.empty();
     }
 

@@ -1,8 +1,8 @@
 package tfm.variables.actions;
 
-import tfm.nodes.Node;
+import tfm.nodes.GraphNode;
 
-public class VariableDefinition<N extends Node> extends VariableAction<N> {
+public class VariableDefinition<N extends GraphNode> extends VariableAction<N> {
 
     public VariableDefinition(String variable, N node) {
         super(variable, node);

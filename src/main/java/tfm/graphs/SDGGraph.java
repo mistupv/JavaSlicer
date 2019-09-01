@@ -1,15 +1,18 @@
 package tfm.graphs;
 
-import com.github.javaparser.ast.stmt.Statement;
+import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.Parameter;
+import tfm.nodes.AuxiliarSDGNode;
+import tfm.nodes.PDGNode;
 import tfm.nodes.SDGNode;
 import tfm.slicing.SlicingCriterion;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class SDGGraph extends Graph<SDGNode> {
+public class SDGGraph extends Graph<SDGNode<?>> {
 
     private List<PDGGraph> pdgGraphList;
 
@@ -18,8 +21,11 @@ public class SDGGraph extends Graph<SDGNode> {
     }
 
     @Override
-    public SDGNode addNode(String instruction, Statement statement) {
-        return null;
+    public <ASTNode extends Node> SDGNode<?> addNode(String instruction, ASTNode node) {
+        SDGNode<?> sdgNode = new SDGNode<>(getNextVertexId(), instruction, node);
+        super.addVertex(sdgNode);
+
+        return sdgNode;
     }
 
     @Override
@@ -28,11 +34,39 @@ public class SDGGraph extends Graph<SDGNode> {
     }
 
     @Override
-    public Graph<SDGNode> slice(SlicingCriterion slicingCriterion) {
+    public Graph<SDGNode<?>> slice(SlicingCriterion slicingCriterion) {
         return this;
     }
 
-    public void addPDG(PDGGraph pdgGraph) {
-        this.pdgGraphList.add(pdgGraph);
+    public void addPDG(PDGGraph pdgGraph, MethodDeclaration methodDeclaration) {
+        if (this.rootVertex == null) {
+            this.setRootVertex(new SDGNode<>(getNextVertexId(), methodDeclaration.getNameAsString(), methodDeclaration));
+        }
+
+        for (Parameter parameter : methodDeclaration.getParameters()) {
+            AuxiliarSDGNode sdgNode = new AuxiliarSDGNode(
+                    getNextVertexId(),
+                    String.format("%s = %s_in", parameter.getNameAsString(), parameter.getNameAsString())
+            );
+
+            addVertex(sdgNode);
+        }
+
+        for (PDGNode<?> node : pdgGraph.getNodes()) {
+            if (!this.verticies.contains(node)) {
+                SDGNode<?> sdgNode = new SDGNode<>(
+                        getNextVertexId(),
+                        node.getData(),
+                        node.getAstNode(),
+                        node.getIncomingArrows(),
+                        node.getOutgoingArrows(),
+                        node.getDeclaredVariables(),
+                        node.getDefinedVariables(),
+                        node.getUsedVariables()
+                );
+
+                addVertex(sdgNode);
+            }
+        }
     }
 }

@@ -1,5 +1,6 @@
 package tfm.graphs;
 
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.stmt.EmptyStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import edg.graphlib.Arrow;
@@ -7,7 +8,7 @@ import tfm.arcs.Arc;
 import tfm.arcs.pdg.ControlDependencyArc;
 import tfm.arcs.pdg.DataDependencyArc;
 import tfm.nodes.CFGNode;
-import tfm.nodes.Node;
+import tfm.nodes.GraphNode;
 import tfm.nodes.PDGNode;
 import tfm.slicing.SlicingCriterion;
 import tfm.utils.Logger;
@@ -21,12 +22,12 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class PDGGraph extends Graph<PDGNode> {
+public class PDGGraph extends Graph<PDGNode<?>> {
 
     private CFGGraph cfgGraph;
 
     public PDGGraph() {
-        setRootVertex(new PDGNode(getNextVertexId(), getRootNodeData(), new EmptyStmt()));
+        setRootVertex(new PDGNode<>(getNextVertexId(), getRootNodeData(), new EmptyStmt()));
     }
 
     public PDGGraph(CFGGraph cfgGraph) {
@@ -38,20 +39,20 @@ public class PDGGraph extends Graph<PDGNode> {
         return "Entry";
     }
 
-    public PDGNode addNode(PDGNode node) {
-        PDGNode vertex = new PDGNode(node);
+    public PDGNode addNode(PDGNode<?> node) {
+        PDGNode<?> vertex = new PDGNode<>(node);
         super.addVertex(vertex);
 
         return vertex;
     }
 
     @Override
-    public PDGNode addNode(String instruction, Statement statement) {
-        return addNode(getNextVertexId(), instruction, statement);
+    public <ASTNode extends Node> PDGNode<?> addNode(String instruction, ASTNode node) {
+        return addNode(getNextVertexId(), instruction, node);
     }
 
-    public PDGNode addNode(int id, String instruction, Statement statement) {
-        PDGNode vertex = new PDGNode(id, instruction, statement);
+    public <ASTNode extends Node> PDGNode<?> addNode(int id, String instruction, ASTNode node) {
+        PDGNode<?> vertex = new PDGNode<>(id, instruction, node);
         super.addVertex(vertex);
 
         return vertex;
@@ -98,8 +99,8 @@ public class PDGGraph extends Graph<PDGNode> {
         String lineSep = System.lineSeparator();
 
         String nodesDeclaration = getNodes().stream()
-                .sorted(Comparator.comparingInt(Node::getId))
-                .map(Node::toGraphvizRepresentation)
+                .sorted(Comparator.comparingInt(GraphNode::getId))
+                .map(GraphNode::toGraphvizRepresentation)
                 .collect(Collectors.joining(lineSep));
 
         StringBuilder rankedNodes = new StringBuilder();
@@ -131,7 +132,7 @@ public class PDGGraph extends Graph<PDGNode> {
 
         String arrows =
                 getArcs().stream()
-                        .sorted(Comparator.comparingInt(arrow -> ((Node) arrow.getFrom()).getId()))
+                        .sorted(Comparator.comparingInt(arrow -> ((GraphNode) arrow.getFrom()).getId()))
                         .map(Arc::toGraphvizRepresentation)
                         .collect(Collectors.joining(lineSep));
 
@@ -146,7 +147,7 @@ public class PDGGraph extends Graph<PDGNode> {
 
     @Override
     public PDGGraph slice(SlicingCriterion slicingCriterion) {
-        Optional<PDGNode> optionalPDGNode = slicingCriterion.findNode(this);
+        Optional<PDGNode<?>> optionalPDGNode = slicingCriterion.findNode(this);
 
         if (!optionalPDGNode.isPresent()) {
             throw new NodeNotFoundException(slicingCriterion);
@@ -154,25 +155,27 @@ public class PDGGraph extends Graph<PDGNode> {
 
         PDGNode node = optionalPDGNode.get();
 
-        // Find CFGNode and find last definition of variable
-        CFGNode cfgNode = this.cfgGraph.findNodeByASTNode(node.getAstNode())
-                .orElseThrow(() -> new NodeNotFoundException("CFGNode not found"));
+//        // DEPRECATED - Find CFGNode and find last definition of variable
+//        CFGNode cfgNode = this.cfgGraph.findNodeByASTNode(node.getAstNode())
+//                .orElseThrow(() -> new NodeNotFoundException("CFGNode not found"));
+//
+//        Set<CFGNode<?>> definitionNodes = Utils.findLastDefinitionsFrom(cfgNode, slicingCriterion.getVariable());
+//
+//        Logger.format("Slicing node: %s", node);
+//
+//        // Get slice nodes from definition nodes
+//        Set<Integer> sliceNodes = definitionNodes.stream()
+//                .flatMap(definitionNode -> getSliceNodes(new HashSet<>(), this.findNodeByASTNode(definitionNode.getAstNode()).get()).stream())
+//                .collect(Collectors.toSet());
+//
+//        sliceNodes.add(node.getId());
 
-        Set<CFGNode> definitionNodes = Utils.findLastDefinitionsFrom(cfgNode, slicingCriterion.getVariable());
-
-        Logger.format("Slicing node: %s", node);
-
-        Set<Integer> sliceNodes = definitionNodes.stream()
-                .flatMap(definitionNode -> getSliceNodes(new HashSet<>(), this.findNodeByASTNode(definitionNode.getAstNode()).get()).stream())
-                .collect(Collectors.toSet());
-
-        sliceNodes.add(node.getId());
-
-//        Set<Integer> sliceNodes = getSliceNodes(new HashSet<>(), node);
+        // Simply get slice nodes from PDGNode
+        Set<Integer> sliceNodes = getSliceNodes(new HashSet<>(), node);
 
         PDGGraph sliceGraph = new PDGGraph();
 
-        com.github.javaparser.ast.Node astCopy = node.getAstNode().findRootNode().clone();
+        Node astCopy = node.getAstNode().findRootNode().clone();
 
         astCopy.accept(new PDGCFGVisitor(sliceGraph), sliceGraph.getRootNode());
 
@@ -204,13 +207,13 @@ public class PDGGraph extends Graph<PDGNode> {
         return sliceGraph;
     }
 
-    private Set<Integer> getSliceNodes(Set<Integer> visited, PDGNode root) {
+    private Set<Integer> getSliceNodes(Set<Integer> visited, PDGNode<?> root) {
         visited.add(root.getId());
 
         for (Arrow arrow : root.getIncomingArrows()) {
             Arc arc = (Arc) arrow;
 
-            PDGNode from = (PDGNode) arc.getFromNode();
+            PDGNode<?> from = (PDGNode) arc.getFromNode();
 
             if (visited.contains(from.getId())) {
                 continue;

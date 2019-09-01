@@ -1,5 +1,6 @@
 package tfm.variables;
 
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.stmt.Statement;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -50,8 +51,8 @@ public class VariableExtractor {
         return this;
     }
 
-    public void visit(@NonNull Statement statement) {
-        statement.accept(this.visitor, VariableAction.Actions.USE);
+    public void visit(@NonNull Node node) {
+        node.accept(this.visitor, VariableAction.Actions.USE);
     }
 
     public void visit(@NonNull Expression expression) {
