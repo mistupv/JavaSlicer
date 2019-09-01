@@ -1,14 +1,14 @@
 package tfm.arcs;
 
 import tfm.arcs.data.ArcData;
-import tfm.nodes.Node;
+import tfm.nodes.GraphNode;
 
 import java.util.Objects;
 
 public abstract class Arc<D extends ArcData> extends edg.graphlib.Arrow<String, D> {
 
     @SuppressWarnings("unchecked")
-    public Arc(Node from, Node to) {
+    public Arc(GraphNode from, GraphNode to) {
         super((edg.graphlib.Vertex<String, D>) from, (edg.graphlib.Vertex<String, D>) to);
     }
 
@@ -28,8 +28,8 @@ public abstract class Arc<D extends ArcData> extends edg.graphlib.Arrow<String, 
     }
 
     public String toGraphvizRepresentation() {
-        Node from = (Node) getFrom();
-        Node to = (Node) getTo();
+        GraphNode from = (GraphNode) getFrom();
+        GraphNode to = (GraphNode) getTo();
 
         return String.format("%s -> %s",
                 from.getId(),
@@ -37,12 +37,12 @@ public abstract class Arc<D extends ArcData> extends edg.graphlib.Arrow<String, 
         );
     }
 
-    public Node getFromNode() {
-        return (Node) super.getFrom();
+    public GraphNode getFromNode() {
+        return (GraphNode) super.getFrom();
     }
 
-    public Node getToNode() {
-        return (Node) super.getTo();
+    public GraphNode getToNode() {
+        return (GraphNode) super.getTo();
     }
 
     @Override
@@ -60,10 +60,10 @@ public abstract class Arc<D extends ArcData> extends edg.graphlib.Arrow<String, 
 
         Arc arc = (Arc) o;
 
-        Node from = (Node) arc.getFrom();
-        Node from2 = (Node) getFrom();
-        Node to = (Node) getTo();
-        Node to2 = (Node) arc.getTo();
+        GraphNode from = (GraphNode) arc.getFrom();
+        GraphNode from2 = (GraphNode) getFrom();
+        GraphNode to = (GraphNode) getTo();
+        GraphNode to2 = (GraphNode) arc.getTo();
 
         return Objects.equals(arc.getData(), getData()) &&
                 Objects.equals(from.getId(), from2.getId()) &&

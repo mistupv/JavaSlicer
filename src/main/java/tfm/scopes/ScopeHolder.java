@@ -1,6 +1,6 @@
 package tfm.scopes;
 
-import tfm.nodes.Node;
+import tfm.nodes.GraphNode;
 import tfm.variables.actions.VariableDeclaration;
 import tfm.variables.actions.VariableDefinition;
 import tfm.variables.actions.VariableUse;
@@ -8,7 +8,7 @@ import tfm.variables.actions.VariableUse;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class ScopeHolder<N extends Node> extends Scope<N> {
+public class ScopeHolder<N extends GraphNode> extends Scope<N> {
 
     private Queue<Scope<N>> subscopes;
 

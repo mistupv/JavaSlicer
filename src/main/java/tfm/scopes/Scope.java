@@ -1,6 +1,6 @@
 package tfm.scopes;
 
-import tfm.nodes.Node;
+import tfm.nodes.GraphNode;
 import tfm.variables.actions.VariableDeclaration;
 import tfm.variables.actions.VariableDefinition;
 import tfm.variables.actions.VariableUse;
@@ -8,7 +8,7 @@ import tfm.variables.actions.VariableUse;
 import java.util.List;
 import java.util.Set;
 
-public abstract class Scope<N extends Node> {
+public abstract class Scope<N extends GraphNode> {
 
     protected N root;
 

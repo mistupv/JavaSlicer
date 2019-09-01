@@ -8,11 +8,12 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.stmt.BlockStmt;
+import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.type.ArrayType;
 import com.github.javaparser.ast.type.VoidType;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.graphs.PDGGraph;
-import tfm.nodes.Node;
+import tfm.nodes.GraphNode;
 import tfm.utils.Logger;
 import tfm.utils.Utils;
 import tfm.visitors.PDGCFGVisitor;
@@ -87,8 +88,8 @@ public class PDGValidator {
         methodDeclaration.setBody(methodBody);
 
         graph.getNodesAtLevel(1).stream()
-                .sorted(Comparator.comparingInt(Node::getId))
-                .forEach(node -> methodBody.addStatement(node.getAstNode()));
+                .sorted(Comparator.comparingInt(GraphNode::getId))
+                .forEach(node -> methodBody.addStatement((Statement) node.getAstNode()));
 
         return methodDeclaration;
     }

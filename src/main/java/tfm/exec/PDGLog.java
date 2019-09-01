@@ -3,7 +3,7 @@ package tfm.exec;
 import guru.nidi.graphviz.engine.Format;
 import guru.nidi.graphviz.engine.Graphviz;
 import tfm.graphs.PDGGraph;
-import tfm.nodes.Node;
+import tfm.nodes.GraphNode;
 import tfm.utils.Logger;
 import tfm.visitors.PDGCFGVisitor;
 
@@ -37,9 +37,9 @@ public class PDGLog extends GraphLog<PDGGraph> {
         Logger.log("Nodes with variable info");
         Logger.log(
                 graph.getNodes().stream()
-                        .sorted(Comparator.comparingInt(Node::getId))
+                        .sorted(Comparator.comparingInt(GraphNode::getId))
                         .map(node ->
-                                String.format("Node { id: %s, declared: %s, defined: %s, used: %s }",
+                                String.format("GraphNode { id: %s, declared: %s, defined: %s, used: %s }",
                                         node.getId(),
                                         node.getDeclaredVariables(),
                                         node.getDefinedVariables(),

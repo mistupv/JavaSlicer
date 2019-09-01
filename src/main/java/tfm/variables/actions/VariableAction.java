@@ -1,8 +1,8 @@
 package tfm.variables.actions;
 
-import tfm.nodes.Node;
+import tfm.nodes.GraphNode;
 
-public abstract class VariableAction<N extends Node> {
+public abstract class VariableAction<N extends GraphNode> {
 
     public enum Actions {
         DECLARATION,

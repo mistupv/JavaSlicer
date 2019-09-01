@@ -21,9 +21,9 @@ public abstract class SlicingCriterion {
         return variable;
     }
 
-    public abstract Optional<CFGNode> findNode(CFGGraph graph);
-    public abstract Optional<PDGNode> findNode(PDGGraph graph);
-    public abstract Optional<SDGNode> findNode(SDGGraph graph);
+    public abstract Optional<CFGNode<?>> findNode(CFGGraph graph);
+    public abstract Optional<PDGNode<?>> findNode(PDGGraph graph);
+    public abstract Optional<SDGNode<?>> findNode(SDGGraph graph);
 
     @Override
     public String toString() {

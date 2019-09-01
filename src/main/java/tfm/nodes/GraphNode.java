@@ -1,5 +1,6 @@
 package tfm.nodes;
 
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.stmt.Statement;
 import edg.graphlib.Arrow;
 import edg.graphlib.Vertex;
@@ -15,15 +16,15 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class Node<ASTNode extends com.github.javaparser.ast.Node> extends Vertex<String, ArcData> {
+public class GraphNode<N extends Node> extends Vertex<String, ArcData> {
 
-    private ASTNode astNode;
+    protected N astNode;
 
     protected Set<String> declaredVariables;
     protected Set<String> definedVariables;
     protected Set<String> usedVariables;
 
-    public <N extends Node<ASTNode>> Node(N node) {
+    public <N1 extends GraphNode<N>> GraphNode(N1 node) {
         this(
                 node.getId(),
                 node.getData(),
@@ -36,7 +37,7 @@ public class Node<ASTNode extends com.github.javaparser.ast.Node> extends Vertex
         );
     }
 
-    public Node(int id, String representation, @NotNull ASTNode astNode) {
+    public GraphNode(int id, String representation, @NotNull N astNode) {
         this(
                 id,
                 representation,
@@ -49,10 +50,10 @@ public class Node<ASTNode extends com.github.javaparser.ast.Node> extends Vertex
         );
     }
 
-    public Node(
+    public GraphNode(
                 int id,
                 String representation,
-                @NonNull ASTNode astNode,
+                @NonNull N astNode,
                 Collection<? extends Arrow<String, ArcData>> incomingArcs,
                 Collection<? extends Arrow<String, ArcData>> outgoingArcs,
                 Set<String> declaredVariables,
@@ -88,15 +89,19 @@ public class Node<ASTNode extends com.github.javaparser.ast.Node> extends Vertex
     }
 
     public String toString() {
-        return String.format("Node{id: %s, data: '%s', in: %s, out: %s}",
+        return String.format("GraphNode{id: %s, data: '%s', in: %s, out: %s}",
                 getName(),
                 getData(),
                 getIncomingArrows().stream().map(arrow -> arrow.getFrom().getName()).collect(Collectors.toList()),
                 getOutgoingArrows().stream().map(arc -> arc.getTo().getName()).collect(Collectors.toList()));
     }
 
-    public ASTNode getAstNode() {
+    public N getAstNode() {
         return astNode;
+    }
+
+    public void setAstNode(N node) {
+        this.astNode = node;
     }
 
     public Optional<Integer> getFileLineNumber() {
@@ -120,10 +125,10 @@ public class Node<ASTNode extends com.github.javaparser.ast.Node> extends Vertex
         if (this == o)
             return true;
 
-        if (!(o instanceof Node))
+        if (!(o instanceof GraphNode))
             return false;
 
-        Node other = (Node) o;
+        GraphNode other = (GraphNode) o;
 
         return Objects.equals(getData(), other.getData())
 //                && Objects.equals(getIncomingArrows(), other.getIncomingArrows())

@@ -1,6 +1,6 @@
 package tfm.scopes;
 
-import tfm.nodes.Node;
+import tfm.nodes.GraphNode;
 import tfm.variables.actions.VariableAction;
 import tfm.variables.actions.VariableDeclaration;
 import tfm.variables.actions.VariableDefinition;
@@ -8,7 +8,7 @@ import tfm.variables.actions.VariableUse;
 
 import java.util.*;
 
-public class VariableScope<N extends Node> extends Scope<N> {
+public class VariableScope<N extends GraphNode> extends Scope<N> {
 
     private Map<String, List<VariableDeclaration<N>>> variableDeclarations;
     private Map<String, List<VariableDefinition<N>>> variableDefinitions;

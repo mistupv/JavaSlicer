@@ -1,11 +1,11 @@
 package tfm.graphs;
 
-import com.github.javaparser.ast.stmt.Statement;
+import com.github.javaparser.ast.Node;
 import edg.graphlib.Arrow;
 import edg.graphlib.Vertex;
 import tfm.arcs.Arc;
 import tfm.arcs.data.ArcData;
-import tfm.nodes.Node;
+import tfm.nodes.GraphNode;
 import tfm.slicing.SlicingCriterion;
 
 import java.util.*;
@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 /**
  * A graphlib Graph without cost and data in arcs
  * */
-public abstract class Graph<NodeType extends Node> extends edg.graphlib.Graph<String, ArcData> {
+public abstract class Graph<NodeType extends GraphNode<?>> extends edg.graphlib.Graph<String, ArcData> {
 
     private int nextVertexId = 0;
 
@@ -86,9 +86,9 @@ public abstract class Graph<NodeType extends Node> extends edg.graphlib.Graph<St
         return (NodeType) super.getRootVertex();
     }
 
-    public abstract NodeType addNode(String instruction, Statement statement);
+    public abstract <ASTNode extends Node> NodeType addNode(String instruction, ASTNode node);
 
-    public <ASTNode extends com.github.javaparser.ast.Node> Optional<NodeType> findNodeByASTNode(ASTNode astNode) {
+    public <ASTNode extends Node> Optional<NodeType> findNodeByASTNode(ASTNode astNode) {
         return getNodes().stream()
                 .filter(node -> Objects.equals(node.getAstNode(), astNode))
                 .findFirst();
@@ -119,8 +119,8 @@ public abstract class Graph<NodeType extends Node> extends edg.graphlib.Graph<St
 
     public String toString() {
         return getNodes().stream()
-                .sorted(Comparator.comparingInt(Node::getId))
-                .map(Node::toString)
+                .sorted(Comparator.comparingInt(GraphNode::getId))
+                .map(GraphNode::toString)
                 .collect(Collectors.joining(System.lineSeparator()));
     }
 
@@ -141,7 +141,7 @@ public abstract class Graph<NodeType extends Node> extends edg.graphlib.Graph<St
         throw new UnsupportedOperationException("Deprecated method. Use removeNode instead");
     }
 
-    public void removeNode(Node node) {
+    public void removeNode(GraphNode<?> node) {
         verticies.remove(node);
 
         edges.removeAll(node.getOutgoingArrows());

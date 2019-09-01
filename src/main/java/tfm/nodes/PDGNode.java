@@ -1,6 +1,6 @@
 package tfm.nodes;
 
-import com.github.javaparser.ast.stmt.Statement;
+import com.github.javaparser.ast.Node;
 import edg.graphlib.Arrow;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import tfm.arcs.Arc;
@@ -14,17 +14,17 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class PDGNode extends Node<Statement> {
+public class PDGNode<N extends Node> extends GraphNode<N> {
 
-    public PDGNode(int id, String data, Statement statement) {
-        super(id, data, statement);
+    public PDGNode(int id, String data, N node) {
+        super(id, data, node);
     }
 
-    public PDGNode(int id, String representation, @NonNull Statement statement, Collection<? extends Arrow<String, ArcData>> incomingArcs, Collection<? extends Arrow<String, ArcData>> outgoingArcs, Set<String> declaredVariables, Set<String> definedVariables, Set<String> usedVariables) {
-        super(id, representation, statement, incomingArcs, outgoingArcs, declaredVariables, definedVariables, usedVariables);
+    public PDGNode(int id, String representation, @NonNull N node, Collection<? extends Arrow<String, ArcData>> incomingArcs, Collection<? extends Arrow<String, ArcData>> outgoingArcs, Set<String> declaredVariables, Set<String> definedVariables, Set<String> usedVariables) {
+        super(id, representation, node, incomingArcs, outgoingArcs, declaredVariables, definedVariables, usedVariables);
     }
 
-    public <N extends Node> PDGNode(N node) {
+    public <N1 extends GraphNode<N>> PDGNode(N1 node) {
         super(node);
     }
 
@@ -37,7 +37,7 @@ public class PDGNode extends Node<Statement> {
         getIncomingArrows().forEach(arrow -> {
             Logger.log(arrow);
             Arc arc = (Arc) arrow;
-            Node from = (Node) arc.getFrom();
+            GraphNode from = (GraphNode) arc.getFrom();
 
             if (arc.isDataDependencyArrow()) {
                 dataFrom.add(from.getId());
@@ -49,7 +49,7 @@ public class PDGNode extends Node<Statement> {
 
         getOutgoingArrows().forEach(arrow -> {
             Arc arc = (Arc) arrow;
-            Node to = (Node) arc.getTo();
+            GraphNode to = (GraphNode) arc.getTo();
 
             if (arc.isDataDependencyArrow()) {
                 dataTo.add(to.getId());

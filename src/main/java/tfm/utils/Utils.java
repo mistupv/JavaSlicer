@@ -50,7 +50,7 @@ public class Utils {
         return new HashSet<>(0);
     }
 
-    public static Set<CFGNode> findLastDefinitionsFrom(CFGNode startNode, String variable) {
+    public static Set<CFGNode<?>> findLastDefinitionsFrom(CFGNode<?> startNode, String variable) {
 //        Logger.log("=======================================================");
 //        Logger.log("Starting from " + startNode);
 //        Logger.log("Looking for variable " + variable);
@@ -58,12 +58,12 @@ public class Utils {
         return findLastDefinitionsFrom(new HashSet<>(), startNode, startNode, variable);
     }
 
-    private static Set<CFGNode> findLastDefinitionsFrom(Set<Integer> visited, CFGNode startNode, CFGNode currentNode, String variable) {
+    private static Set<CFGNode<?>> findLastDefinitionsFrom(Set<Integer> visited, CFGNode<?> startNode, CFGNode<?> currentNode, String variable) {
         visited.add(currentNode.getId());
 
 //        Logger.log("On " + currentNode);
 
-        Set<CFGNode> res = new HashSet<>();
+        Set<CFGNode<?>> res = new HashSet<>();
 
         for (Arrow arrow : currentNode.getIncomingArrows()) {
             ControlFlowArc controlFlowArc = (ControlFlowArc) arrow;

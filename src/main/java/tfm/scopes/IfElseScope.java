@@ -1,12 +1,12 @@
 package tfm.scopes;
 
-import tfm.nodes.Node;
+import tfm.nodes.GraphNode;
 import tfm.variables.actions.VariableDefinition;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class IfElseScope<N extends Node> extends ScopeHolder<N> {
+public class IfElseScope<N extends GraphNode> extends ScopeHolder<N> {
 
     private VariableScope<N> expressionScope;
     private ScopeHolder<N> thenScope;

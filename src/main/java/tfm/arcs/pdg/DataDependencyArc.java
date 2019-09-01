@@ -2,7 +2,7 @@ package tfm.arcs.pdg;
 
 import tfm.arcs.Arc;
 import tfm.arcs.data.VariableArcData;
-import tfm.nodes.Node;
+import tfm.nodes.GraphNode;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -10,7 +10,7 @@ import java.util.List;
 
 public class DataDependencyArc extends Arc<VariableArcData> {
 
-    public DataDependencyArc(Node from, Node to, String variable, String... variables) {
+    public DataDependencyArc(GraphNode from, GraphNode to, String variable, String... variables) {
         super(from, to);
 
         List<String> variablesList = new ArrayList<>(variables.length + 1);
