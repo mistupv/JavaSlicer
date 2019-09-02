@@ -3,6 +3,9 @@ package tfm.graphs;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
+import edg.graphlib.Vertex;
+import edg.graphlib.Visitor;
+import tfm.arcs.data.ArcData;
 import tfm.nodes.AuxiliarSDGNode;
 import tfm.nodes.PDGNode;
 import tfm.nodes.SDGNode;
@@ -10,6 +13,7 @@ import tfm.slicing.SlicingCriterion;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class SDGGraph extends Graph<SDGNode<?>> {
@@ -68,5 +72,33 @@ public class SDGGraph extends Graph<SDGNode<?>> {
                 addVertex(sdgNode);
             }
         }
+    }
+
+    public SDGNode<MethodDeclaration> addMethod(MethodDeclaration methodDeclaration, PDGGraph pdgGraph) {
+        SDGNode<MethodDeclaration> node = new SDGNode<>(
+                getNextVertexId(),
+                "ENTER " + methodDeclaration.getDeclarationAsString(false, false, true),
+                methodDeclaration
+        );
+
+        pdgGraph.depthFirstSearch(pdgGraph.getRootNode(), (Visitor<String, ArcData>) (g, v) -> {
+            if (Objects.equals(g.getRootVertex(), v)) {
+                return; // We don't care about root node (entry node)
+            }
+
+            PDGNode<?> pdgNode = (PDGNode) v;
+
+            SDGNode<?> sdgNode = new SDGNode<>(
+                    getNextVertexId(),
+                    pdgNode.getData(),
+                    pdgNode.getAstNode()
+            );
+
+
+        });
+
+        super.addVertex(node);
+
+        return node;
     }
 }

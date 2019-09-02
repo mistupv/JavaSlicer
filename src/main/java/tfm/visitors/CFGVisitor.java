@@ -10,6 +10,7 @@ import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import jdk.nashorn.internal.ir.Block;
 import tfm.graphs.CFGGraph;
 import tfm.nodes.CFGNode;
+import tfm.utils.ASTUtils;
 import tfm.utils.Utils;
 
 import java.util.*;
@@ -101,7 +102,7 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
     @Override
     public void visit(DoStmt doStmt, Void arg) {
-        BlockStmt body = Utils.blockWrapper(doStmt.getBody());
+        BlockStmt body = ASTUtils.blockWrapper(doStmt.getBody());
 
         body.accept(this, arg);
 
@@ -143,7 +144,7 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
         lastParentNodes.add(forNode);
 
-        BlockStmt body = Utils.blockWrapper(forStmt.getBody()).clone();
+        BlockStmt body = ASTUtils.blockWrapper(forStmt.getBody()).clone();
 
         forStmt.getUpdate().forEach(body::addStatement);
 
@@ -228,7 +229,7 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
     @Override
     public void visit(ContinueStmt continueStmt, Void arg) {
-        Statement continuableStatement = Utils.findFirstAncestorStatementFrom(continueStmt, Utils::isLoop);
+        Statement continuableStatement = ASTUtils.findFirstAncestorStatementFrom(continueStmt, ASTUtils::isLoop);
 
         CFGNode continuableNode = graph.findNodeByASTNode(continuableStatement).get();
 

@@ -11,6 +11,7 @@ import tfm.nodes.CFGNode;
 import tfm.nodes.GraphNode;
 import tfm.nodes.PDGNode;
 import tfm.slicing.SlicingCriterion;
+import tfm.utils.ASTUtils;
 import tfm.utils.Logger;
 import tfm.utils.NodeNotFoundException;
 import tfm.utils.Utils;
@@ -175,7 +176,7 @@ public class PDGGraph extends Graph<PDGNode<?>> {
 
         PDGGraph sliceGraph = new PDGGraph();
 
-        Node astCopy = node.getAstNode().findRootNode().clone();
+        Node astCopy = ASTUtils.cloneAST(node.getAstNode());
 
         astCopy.accept(new PDGCFGVisitor(sliceGraph), sliceGraph.getRootNode());
 

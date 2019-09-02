@@ -11,28 +11,25 @@ import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import edg.graphlib.Graph;
-import edg.graphlib.Vertex;
-import edg.graphlib.Visitor;
-import tfm.arcs.data.ArcData;
 import tfm.graphs.PDGGraph;
 import tfm.graphs.SDGGraph;
 import tfm.nodes.PDGNode;
 import tfm.nodes.SDGNode;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * 31/8/19
- * Asumimos que procesamos 1 clase con uno o mas metodos estaticos donde el primer metodo es el main
+ * Asumimos que procesamos 1 archivo con una o más clases donde el primer método de la primera clase es el main
  *
  */
 public class SDGVisitor extends VoidVisitorAdapter<Void> {
 
     SDGGraph sdgGraph;
     List<PDGGraph> pdgGraphs;
-    private SDGNode<ClassOrInterfaceDeclaration> currentClassNode;
+
+    private ClassOrInterfaceDeclaration currentClass;
+    private CompilationUnit currentCompilationUnit;
 
     public SDGVisitor(SDGGraph sdgGraph) {
         this.sdgGraph = sdgGraph;
@@ -40,29 +37,22 @@ public class SDGVisitor extends VoidVisitorAdapter<Void> {
     }
 
     @Override
-    public void visit(ClassOrInterfaceDeclaration classOrInterfaceDeclaration, Void ignored) {
-        if (sdgGraph.getRootNode() != null) {
-            throw new IllegalStateException("¡Solo podemos procesar una clase por el momento!");
-        }
-
-        if (classOrInterfaceDeclaration.isInterface()) {
-            throw new IllegalArgumentException("¡Las interfaces no estan permitidas!");
-        }
-
-        currentClassNode = sdgGraph.addNode(
-                "class " + classOrInterfaceDeclaration.getNameAsString(),
-                classOrInterfaceDeclaration
-        );
-
-        sdgGraph.setRootVertex(currentClassNode);
-
-        classOrInterfaceDeclaration.accept(this, ignored);
-    }
-
-    @Override
     public void visit(MethodDeclaration methodDeclaration, Void ignored) {
         if (!methodDeclaration.getBody().isPresent())
             return;
+
+
+        if (sdgGraph.isEmpty()) {
+            sdgGraph.setRootVertex(
+                    new SDGNode<>(
+                            0,
+                            "ENTER " + methodDeclaration.getNameAsString(),
+                            methodDeclaration
+                    )
+            );
+        } else {
+            sdgGraph.addMethod(methodDeclaration);
+        }
 
         PDGGraph pdgGraph = new PDGGraph();
 
@@ -72,7 +62,7 @@ public class SDGVisitor extends VoidVisitorAdapter<Void> {
                 if (methodCallExpr.getScope().isPresent()) {
                     String scopeName = methodCallExpr.getScope().get().toString();
 
-                    String currentClassName = currentClassNode.getAstNode().getNameAsString();
+                    String currentClassName = currentClass.getNameAsString();
 
                     // Check if it's a static method call of current class
                     if (!Objects.equals(scopeName, currentClassName)) {
@@ -129,12 +119,6 @@ public class SDGVisitor extends VoidVisitorAdapter<Void> {
 
         sdgGraph.addNode(methodDeclaration.getNameAsString(), methodDeclaration);
 
-        pdgGraph.breadthFirstSearch(pdgGraph.getRootNode(), (Visitor<String, ArcData>) (g, v) -> {
-            PDGNode<?> pdgNode = (PDGNode) v;
-
-
-        });
-
         pdgGraph.getNodes().stream().skip(1).forEach(pdgNode -> {
             Statement statement = (Statement) pdgNode.getAstNode();
 
@@ -160,10 +144,25 @@ public class SDGVisitor extends VoidVisitorAdapter<Void> {
         pdgGraphs.add(pdgGraph);
     }
 
-//    @Override
-//    public void visit(CompilationUnit compilationUnit, Void ignored) {
-//        super.visit(compilationUnit, ignored);
-//
-//
-//    }
+    @Override
+    public void visit(ClassOrInterfaceDeclaration classOrInterfaceDeclaration, Void ignored) {
+//        if (sdgGraph.getRootNode() != null) {
+//            throw new IllegalStateException("¡Solo podemos procesar una clase por el momento!");
+//        }
+
+        if (classOrInterfaceDeclaration.isInterface()) {
+            throw new IllegalArgumentException("¡Las interfaces no estan permitidas!");
+        }
+
+        currentClass = classOrInterfaceDeclaration;
+
+        classOrInterfaceDeclaration.accept(this, ignored);
+    }
+
+    @Override
+    public void visit(CompilationUnit compilationUnit, Void ignored) {
+        currentCompilationUnit = compilationUnit;
+
+        super.visit(compilationUnit, ignored);
+    }
 }
