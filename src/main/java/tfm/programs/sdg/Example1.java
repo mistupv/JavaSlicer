@@ -14,6 +14,7 @@ public class Example1 {
     }
 
     private static int sum(int x, int y) {
-        return x + y;
+        int res = x + y;
+        return res;
     }
 }

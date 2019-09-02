@@ -147,4 +147,10 @@ public abstract class Graph<NodeType extends GraphNode<?>> extends edg.graphlib.
         edges.removeAll(node.getOutgoingArrows());
         edges.removeAll(node.getIncomingArrows());
     }
+
+    public List<NodeType> findDeclarationsOfVariable(String variable) {
+        return getNodes().stream()
+                .filter(node -> node.getDeclaredVariables().contains(variable))
+                .collect(Collectors.toList());
+    }
 }
