@@ -68,6 +68,20 @@ public class DataDependencyVisitor extends VoidVisitorAdapter<Void> {
         forEachStmt.getBody().accept(this, null);
     }
 
+    @Override
+    public void visit(SwitchStmt switchStmt, Void ignored) {
+        buildDataDependency(switchStmt);
+
+        switchStmt.getEntries().accept(this, null);
+    }
+
+    @Override
+    public void visit(SwitchEntryStmt switchEntryStmt, Void ignored) {
+        buildDataDependency(switchEntryStmt);
+
+        switchEntryStmt.getStatements().accept(this, null);
+    }
+
     private void buildDataDependency(Statement statement) {
         buildDataDependency(pdgGraph.findNodeByASTNode(statement).get());
     }
