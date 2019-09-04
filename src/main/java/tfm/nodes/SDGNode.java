@@ -8,6 +8,7 @@ import tfm.arcs.data.ArcData;
 import java.util.Collection;
 import java.util.Set;
 
+@Deprecated
 public class SDGNode<N extends Node> extends GraphNode<N> {
 
     public <N1 extends GraphNode<N>> SDGNode(N1 node) {

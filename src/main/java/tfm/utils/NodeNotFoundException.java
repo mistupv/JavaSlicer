@@ -1,5 +1,7 @@
 package tfm.utils;
 
+import tfm.graphs.Graph;
+import tfm.nodes.GraphNode;
 import tfm.slicing.SlicingCriterion;
 
 public class NodeNotFoundException extends RuntimeException {
@@ -10,5 +12,18 @@ public class NodeNotFoundException extends RuntimeException {
 
     public NodeNotFoundException(String message) {
         super(message);
+    }
+
+    public NodeNotFoundException(GraphNode<?> graphNode) {
+        super("Node not found: " + graphNode.toString());
+    }
+
+    public NodeNotFoundException(GraphNode<?> graphNode, Graph graph) {
+        super(
+                String.format("Node %s not found in graph: %s%s",
+                    graphNode.toString(),
+                    System.lineSeparator(),
+                    graph.toString())
+        );
     }
 }

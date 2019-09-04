@@ -5,9 +5,9 @@ import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.graphs.CFGGraph;
 import tfm.graphs.PDGGraph;
-import tfm.nodes.PDGNode;
+import tfm.nodes.GraphNode;
 
-public class PDGCFGVisitor extends VoidVisitorAdapter<PDGNode<?>> {
+public class PDGCFGVisitor extends VoidVisitorAdapter<GraphNode<?>> {
 
     private PDGGraph pdgGraph;
     private CFGGraph cfgGraph;
@@ -28,7 +28,7 @@ public class PDGCFGVisitor extends VoidVisitorAdapter<PDGNode<?>> {
         this.pdgGraph.setCfgGraph(cfgGraph);
     }
 
-    public void visit(MethodDeclaration methodDeclaration, PDGNode<?> parent) {
+    public void visit(MethodDeclaration methodDeclaration, GraphNode<?> parent) {
         if (!methodDeclaration.getBody().isPresent())
             return;
 

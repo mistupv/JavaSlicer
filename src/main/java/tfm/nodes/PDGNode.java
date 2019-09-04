@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@Deprecated
 public class PDGNode<N extends Node> extends GraphNode<N> {
 
     public PDGNode(int id, String data, N node) {
@@ -34,7 +35,7 @@ public class PDGNode<N extends Node> extends GraphNode<N> {
         List<Integer> controlFrom = new ArrayList<>();
         List<Integer> controlTo = new ArrayList<>();
 
-        getIncomingArrows().forEach(arrow -> {
+        getIncomingArcs().forEach(arrow -> {
             Logger.log(arrow);
             Arc arc = (Arc) arrow;
             GraphNode from = (GraphNode) arc.getFrom();
@@ -47,7 +48,7 @@ public class PDGNode<N extends Node> extends GraphNode<N> {
 
         });
 
-        getOutgoingArrows().forEach(arrow -> {
+        getOutgoingArcs().forEach(arrow -> {
             Arc arc = (Arc) arrow;
             GraphNode to = (GraphNode) arc.getTo();
 
@@ -70,7 +71,7 @@ public class PDGNode<N extends Node> extends GraphNode<N> {
     }
 
     public List<ControlDependencyArc> getControlDependencies() {
-        return getIncomingArrows().stream()
+        return getIncomingArcs().stream()
                 .filter(arrow -> ((Arc) arrow).isControlDependencyArrow())
                 .map(arc -> (ControlDependencyArc) arc)
                 .collect(Collectors.toList());

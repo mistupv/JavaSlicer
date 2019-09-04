@@ -2,7 +2,6 @@ package tfm.variables;
 
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.expr.Expression;
-import com.github.javaparser.ast.stmt.Statement;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import tfm.variables.actions.VariableAction;
 

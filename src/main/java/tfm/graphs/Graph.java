@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 /**
  * A graphlib Graph without cost and data in arcs
  * */
-public abstract class Graph<NodeType extends GraphNode<?>> extends edg.graphlib.Graph<String, ArcData> {
+public abstract class Graph extends edg.graphlib.Graph<String, ArcData> {
 
     private int nextVertexId = 0;
 
@@ -45,10 +45,10 @@ public abstract class Graph<NodeType extends GraphNode<?>> extends edg.graphlib.
         super();
     }
 
-    @Override
-    /*
+    /**
       Library fix: if a node had an edge to itself resulted in 2 outgoing nodes instead of 1 outgoing and 1 incoming
      */
+    @Override
     public boolean addEdge(Arrow<String, ArcData> arrow) {
         Vertex<String, ArcData> from = arrow.getFrom();
         Vertex<String, ArcData> to = arrow.getTo();
@@ -82,32 +82,30 @@ public abstract class Graph<NodeType extends GraphNode<?>> extends edg.graphlib.
     }
 
     @SuppressWarnings("unchecked")
-    public NodeType getRootNode() {
-        return (NodeType) super.getRootVertex();
+    public GraphNode<?> getRootNode() {
+        return (GraphNode<?>) super.getRootVertex();
     }
 
-    public abstract <ASTNode extends Node> NodeType addNode(String instruction, ASTNode node);
+    public abstract <ASTNode extends Node> GraphNode<ASTNode> addNode(String instruction, ASTNode node);
 
-    public <ASTNode extends Node> Optional<NodeType> findNodeByASTNode(ASTNode astNode) {
+    @SuppressWarnings("unchecked")
+    public <ASTNode extends Node> Optional<GraphNode<ASTNode>> findNodeByASTNode(ASTNode astNode) {
         return getNodes().stream()
                 .filter(node -> Objects.equals(node.getAstNode(), astNode))
-                .findFirst();
+                .findFirst()
+                .map(node -> (GraphNode<ASTNode>) node);
     }
 
-    public Optional<NodeType> findNodeById(int id) {
-        return findNodeById(String.valueOf(id));
-    }
-
-    public Optional<NodeType> findNodeById(String id) {
+    public Optional<GraphNode<?>> findNodeById(int id) {
         return getNodes().stream()
-                .filter(node -> Objects.equals(node.getName(), id))
+                .filter(node -> Objects.equals(node.getId(), id))
                 .findFirst();
     }
 
     @SuppressWarnings("unchecked")
-    public Set<NodeType> getNodes() {
+    public Set<GraphNode<?>> getNodes() {
         return getVerticies().stream()
-                .map(vertex -> (NodeType) vertex)
+                .map(vertex -> (GraphNode<?>) vertex)
                 .collect(Collectors.toSet());
     }
 
@@ -130,7 +128,12 @@ public abstract class Graph<NodeType extends GraphNode<?>> extends edg.graphlib.
         return nextVertexId++;
     }
 
-    public abstract Graph<NodeType> slice(SlicingCriterion slicingCriterion);
+    public boolean contains(GraphNode<?> graphNode) {
+        return getNodes().stream()
+                .anyMatch(node -> Objects.equals(node, graphNode));
+    }
+
+    public abstract Graph slice(SlicingCriterion slicingCriterion);
 
     /**
      * Deprecated for incorrect behaviour. Use removeNode instead
@@ -144,11 +147,11 @@ public abstract class Graph<NodeType extends GraphNode<?>> extends edg.graphlib.
     public void removeNode(GraphNode<?> node) {
         verticies.remove(node);
 
-        edges.removeAll(node.getOutgoingArrows());
-        edges.removeAll(node.getIncomingArrows());
+        edges.removeAll(node.getOutgoingArcs());
+        edges.removeAll(node.getIncomingArcs());
     }
 
-    public List<NodeType> findDeclarationsOfVariable(String variable) {
+    public List<GraphNode<?>> findDeclarationsOfVariable(String variable) {
         return getNodes().stream()
                 .filter(node -> node.getDeclaredVariables().contains(variable))
                 .collect(Collectors.toList());

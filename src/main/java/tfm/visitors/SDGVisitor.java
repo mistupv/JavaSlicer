@@ -13,10 +13,13 @@ import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.graphs.PDGGraph;
 import tfm.graphs.SDGGraph;
-import tfm.nodes.PDGNode;
-import tfm.nodes.SDGNode;
+import tfm.nodes.GraphNode;
+import tfm.nodes.GraphNode;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 /**
  * 31/8/19
@@ -44,21 +47,21 @@ public class SDGVisitor extends VoidVisitorAdapter<Void> {
 
         if (sdgGraph.isEmpty()) {
             sdgGraph.setRootVertex(
-                    new SDGNode<>(
+                    new GraphNode<>(
                             0,
                             "ENTER " + methodDeclaration.getNameAsString(),
                             methodDeclaration
                     )
             );
         } else {
-            sdgGraph.addMethod(methodDeclaration);
+//            sdgGraph.addMethod(methodDeclaration);
         }
 
         PDGGraph pdgGraph = new PDGGraph();
 
         PDGCFGVisitor pdgcfgVisitor = new PDGCFGVisitor(pdgGraph) {
             @Override
-            public void visit(MethodCallExpr methodCallExpr, PDGNode<?> parent) {
+            public void visit(MethodCallExpr methodCallExpr, GraphNode<?> parent) {
                 if (methodCallExpr.getScope().isPresent()) {
                     String scopeName = methodCallExpr.getScope().get().toString();
 
@@ -68,7 +71,7 @@ public class SDGVisitor extends VoidVisitorAdapter<Void> {
                     if (!Objects.equals(scopeName, currentClassName)) {
 
                         // Check if 'scopeName' is a variable
-                        List<SDGNode<?>> declarations = sdgGraph.findDeclarationsOfVariable(scopeName);
+                        List<GraphNode<?>> declarations = sdgGraph.findDeclarationsOfVariable(scopeName);
 
                         if (declarations.isEmpty()) {
                             // It is a static method call of another class. We don't do anything
@@ -78,7 +81,7 @@ public class SDGVisitor extends VoidVisitorAdapter<Void> {
                                 It's a variable since it has declarations. We now have to check if the class name
                                 is the same as the current class (the object is an instance of our class)
                             */
-                            SDGNode<?> declarationNode = declarations.get(declarations.size() - 1);
+                            GraphNode<?> declarationNode = declarations.get(declarations.size() - 1);
 
                             ExpressionStmt declarationExpr = (ExpressionStmt) declarationNode.getAstNode();
                             VariableDeclarationExpr variableDeclarationExpr = declarationExpr.getExpression().asVariableDeclarationExpr();

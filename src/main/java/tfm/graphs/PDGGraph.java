@@ -2,19 +2,16 @@ package tfm.graphs;
 
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.stmt.EmptyStmt;
-import com.github.javaparser.ast.stmt.Statement;
 import edg.graphlib.Arrow;
+import org.jetbrains.annotations.NotNull;
 import tfm.arcs.Arc;
 import tfm.arcs.pdg.ControlDependencyArc;
 import tfm.arcs.pdg.DataDependencyArc;
-import tfm.nodes.CFGNode;
 import tfm.nodes.GraphNode;
-import tfm.nodes.PDGNode;
 import tfm.slicing.SlicingCriterion;
 import tfm.utils.ASTUtils;
 import tfm.utils.Logger;
 import tfm.utils.NodeNotFoundException;
-import tfm.utils.Utils;
 import tfm.visitors.PDGCFGVisitor;
 
 import java.util.Comparator;
@@ -23,12 +20,12 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class PDGGraph extends Graph<PDGNode<?>> {
+public class PDGGraph extends Graph {
 
     private CFGGraph cfgGraph;
 
     public PDGGraph() {
-        setRootVertex(new PDGNode<>(getNextVertexId(), getRootNodeData(), new EmptyStmt()));
+        setRootVertex(new GraphNode<>(getNextVertexId(), getRootNodeData(), new EmptyStmt()));
     }
 
     public PDGGraph(CFGGraph cfgGraph) {
@@ -40,20 +37,20 @@ public class PDGGraph extends Graph<PDGNode<?>> {
         return "Entry";
     }
 
-    public PDGNode addNode(PDGNode<?> node) {
-        PDGNode<?> vertex = new PDGNode<>(node);
+    public GraphNode addNode(GraphNode<?> node) {
+        GraphNode<?> vertex = new GraphNode<>(node);
         super.addVertex(vertex);
 
         return vertex;
     }
 
     @Override
-    public <ASTNode extends Node> PDGNode<ASTNode> addNode(String instruction, ASTNode node) {
+    public <ASTNode extends Node> GraphNode<ASTNode> addNode(String instruction, ASTNode node) {
         return addNode(getNextVertexId(), instruction, node);
     }
 
-    public <ASTNode extends Node> PDGNode<ASTNode> addNode(int id, String instruction, ASTNode node) {
-        PDGNode<ASTNode> vertex = new PDGNode<>(id, instruction, node);
+    public <ASTNode extends Node> GraphNode<ASTNode> addNode(int id, String instruction, ASTNode node) {
+        GraphNode<ASTNode> vertex = new GraphNode<>(id, instruction, node);
         super.addVertex(vertex);
 
         return vertex;
@@ -64,31 +61,52 @@ public class PDGGraph extends Graph<PDGNode<?>> {
         super.addEdge(arc);
     }
 
-    public void addControlDependencyArc(PDGNode from, PDGNode to) {
+    public void addControlDependencyArc(GraphNode from, GraphNode to) {
         ControlDependencyArc controlDependencyArc = new ControlDependencyArc(from, to);
 
         this.addArc(controlDependencyArc);
     }
 
-    public void addDataDependencyArc(PDGNode from, PDGNode to, String variable) {
+    public void addDataDependencyArc(GraphNode from, GraphNode to, String variable) {
         DataDependencyArc dataDataDependencyArc = new DataDependencyArc(from, to, variable);
 
         this.addArc(dataDataDependencyArc);
     }
 
-    public Set<PDGNode> getNodesAtLevel(int level) {
+    public Set<GraphNode> getNodesAtLevel(int level) {
         return getVerticies().stream()
-                .map(vertex -> (PDGNode) vertex)
-                .filter(node -> node.getLevel() == level)
+                .map(vertex -> (GraphNode) vertex)
+                .filter(node -> getLevelOf(node) == level)
                 .collect(Collectors.toSet());
     }
 
     public int getLevels() {
         return getVerticies().stream()
-                .map(vertex -> (PDGNode) vertex)
-                .max(Comparator.comparingInt(PDGNode::getLevel))
-                .map(PDGNode::getLevel)
-                .get() + 1;
+                .map(vertex -> (GraphNode) vertex)
+                .max(Comparator.comparingInt(this::getLevelOf))
+                .map(node -> getLevelOf(node) + 1)
+                .orElse(0);
+    }
+
+    public int getLevelOf(int nodeId) {
+        return findNodeById(nodeId)
+                .map(this::getLevelOf)
+                .orElseThrow(() -> new NodeNotFoundException("Node with id " + nodeId + " not found in PDG graph"));
+    }
+
+    public int getLevelOf(@NotNull GraphNode<?> node) {
+        Optional<ControlDependencyArc> optionalControlDependencyArc = node.getIncomingArcs().stream()
+                .filter(Arc::isControlDependencyArrow)
+                .findFirst()
+                .map(arc -> (ControlDependencyArc) arc);
+
+        if (!optionalControlDependencyArc.isPresent()) {
+            return 0;
+        }
+
+        GraphNode<?> parent = optionalControlDependencyArc.get().getFromNode();
+
+        return 1 + getLevelOf(parent);
     }
 
     public void setCfgGraph(CFGGraph cfgGraph) {
@@ -108,7 +126,7 @@ public class PDGGraph extends Graph<PDGNode<?>> {
 
         // No level 0 is needed (only one node)
         for (int i = 0; i < getLevels(); i++) {
-            Set<PDGNode> levelNodes = getNodesAtLevel(i);
+            Set<GraphNode> levelNodes = getNodesAtLevel(i);
 
             if (levelNodes.size() <= 1) {
                 continue;
@@ -124,7 +142,7 @@ public class PDGGraph extends Graph<PDGNode<?>> {
 
             // invisible arrows for ordering
             rankedNodes.append(levelNodes.stream()
-                        .sorted(Comparator.comparingInt(PDGNode::getId))
+                        .sorted(Comparator.comparingInt(GraphNode::getId))
                         .map(node -> String.valueOf(node.getId()))
                         .collect(Collectors.joining(" -> ")))
                     .append("[style = invis];")
@@ -148,13 +166,13 @@ public class PDGGraph extends Graph<PDGNode<?>> {
 
     @Override
     public PDGGraph slice(SlicingCriterion slicingCriterion) {
-        Optional<PDGNode<?>> optionalPDGNode = slicingCriterion.findNode(this);
+        Optional<GraphNode<?>> optionalGraphNode = slicingCriterion.findNode(this);
 
-        if (!optionalPDGNode.isPresent()) {
+        if (!optionalGraphNode.isPresent()) {
             throw new NodeNotFoundException(slicingCriterion);
         }
 
-        PDGNode node = optionalPDGNode.get();
+        GraphNode node = optionalGraphNode.get();
 
 //        // DEPRECATED - Find CFGNode and find last definition of variable
 //        CFGNode cfgNode = this.cfgGraph.findNodeByASTNode(node.getAstNode())
@@ -171,7 +189,7 @@ public class PDGGraph extends Graph<PDGNode<?>> {
 //
 //        sliceNodes.add(node.getId());
 
-        // Simply get slice nodes from PDGNode
+        // Simply get slice nodes from GraphNode
         Set<Integer> sliceNodes = getSliceNodes(new HashSet<>(), node);
 
         PDGGraph sliceGraph = new PDGGraph();
@@ -180,7 +198,7 @@ public class PDGGraph extends Graph<PDGNode<?>> {
 
         astCopy.accept(new PDGCFGVisitor(sliceGraph), sliceGraph.getRootNode());
 
-        for (PDGNode sliceNode : sliceGraph.getNodes()) {
+        for (GraphNode sliceNode : sliceGraph.getNodes()) {
             if (!sliceNodes.contains(sliceNode.getId())) {
                 Logger.log("Removing node " + sliceNode.getId());
                 sliceNode.getAstNode().removeForced();
@@ -189,12 +207,12 @@ public class PDGGraph extends Graph<PDGNode<?>> {
         }
 
 //        for (Arc arc : getArcs()) {
-//            Optional<PDGNode> fromOptional = sliceGraph.findNodeById(arc.getFromNode().getId());
-//            Optional<PDGNode> toOptional = sliceGraph.findNodeById(arc.getToNode().getId());
+//            Optional<GraphNode> fromOptional = sliceGraph.findNodeById(arc.getFromNode().getId());
+//            Optional<GraphNode> toOptional = sliceGraph.findNodeById(arc.getToNode().getId());
 //
 //            if (fromOptional.isPresent() && toOptional.isPresent()) {
-//                PDGNode from = fromOptional.get();
-//                PDGNode to = toOptional.get();
+//                GraphNode from = fromOptional.get();
+//                GraphNode to = toOptional.get();
 //
 //                if (arc.isControlDependencyArrow()) {
 //                    sliceGraph.addControlDependencyArc(from, to);
@@ -208,13 +226,13 @@ public class PDGGraph extends Graph<PDGNode<?>> {
         return sliceGraph;
     }
 
-    private Set<Integer> getSliceNodes(Set<Integer> visited, PDGNode<?> root) {
+    private Set<Integer> getSliceNodes(Set<Integer> visited, GraphNode<?> root) {
         visited.add(root.getId());
 
-        for (Arrow arrow : root.getIncomingArrows()) {
+        for (Arrow arrow : root.getIncomingArcs()) {
             Arc arc = (Arc) arrow;
 
-            PDGNode<?> from = (PDGNode) arc.getFromNode();
+            GraphNode<?> from = (GraphNode) arc.getFromNode();
 
             if (visited.contains(from.getId())) {
                 continue;

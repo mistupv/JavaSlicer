@@ -1,27 +1,22 @@
 package tfm.visitors;
 
-import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.BooleanLiteralExpr;
 import com.github.javaparser.ast.expr.Expression;
-import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import jdk.nashorn.internal.ir.Block;
 import tfm.graphs.CFGGraph;
-import tfm.nodes.CFGNode;
+import tfm.nodes.GraphNode;
 import tfm.utils.ASTUtils;
-import tfm.utils.Utils;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
     private CFGGraph graph;
 
-    private Queue<CFGNode> lastParentNodes;
-    private List<CFGNode> bodyBreaks;
+    private Queue<GraphNode> lastParentNodes;
+    private List<GraphNode> bodyBreaks;
 
     public CFGVisitor(CFGGraph graph) {
         this.graph = graph;
@@ -38,14 +33,14 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
     public void visit(ExpressionStmt expressionStmt, Void arg) {
         String expression = expressionStmt.toString().replace("\"", "\\\"");
 
-        CFGNode nextNode = addNodeAndArcs(expression, expressionStmt);
+        GraphNode nextNode = addNodeAndArcs(expression, expressionStmt);
 
         lastParentNodes.add(nextNode);
     }
 
 //    @Override
 //    public void visit(VariableDeclarationExpr variableDeclarationExpr, Void arg) {
-//        CFGNode<String> nextNode = addNodeAndArcs(variableDeclarationExpr.toString());
+//        GraphNode<String> nextNode = addNodeAndArcs(variableDeclarationExpr.toString());
 //
 //        lastParentNodes.add(nextNode);
 //
@@ -56,7 +51,7 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
     @Override
     public void visit(IfStmt ifStmt, Void arg) {
-        CFGNode ifCondition = addNodeAndArcs(
+        GraphNode ifCondition = addNodeAndArcs(
                 String.format("if (%s)", ifStmt.getCondition().toString()),
                 ifStmt
         );
@@ -66,7 +61,7 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
         // Visit "then"
         ifStmt.getThenStmt().accept(this, arg);
 
-        Queue<CFGNode> lastThenNodes = new ArrayDeque<>(lastParentNodes);
+        Queue<GraphNode> lastThenNodes = new ArrayDeque<>(lastParentNodes);
 
         if (ifStmt.hasElseBranch()) {
             lastParentNodes.clear();
@@ -82,7 +77,7 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
     @Override
     public void visit(WhileStmt whileStmt, Void arg) {
-        CFGNode whileCondition = addNodeAndArcs(
+        GraphNode whileCondition = addNodeAndArcs(
                 String.format("while (%s)", whileStmt.getCondition().toString()),
                 whileStmt
         );
@@ -106,7 +101,7 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
         body.accept(this, arg);
 
-        CFGNode doWhileNode = addNodeAndArcs(
+        GraphNode doWhileNode = addNodeAndArcs(
                 String.format("while (%s)", doStmt.getCondition()),
                 doStmt
         );
@@ -137,7 +132,7 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
 //
         forStmt.getInitialization().forEach(expression -> new ExpressionStmt(expression).accept(this, null));
 
-        CFGNode forNode = addNodeAndArcs(
+        GraphNode forNode = addNodeAndArcs(
                 String.format("for (;%s;)", comparison),
                 forStmt
         );
@@ -161,7 +156,7 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
     @Override
     public void visit(ForEachStmt forEachStmt, Void arg) {
-        CFGNode foreachNode = addNodeAndArcs(
+        GraphNode foreachNode = addNodeAndArcs(
                 String.format("for (%s : %s)", forEachStmt.getVariable(), forEachStmt.getIterable()),
                 forEachStmt
         );
@@ -181,23 +176,23 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
 
     @Override
     public void visit(SwitchStmt switchStmt, Void arg) {
-        CFGNode switchNode = addNodeAndArcs(
+        GraphNode switchNode = addNodeAndArcs(
                 String.format("switch (%s)", switchStmt.getSelector()),
                 switchStmt
         );
 
         lastParentNodes.add(switchNode);
 
-        List<CFGNode> allEntryBreaks = new ArrayList<>();
+        List<GraphNode> allEntryBreaks = new ArrayList<>();
 
-        List<CFGNode> lastEntryStatementsWithNoBreak = new ArrayList<>();
+        List<GraphNode> lastEntryStatementsWithNoBreak = new ArrayList<>();
 
         switchStmt.getEntries().forEach(switchEntryStmt -> {
             String label = switchEntryStmt.getLabel()
                     .map(expression -> "case " + expression)
                     .orElse("default");
 
-            CFGNode switchEntryNode = addNodeAndArcs(label, switchEntryStmt);
+            GraphNode switchEntryNode = addNodeAndArcs(label, switchEntryStmt);
 
             lastParentNodes.add(switchEntryNode);
             lastParentNodes.addAll(lastEntryStatementsWithNoBreak);
@@ -231,14 +226,14 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
     public void visit(ContinueStmt continueStmt, Void arg) {
         Statement continuableStatement = ASTUtils.findFirstAncestorStatementFrom(continueStmt, ASTUtils::isLoop);
 
-        CFGNode continuableNode = graph.findNodeByASTNode(continuableStatement).get();
+        GraphNode continuableNode = graph.findNodeByASTNode(continuableStatement).get();
 
         lastParentNodes.forEach(parentNode -> graph.addControlFlowEdge(parentNode, continuableNode));
     }
 
     @Override
     public void visit(ReturnStmt returnStmt, Void arg) {
-        CFGNode node = addNodeAndArcs(
+        GraphNode node = addNodeAndArcs(
                 returnStmt.toString(),
                 returnStmt
         );
@@ -257,10 +252,10 @@ public class CFGVisitor extends VoidVisitorAdapter<Void> {
         lastParentNodes.add(addNodeAndArcs("Stop", new EmptyStmt()));
     }
 
-    private CFGNode addNodeAndArcs(String nodeData, Statement statement) {
-        CFGNode node = graph.addNode(nodeData, statement);
+    private GraphNode addNodeAndArcs(String nodeData, Statement statement) {
+        GraphNode node = graph.addNode(nodeData, statement);
 
-        CFGNode parent = lastParentNodes.poll(); // ALWAYS exists a parent
+        GraphNode parent = lastParentNodes.poll(); // ALWAYS exists a parent
         graph.addControlFlowEdge(parent, node);
 
         while (!lastParentNodes.isEmpty()) {

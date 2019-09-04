@@ -4,12 +4,11 @@ import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.graphs.CFGGraph;
 import tfm.graphs.PDGGraph;
-import tfm.nodes.CFGNode;
-import tfm.nodes.PDGNode;
+import tfm.nodes.GraphNode;
 
 import java.util.stream.Collectors;
 
-public class ControlDependencyVisitor extends VoidVisitorAdapter<PDGNode> {
+public class ControlDependencyVisitor extends VoidVisitorAdapter<GraphNode> {
 
     private CFGGraph cfgGraph;
     private PDGGraph pdgGraph;
@@ -20,13 +19,13 @@ public class ControlDependencyVisitor extends VoidVisitorAdapter<PDGNode> {
     }
 
     @Override
-    public void visit(ExpressionStmt expressionStmt, PDGNode parent) {
+    public void visit(ExpressionStmt expressionStmt, GraphNode parent) {
         addNodeAndControlDependency(expressionStmt, parent);
     }
 
     @Override
-    public void visit(IfStmt ifStmt, PDGNode parent) {
-        PDGNode node = addNodeAndControlDependency(ifStmt, parent);
+    public void visit(IfStmt ifStmt, GraphNode parent) {
+        GraphNode node = addNodeAndControlDependency(ifStmt, parent);
 
         ifStmt.getThenStmt().accept(this, node);
 
@@ -34,14 +33,14 @@ public class ControlDependencyVisitor extends VoidVisitorAdapter<PDGNode> {
     }
 
     @Override
-    public void visit(WhileStmt whileStmt, PDGNode parent) {
-        PDGNode node = addNodeAndControlDependency(whileStmt, parent);
+    public void visit(WhileStmt whileStmt, GraphNode parent) {
+        GraphNode node = addNodeAndControlDependency(whileStmt, parent);
 
         whileStmt.getBody().accept(this, node);
     }
 
     @Override
-    public void visit(ForStmt forStmt, PDGNode parent) {
+    public void visit(ForStmt forStmt, GraphNode parent) {
         String initialization = forStmt.getInitialization().stream()
                 .map(com.github.javaparser.ast.Node::toString)
                 .collect(Collectors.joining(","));
@@ -55,7 +54,7 @@ public class ControlDependencyVisitor extends VoidVisitorAdapter<PDGNode> {
                 .orElse("true");
 
 
-        PDGNode forNode = pdgGraph.addNode(
+        GraphNode forNode = pdgGraph.addNode(
                 String.format("for (%s;%s;%s)", initialization, compare, update),
                 forStmt
         );
@@ -66,30 +65,30 @@ public class ControlDependencyVisitor extends VoidVisitorAdapter<PDGNode> {
     }
 
     @Override
-    public void visit(ForEachStmt forEachStmt, PDGNode parent) {
-        PDGNode node = addNodeAndControlDependency(forEachStmt, parent);
+    public void visit(ForEachStmt forEachStmt, GraphNode parent) {
+        GraphNode node = addNodeAndControlDependency(forEachStmt, parent);
 
         forEachStmt.getBody().accept(this, node);
     }
 
     @Override
-    public void visit(SwitchStmt switchStmt, PDGNode parent) {
-        PDGNode node = addNodeAndControlDependency(switchStmt, parent);
+    public void visit(SwitchStmt switchStmt, GraphNode parent) {
+        GraphNode node = addNodeAndControlDependency(switchStmt, parent);
 
         switchStmt.getEntries().accept(this, node);
     }
 
     @Override
-    public void visit(SwitchEntryStmt switchEntryStmt, PDGNode parent) {
-        PDGNode node = addNodeAndControlDependency(switchEntryStmt, parent);
+    public void visit(SwitchEntryStmt switchEntryStmt, GraphNode parent) {
+        GraphNode node = addNodeAndControlDependency(switchEntryStmt, parent);
 
         switchEntryStmt.getStatements().accept(this, node);
     }
 
-    private PDGNode addNodeAndControlDependency(Statement statement, PDGNode parent) {
-        CFGNode<?> cfgNode = cfgGraph.findNodeByASTNode(statement).get();
+    private GraphNode addNodeAndControlDependency(Statement statement, GraphNode parent) {
+        GraphNode<?> cfgNode = cfgGraph.findNodeByASTNode(statement).get();
 
-        PDGNode node = pdgGraph.addNode(cfgNode.getData(), cfgNode.getAstNode());
+        GraphNode node = pdgGraph.addNode(cfgNode.getData(), cfgNode.getAstNode());
         pdgGraph.addControlDependencyArc(parent, node);
 
         return node;

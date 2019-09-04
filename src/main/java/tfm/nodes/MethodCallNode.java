@@ -11,10 +11,10 @@ import java.util.List;
 import java.util.Set;
 
 
-public class MethodCallNode extends SDGNode<ExpressionStmt> {
+public class MethodCallNode extends GraphNode<ExpressionStmt> {
 
-    private List<AuxiliarSDGNode> inParameters;
-    private List<AuxiliarSDGNode> outParameters;
+    private List<GraphNode> inParameters;
+    private List<GraphNode> outParameters;
 
     public <N1 extends GraphNode<ExpressionStmt>> MethodCallNode(N1 node) {
         super(node);
@@ -37,19 +37,19 @@ public class MethodCallNode extends SDGNode<ExpressionStmt> {
         this.outParameters = new ArrayList<>();
     }
 
-    public List<AuxiliarSDGNode> getOutParameters() {
+    public List<GraphNode> getOutParameters() {
         return outParameters;
     }
 
-    public void setOutParameters(List<AuxiliarSDGNode> outParameters) {
+    public void setOutParameters(List<GraphNode> outParameters) {
         this.outParameters = outParameters;
     }
 
-    public List<AuxiliarSDGNode> getInParameters() {
+    public List<GraphNode> getInParameters() {
         return inParameters;
     }
 
-    public void setInParameters(List<AuxiliarSDGNode> inParameters) {
+    public void setInParameters(List<GraphNode> inParameters) {
         this.inParameters = inParameters;
     }
 }

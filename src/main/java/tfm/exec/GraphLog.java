@@ -6,7 +6,7 @@ import tfm.utils.Logger;
 
 import java.io.IOException;
 
-public abstract class GraphLog<G extends Graph<?>> {
+public abstract class GraphLog<G extends Graph> {
 
     static final String CFG = "cfg";
     static final String PDG = "pdg";

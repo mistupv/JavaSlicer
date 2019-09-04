@@ -1,13 +1,10 @@
 package tfm.visitors;
 
-import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.graphs.CFGGraph;
 import tfm.graphs.PDGGraph;
-import tfm.nodes.CFGNode;
-import tfm.nodes.PDGNode;
-import tfm.utils.Utils;
+import tfm.nodes.GraphNode;
 import tfm.variables.VariableExtractor;
 
 import java.util.Optional;
@@ -46,7 +43,7 @@ public class DataDependencyVisitor extends VoidVisitorAdapter<Void> {
 
     @Override
     public void visit(ForStmt forStmt, Void ignored) {
-        PDGNode forNode = pdgGraph.findNodeByASTNode(forStmt).get();
+        GraphNode<ForStmt> forNode = pdgGraph.findNodeByASTNode(forStmt).get();
 
         forStmt.getInitialization().stream()
                 .map(ExpressionStmt::new)
@@ -86,22 +83,22 @@ public class DataDependencyVisitor extends VoidVisitorAdapter<Void> {
         buildDataDependency(pdgGraph.findNodeByASTNode(statement).get());
     }
 
-    private void buildDataDependency(PDGNode node) {
+    private void buildDataDependency(GraphNode<?> node) {
         new VariableExtractor()
                 .setOnVariableUseListener(variable -> {
                     node.addUsedVariable(variable);
 
-                    Optional<CFGNode<?>> nodeOptional = cfgGraph.findNodeByASTNode(node.getAstNode());
+                    Optional<? extends GraphNode<?>> nodeOptional = cfgGraph.findNodeByASTNode(node.getAstNode());
 
                     if (!nodeOptional.isPresent()) {
                         return;
                     }
 
-                    CFGNode cfgNode = nodeOptional.get();
+                    GraphNode<?> cfgNode = nodeOptional.get();
 
-                    Set<CFGNode<?>> lastDefinitions = Utils.findLastDefinitionsFrom(cfgNode, variable);
+                    Set<GraphNode<?>> lastDefinitions = cfgGraph.findLastDefinitionsFrom(cfgNode, variable);
 
-                    for (CFGNode<?> definitionNode : lastDefinitions) {
+                    for (GraphNode<?> definitionNode : lastDefinitions) {
                         pdgGraph.findNodeByASTNode(definitionNode.getAstNode())
                                 .ifPresent(pdgNode -> pdgGraph.addDataDependencyArc(pdgNode, node, variable));
                     }
@@ -112,12 +109,12 @@ public class DataDependencyVisitor extends VoidVisitorAdapter<Void> {
     }
 
     // For statement special case
-    private void buildDataDependency(PDGNode forNode, Statement statement) {
+    private void buildDataDependency(GraphNode<?> forNode, Statement statement) {
         new VariableExtractor()
                 .setOnVariableUseListener(variable -> {
                     forNode.addUsedVariable(variable);
 
-                    Optional<CFGNode<?>> nodeOptional = cfgGraph.findNodeByASTNode(statement);
+                    Optional<? extends GraphNode<?>> nodeOptional = cfgGraph.findNodeByASTNode(statement);
 
                     if (!nodeOptional.isPresent()) {
                         return;

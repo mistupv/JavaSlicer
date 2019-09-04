@@ -8,7 +8,7 @@ import java.util.Objects;
 public abstract class Arc<D extends ArcData> extends edg.graphlib.Arrow<String, D> {
 
     @SuppressWarnings("unchecked")
-    public Arc(GraphNode from, GraphNode to) {
+    public Arc(GraphNode<?> from, GraphNode<?> to) {
         super((edg.graphlib.Vertex<String, D>) from, (edg.graphlib.Vertex<String, D>) to);
     }
 
@@ -37,12 +37,12 @@ public abstract class Arc<D extends ArcData> extends edg.graphlib.Arrow<String, 
         );
     }
 
-    public GraphNode getFromNode() {
-        return (GraphNode) super.getFrom();
+    public GraphNode<?> getFromNode() {
+        return (GraphNode<?>) super.getFrom();
     }
 
-    public GraphNode getToNode() {
-        return (GraphNode) super.getTo();
+    public GraphNode<?> getToNode() {
+        return (GraphNode<?>) super.getTo();
     }
 
     @Override
