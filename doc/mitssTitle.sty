@@ -1,0 +1,39 @@
+\ProvidesPackage{mitssTitle}[2019/08/25]
+\RequirePackage{graphicx}
+\RequirePackage{geometry}
+\RequirePackage[export]{adjustbox} % align images
+
+\newcommand*{\supervisor}[1]{\gdef\@supervisor{#1}%
+}
+
+\renewcommand*{\maketitle}{%
+% Begin title
+\newgeometry{margin=1in}
+\begin{titlepage}
+%\pagestyle{empty}
+\makeatletter
+{\centering
+\includegraphics[width=.5\linewidth,valign=t]{logo-upv-cropped} \hfill
+\includegraphics[width=.23\linewidth,valign=t]{logo-dsic}
+}
+
+\vfill
+\begin{center}
+	{\huge\bfseries \@title} \\
+	\vspace{2em}
+	{\Large Trabajo Fin de Máster} \\
+	\vspace{2em}
+	\Large
+	\textbf{Máster Universitario en Ingeniería \\ y Tecnología de Sistemas Software}
+\end{center}
+\vfill
+{
+	\large
+	\raggedleft
+	\textbf{Autor}: \@author \\
+	\textbf{Tutor}: \@supervisor \\
+	Valencia, \@date \\
+}
+\end{titlepage}
+\restoregeometry
+} % maketitle

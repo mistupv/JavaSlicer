@@ -1,0 +1,107 @@
+\documentclass[a4paper]{article}
+
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{listings}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\renewcommand{\algorithmicrequire}{\textbf{Input:}}
+\renewcommand{\algorithmicensure}{\textbf{Output:}}
+\usepackage{hyperref}
+\usepackage{todonotes}
+\usepackage{mitssTitle}
+\usepackage{bookmark}
+% \usepackage{fancyhdr}
+
+% Keywords command
+\providecommand{\keywords}[1]
+{
+  \small	
+  \textbf{\textit{Keywords---}} #1
+}
+
+\title{Diseño y desarrollo de un fragmentador de programas para Java basado en el System Dependence Graph}
+\author{Javier Costa Rosa}
+\date{septiembre de 2019}
+\supervisor{Josep Francesc Silva Galiana}
+
+\begin{document}
+\algsetup{linenodelimiter=.}
+\include{listings-config}
+\maketitle
+
+\begin{abstract}
+	The abstract
+\end{abstract}
+
+\def\abstractname{{Resumen}}
+
+\begin{abstract}
+	El resumen
+\end{abstract}
+
+\vspace*{\fill}
+
+\begin{keywords}
+Program Slicing, Java, System Dependence Graph
+\end{keywords}
+
+\newpage
+
+\tableofcontents
+
+\newpage
+ 
+% \setlength{\parindent}{1cm}
+\setlength{\parskip}{1em}
+% \renewcommand{\baselinestretch}{1.5}
+
+\section{Introduction} 
+
+Nowadays.
+
+After all, 
+
+\subsection{Program Slicing}
+
+\subsection{Definitions}
+
+\subsection{Goals}
+
+\section{Background}
+
+\subsection{CFG, PDG and SDG}
+
+\subsection{Slicing approaches of Object Oriented programs}
+
+\subsection{Slicing approaches of Java programs}
+
+slicers with their differences table
+
+\section{The Java language and JavaParser (?)}
+
+\subsection{Declarations}
+
+\subsection{Statements}
+
+\subsection{Expressions}
+
+\section{Slicer}
+
+\subsection{Scope}
+
+\subsection{Design}
+
+\subsection{Implementation}
+
+\section{Tests/Performance (?)}
+
+\section{Conclusions}
+
+\section{Future work}
+
+\newpage
+
+\input{bibliography}
+
+\end{document}
