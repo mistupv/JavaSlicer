@@ -1,11 +1,14 @@
 package tfm.utils;
 
+import com.github.javaparser.Position;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.EmptyStmt;
 import com.github.javaparser.ast.stmt.Statement;
 
+import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Predicate;
 
 public class ASTUtils {
@@ -43,5 +46,17 @@ public class ASTUtils {
      */
     public static Node cloneAST(Node node) {
         return node.findRootNode().clone();
+    }
+
+    public static boolean isContained(Node upper, Node contained) {
+        Optional<Node> optionalParent = contained.getParentNode();
+
+        if (!optionalParent.isPresent()) {
+            return false;
+        }
+
+        Node parent = optionalParent.get();
+
+        return Objects.equals(parent, upper) || isContained(upper, parent);
     }
 }
