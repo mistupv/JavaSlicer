@@ -1,4 +1,4 @@
-package tfm.visitors;
+package tfm.visitors.pdg;
 
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.stmt.BlockStmt;
@@ -6,13 +6,14 @@ import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.graphs.CFGGraph;
 import tfm.graphs.PDGGraph;
 import tfm.nodes.GraphNode;
+import tfm.visitors.cfg.CFGBuilder;
 
-public class PDGCFGVisitor extends VoidVisitorAdapter<GraphNode<?>> {
+public class PDGBuilder extends VoidVisitorAdapter<GraphNode<?>> {
 
     private PDGGraph pdgGraph;
     private CFGGraph cfgGraph;
 
-    public PDGCFGVisitor(PDGGraph pdgGraph) {
+    public PDGBuilder(PDGGraph pdgGraph) {
         this(pdgGraph, new CFGGraph() {
             @Override
             protected String getRootNodeData() {
@@ -21,7 +22,7 @@ public class PDGCFGVisitor extends VoidVisitorAdapter<GraphNode<?>> {
         });
     }
 
-    public PDGCFGVisitor(PDGGraph pdgGraph, CFGGraph cfgGraph) {
+    public PDGBuilder(PDGGraph pdgGraph, CFGGraph cfgGraph) {
         this.pdgGraph = pdgGraph;
         this.cfgGraph = cfgGraph;
 
@@ -35,14 +36,14 @@ public class PDGCFGVisitor extends VoidVisitorAdapter<GraphNode<?>> {
         BlockStmt methodBody = methodDeclaration.getBody().get();
 
         // build CFG
-        methodBody.accept(new CFGVisitor(cfgGraph), null);
+        methodBody.accept(new CFGBuilder(cfgGraph), null);
 
         // Build control dependency
-        ControlDependencyVisitor controlDependencyVisitor = new ControlDependencyVisitor(pdgGraph, cfgGraph);
-        methodBody.accept(controlDependencyVisitor, parent);
+        ControlDependencyBuilder controlDependencyBuilder = new ControlDependencyBuilder(pdgGraph, cfgGraph);
+        methodBody.accept(controlDependencyBuilder, parent);
 
         // Build data dependency
-        DataDependencyVisitor dataDependencyVisitor = new DataDependencyVisitor(pdgGraph, cfgGraph);
-        methodBody.accept(dataDependencyVisitor, null);
+        DataDependencyBuilder dataDependencyBuilder = new DataDependencyBuilder(pdgGraph, cfgGraph);
+        methodBody.accept(dataDependencyBuilder, null);
     }
 }

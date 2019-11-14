@@ -5,7 +5,7 @@ import guru.nidi.graphviz.engine.Graphviz;
 import tfm.graphs.PDGGraph;
 import tfm.nodes.GraphNode;
 import tfm.utils.Logger;
-import tfm.visitors.PDGCFGVisitor;
+import tfm.visitors.pdg.PDGBuilder;
 
 import java.io.File;
 import java.io.IOException;
@@ -27,7 +27,7 @@ public class PDGLog extends GraphLog<PDGGraph> {
     public void visit(com.github.javaparser.ast.Node node) {
         this.graph = new PDGGraph();
 
-        node.accept(new PDGCFGVisitor(graph), this.graph.getRootNode());
+        node.accept(new PDGBuilder(graph), this.graph.getRootNode());
     }
 
     @Override

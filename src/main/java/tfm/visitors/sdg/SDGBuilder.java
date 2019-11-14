@@ -1,4 +1,4 @@
-package tfm.visitors;
+package tfm.visitors.sdg;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
@@ -14,7 +14,7 @@ import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.graphs.PDGGraph;
 import tfm.graphs.SDGGraph;
 import tfm.nodes.GraphNode;
-import tfm.nodes.GraphNode;
+import tfm.visitors.pdg.PDGBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,7 +26,7 @@ import java.util.Optional;
  * Asumimos que procesamos 1 archivo con una o más clases donde el primer método de la primera clase es el main
  *
  */
-public class SDGVisitor extends VoidVisitorAdapter<Void> {
+public class SDGBuilder extends VoidVisitorAdapter<Void> {
 
     SDGGraph sdgGraph;
     List<PDGGraph> pdgGraphs;
@@ -34,7 +34,7 @@ public class SDGVisitor extends VoidVisitorAdapter<Void> {
     private ClassOrInterfaceDeclaration currentClass;
     private CompilationUnit currentCompilationUnit;
 
-    public SDGVisitor(SDGGraph sdgGraph) {
+    public SDGBuilder(SDGGraph sdgGraph) {
         this.sdgGraph = sdgGraph;
         this.pdgGraphs = new ArrayList<>();
     }
@@ -59,7 +59,7 @@ public class SDGVisitor extends VoidVisitorAdapter<Void> {
 
         PDGGraph pdgGraph = new PDGGraph();
 
-        PDGCFGVisitor pdgcfgVisitor = new PDGCFGVisitor(pdgGraph) {
+        PDGBuilder PDGBuilder = new PDGBuilder(pdgGraph) {
             @Override
             public void visit(MethodCallExpr methodCallExpr, GraphNode<?> parent) {
                 if (methodCallExpr.getScope().isPresent()) {
@@ -117,7 +117,7 @@ public class SDGVisitor extends VoidVisitorAdapter<Void> {
             }
         };
 
-        pdgcfgVisitor.visit(methodDeclaration, pdgGraph.getRootNode());
+        PDGBuilder.visit(methodDeclaration, pdgGraph.getRootNode());
 
 
         sdgGraph.addNode(methodDeclaration.getNameAsString(), methodDeclaration);

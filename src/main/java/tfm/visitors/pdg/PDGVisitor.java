@@ -1,4 +1,4 @@
-package tfm.visitors;
+package tfm.visitors.pdg;
 
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.nodes.GraphNode;

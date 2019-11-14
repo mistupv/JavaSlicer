@@ -1,4 +1,4 @@
-package tfm.visitors;
+package tfm.visitors.pdg;
 
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
@@ -10,12 +10,12 @@ import tfm.variables.VariableExtractor;
 import java.util.Optional;
 import java.util.Set;
 
-public class DataDependencyVisitor extends VoidVisitorAdapter<Void> {
+public class DataDependencyBuilder extends VoidVisitorAdapter<Void> {
 
     private CFGGraph cfgGraph;
     private PDGGraph pdgGraph;
 
-    public DataDependencyVisitor(PDGGraph pdgGraph, CFGGraph cfgGraph) {
+    public DataDependencyBuilder(PDGGraph pdgGraph, CFGGraph cfgGraph) {
         this.pdgGraph = pdgGraph;
         this.cfgGraph = cfgGraph;
     }

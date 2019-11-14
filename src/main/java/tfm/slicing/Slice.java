@@ -7,7 +7,7 @@ import tfm.graphs.PDGGraph;
 import tfm.utils.Logger;
 import tfm.utils.Utils;
 import tfm.validation.PDGValidator;
-import tfm.visitors.PDGCFGVisitor;
+import tfm.visitors.pdg.PDGBuilder;
 
 import java.io.File;
 import java.io.IOException;
@@ -22,7 +22,7 @@ public class Slice {
 
         PDGGraph pdgGraph = new PDGGraph();
 
-        compilationUnit.accept(new PDGCFGVisitor(pdgGraph), pdgGraph.getRootNode());
+        compilationUnit.accept(new PDGBuilder(pdgGraph), pdgGraph.getRootNode());
 
         Logger.log("==================");
         Logger.log("= Starting slice =");

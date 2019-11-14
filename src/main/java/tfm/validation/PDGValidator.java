@@ -16,7 +16,7 @@ import tfm.graphs.PDGGraph;
 import tfm.nodes.GraphNode;
 import tfm.utils.Logger;
 import tfm.utils.Utils;
-import tfm.visitors.PDGCFGVisitor;
+import tfm.visitors.pdg.PDGBuilder;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -65,7 +65,7 @@ public class PDGValidator {
     public static boolean generateAndCheck(MethodDeclaration methodDeclaration) {
         PDGGraph graph = new PDGGraph();
 
-        methodDeclaration.accept(new PDGCFGVisitor(graph), graph.getRootNode());
+        methodDeclaration.accept(new PDGBuilder(graph), graph.getRootNode());
 
         return check(methodDeclaration, graph);
     }

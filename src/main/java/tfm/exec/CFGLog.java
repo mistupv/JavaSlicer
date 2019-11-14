@@ -4,7 +4,7 @@ import com.github.javaparser.ast.Node;
 import guru.nidi.graphviz.engine.Format;
 import guru.nidi.graphviz.engine.Graphviz;
 import tfm.graphs.CFGGraph;
-import tfm.visitors.CFGVisitor;
+import tfm.visitors.cfg.CFGBuilder;
 
 import java.io.File;
 import java.io.IOException;
@@ -24,7 +24,7 @@ public class CFGLog extends GraphLog<CFGGraph> {
     public void visit(Node node) {
         this.graph = new CFGGraph();
 
-        node.accept(new CFGVisitor(graph), null);
+        node.accept(new CFGBuilder(graph), null);
     }
 
     @Override

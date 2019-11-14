@@ -12,7 +12,7 @@ import tfm.slicing.SlicingCriterion;
 import tfm.utils.ASTUtils;
 import tfm.utils.Logger;
 import tfm.utils.NodeNotFoundException;
-import tfm.visitors.PDGCFGVisitor;
+import tfm.visitors.pdg.PDGBuilder;
 
 import java.util.Comparator;
 import java.util.HashSet;
@@ -196,7 +196,7 @@ public class PDGGraph extends Graph {
 
         Node astCopy = ASTUtils.cloneAST(node.getAstNode());
 
-        astCopy.accept(new PDGCFGVisitor(sliceGraph), sliceGraph.getRootNode());
+        astCopy.accept(new PDGBuilder(sliceGraph), sliceGraph.getRootNode());
 
         for (GraphNode sliceNode : sliceGraph.getNodes()) {
             if (!sliceNodes.contains(sliceNode.getId())) {

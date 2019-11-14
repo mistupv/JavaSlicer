@@ -1,4 +1,4 @@
-package tfm.visitors;
+package tfm.visitors.cfg;
 
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.BooleanLiteralExpr;
@@ -11,14 +11,14 @@ import tfm.utils.ASTUtils;
 
 import java.util.*;
 
-public class CFGVisitor extends VoidVisitorAdapter<Void> {
+public class CFGBuilder extends VoidVisitorAdapter<Void> {
 
     private CFGGraph graph;
 
     private Queue<GraphNode> lastParentNodes;
     private List<GraphNode> bodyBreaks;
 
-    public CFGVisitor(CFGGraph graph) {
+    public CFGBuilder(CFGGraph graph) {
         this.graph = graph;
         this.lastParentNodes = Collections.asLifoQueue(
                 new ArrayDeque<>(

@@ -2,7 +2,7 @@ package tfm.exec;
 
 import com.github.javaparser.ast.Node;
 import tfm.graphs.SDGGraph;
-import tfm.visitors.SDGVisitor;
+import tfm.visitors.sdg.SDGBuilder;
 
 import java.io.IOException;
 
@@ -12,9 +12,9 @@ public class SDGLog extends GraphLog<SDGGraph> {
     public void visit(Node node) {
         this.graph = new SDGGraph();
 
-        SDGVisitor sdgVisitor = new SDGVisitor(this.graph);
+        SDGBuilder sdgBuilder = new SDGBuilder(this.graph);
 
-        node.accept(sdgVisitor, null);
+        node.accept(sdgBuilder, null);
     }
 
     @Override

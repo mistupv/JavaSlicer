@@ -1,4 +1,4 @@
-package tfm.visitors;
+package tfm.visitors.sdg;
 
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
@@ -19,11 +19,11 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-public class MethodCallVisitor extends VoidVisitorAdapter<Context> {
+public class MethodCallReplacer extends VoidVisitorAdapter<Context> {
 
     SDGGraph sdgGraph;
 
-    public MethodCallVisitor(SDGGraph sdgGraph) {
+    public MethodCallReplacer(SDGGraph sdgGraph) {
         this.sdgGraph = sdgGraph;
     }
 

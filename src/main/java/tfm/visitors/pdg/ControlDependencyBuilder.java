@@ -1,4 +1,4 @@
-package tfm.visitors;
+package tfm.visitors.pdg;
 
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
@@ -8,12 +8,12 @@ import tfm.nodes.GraphNode;
 
 import java.util.stream.Collectors;
 
-public class ControlDependencyVisitor extends VoidVisitorAdapter<GraphNode> {
+public class ControlDependencyBuilder extends VoidVisitorAdapter<GraphNode> {
 
     private CFGGraph cfgGraph;
     private PDGGraph pdgGraph;
 
-    public ControlDependencyVisitor(PDGGraph pdgGraph, CFGGraph cfgGraph) {
+    public ControlDependencyBuilder(PDGGraph pdgGraph, CFGGraph cfgGraph) {
         this.pdgGraph = pdgGraph;
         this.cfgGraph = cfgGraph;
     }

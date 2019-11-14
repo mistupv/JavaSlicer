@@ -1,9 +1,10 @@
-package tfm.visitors;
+package tfm.visitors.sdg;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
+import tfm.graphbuilding.Graphs;
 import tfm.graphs.PDGGraph;
 import tfm.graphs.SDGGraph;
 import tfm.utils.Context;
@@ -11,12 +12,12 @@ import tfm.utils.Context;
 import java.util.ArrayList;
 import java.util.List;
 
-public class NewSDGVisitor extends VoidVisitorAdapter<Context> {
+public class NewSDGBuilder extends VoidVisitorAdapter<Context> {
 
     SDGGraph sdgGraph;
     List<PDGGraph> pdgGraphs;
 
-    public NewSDGVisitor(SDGGraph sdgGraph) {
+    public NewSDGBuilder(SDGGraph sdgGraph) {
         this.sdgGraph = sdgGraph;
         this.pdgGraphs = new ArrayList<>();
     }
@@ -31,14 +32,13 @@ public class NewSDGVisitor extends VoidVisitorAdapter<Context> {
 
         // 1. Build PDG
 
-        PDGGraph pdgGraph = new PDGGraph();
-        PDGCFGVisitor pdgcfgVisitor = new PDGCFGVisitor(pdgGraph);
-
-        methodDeclaration.accept(pdgcfgVisitor, pdgGraph.getRootNode());
+        PDGGraph pdgGraph = Graphs.PDG.fromASTNode(methodDeclaration);
 
 
         // 2. Expand method call nodes (build input and output variable nodes)
         // 2.1 Visit called methods with this visitor
+        MethodCallReplacer methodCallReplacer = new MethodCallReplacer(pdgGraph);
+        methodDeclaration.accept(methodCallReplacer, null);
 
 
         // 3. Build summary arcs
