@@ -4,22 +4,18 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
+import javassist.expr.MethodCall;
 import tfm.graphbuilding.Graphs;
 import tfm.graphs.PDGGraph;
 import tfm.graphs.SDGGraph;
 import tfm.utils.Context;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class NewSDGBuilder extends VoidVisitorAdapter<Context> {
 
     SDGGraph sdgGraph;
-    List<PDGGraph> pdgGraphs;
 
     public NewSDGBuilder(SDGGraph sdgGraph) {
         this.sdgGraph = sdgGraph;
-        this.pdgGraphs = new ArrayList<>();
     }
 
     @Override
@@ -30,18 +26,10 @@ public class NewSDGBuilder extends VoidVisitorAdapter<Context> {
 
         context.setCurrentMethod(methodDeclaration);
 
-        // 1. Build PDG
-
+        // Build PDG and add to SDGGraph
         PDGGraph pdgGraph = Graphs.PDG.fromASTNode(methodDeclaration);
 
-
-        // 2. Expand method call nodes (build input and output variable nodes)
-        // 2.1 Visit called methods with this visitor
-        MethodCallReplacer methodCallReplacer = new MethodCallReplacer(pdgGraph);
-        methodDeclaration.accept(methodCallReplacer, null);
-
-
-        // 3. Build summary arcs
+        sdgGraph.addMethod(methodDeclaration, pdgGraph);
     }
 
     @Override
@@ -57,6 +45,19 @@ public class NewSDGBuilder extends VoidVisitorAdapter<Context> {
         context.setCurrentClass(classOrInterfaceDeclaration);
 
         classOrInterfaceDeclaration.accept(this, context);
+
+        // Once every PDG is built, expand method declaration nodes of each one
+        // todo methodDeclaration replacer
+
+
+        // Once every PDG is built, expand method call nodes of each one
+        // and link them to the corresponding method declaration node
+        MethodCallReplacer methodCallReplacer = new MethodCallReplacer(sdgGraph);
+        methodCallReplacer.replace();
+
+
+
+        // 3. Build summary arcs
     }
 
     @Override

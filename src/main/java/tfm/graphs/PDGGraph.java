@@ -1,6 +1,7 @@
 package tfm.graphs;
 
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.stmt.EmptyStmt;
 import edg.graphlib.Arrow;
 import org.jetbrains.annotations.NotNull;
@@ -25,7 +26,7 @@ public class PDGGraph extends Graph {
     private CFGGraph cfgGraph;
 
     public PDGGraph() {
-        setRootVertex(new GraphNode<>(getNextVertexId(), getRootNodeData(), new EmptyStmt()));
+        setRootVertex(new GraphNode<>(getNextVertexId(), getRootNodeData(), new MethodDeclaration()));
     }
 
     public PDGGraph(CFGGraph cfgGraph) {

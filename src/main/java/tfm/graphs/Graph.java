@@ -82,8 +82,8 @@ public abstract class Graph extends edg.graphlib.Graph<String, ArcData> {
     }
 
     @SuppressWarnings("unchecked")
-    public GraphNode<?> getRootNode() {
-        return (GraphNode<?>) super.getRootVertex();
+    public <ASTNode extends Node> GraphNode<ASTNode> getRootNode() {
+        return (GraphNode<ASTNode>) super.getRootVertex();
     }
 
     public abstract <ASTNode extends Node> GraphNode<ASTNode> addNode(String instruction, ASTNode node);

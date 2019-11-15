@@ -1,5 +1,6 @@
 package tfm.visitors.pdg;
 
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
@@ -32,6 +33,9 @@ public class PDGBuilder extends VoidVisitorAdapter<GraphNode<?>> {
     public void visit(MethodDeclaration methodDeclaration, GraphNode<?> parent) {
         if (!methodDeclaration.getBody().isPresent())
             return;
+
+        // Assign the method declaration to the root node of the PDG graph
+        this.pdgGraph.getRootNode().setAstNode(methodDeclaration);
 
         BlockStmt methodBody = methodDeclaration.getBody().get();
 

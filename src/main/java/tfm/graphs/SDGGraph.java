@@ -4,23 +4,19 @@ import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.stmt.EmptyStmt;
-import edg.graphlib.Visitor;
-import tfm.arcs.data.ArcData;
 import tfm.nodes.GraphNode;
-import tfm.nodes.PDGNode;
 import tfm.slicing.SlicingCriterion;
+import tfm.utils.Context;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class SDGGraph extends Graph {
 
-    private List<PDGGraph> pdgGraphList;
+    private Map<Context, PDGGraph> contextPDGGraphMap;
 
     public SDGGraph() {
-        this.pdgGraphList = new ArrayList<>();
+        this.contextPDGGraphMap = new HashMap<>();
     }
 
     @Override
@@ -33,7 +29,8 @@ public class SDGGraph extends Graph {
 
     @Override
     public String toGraphvizRepresentation() {
-        return pdgGraphList.stream().map(PDGGraph::toGraphvizRepresentation).collect(Collectors.joining("\n"));
+        return contextPDGGraphMap.values().stream()
+                .map(PDGGraph::toGraphvizRepresentation).collect(Collectors.joining("\n"));
     }
 
     @Override
@@ -41,6 +38,26 @@ public class SDGGraph extends Graph {
         return this;
     }
 
+    public Map<Context, PDGGraph> getContextPDGGraphMap() {
+        return contextPDGGraphMap;
+    }
+
+    public Set<Context> getContexts() {
+        return contextPDGGraphMap.keySet();
+    }
+
+    public Set<MethodDeclaration> getMethods() {
+        return getContexts().stream()
+                .filter(context -> context.getCurrentMethod().isPresent())
+                .map(context -> context.getCurrentMethod().get())
+                .collect(Collectors.toSet());
+    }
+
+    public Collection<PDGGraph> getPDGs() {
+        return contextPDGGraphMap.values();
+    }
+
+    @Deprecated
     public void addPDG(PDGGraph pdgGraph, MethodDeclaration methodDeclaration) {
         if (this.rootVertex == null) {
             this.setRootVertex(new GraphNode<>(getNextVertexId(), methodDeclaration.getNameAsString(), methodDeclaration));
@@ -74,31 +91,13 @@ public class SDGGraph extends Graph {
         }
     }
 
-    public GraphNode<MethodDeclaration> addMethod(MethodDeclaration methodDeclaration, PDGGraph pdgGraph) {
-        GraphNode<MethodDeclaration> node = new GraphNode<>(
+    public void addMethod(MethodDeclaration methodDeclaration, PDGGraph pdgGraph) {
+        GraphNode<MethodDeclaration> methodRootNode = new GraphNode<>(
                 getNextVertexId(),
                 "ENTER " + methodDeclaration.getDeclarationAsString(false, false, true),
                 methodDeclaration
         );
 
-        pdgGraph.depthFirstSearch(pdgGraph.getRootNode(), (Visitor<String, ArcData>) (g, v) -> {
-            if (Objects.equals(g.getRootVertex(), v)) {
-                return; // We don't care about root node (entry node)
-            }
-
-            PDGNode<?> pdgNode = (PDGNode) v;
-
-            GraphNode<?> sdgNode = new GraphNode<>(
-                    getNextVertexId(),
-                    pdgNode.getData(),
-                    pdgNode.getAstNode()
-            );
-
-
-        });
-
-        super.addVertex(node);
-
-        return node;
+        super.addVertex(methodRootNode);
     }
 }
