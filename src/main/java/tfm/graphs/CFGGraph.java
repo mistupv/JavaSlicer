@@ -46,7 +46,7 @@ public class CFGGraph extends Graph {
 
         String nodes = getNodes().stream()
                 .sorted(Comparator.comparingInt(GraphNode::getId))
-                .map(node -> String.format("%s [label=\"%s: %s\"]", node.getId(), node.getId(), node.getData()))
+                .map(GraphNode::toGraphvizRepresentation)
                 .collect(Collectors.joining(lineSep));
 
         String arrows =
