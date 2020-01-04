@@ -145,7 +145,9 @@ public class GraphNode<N extends Node> extends Vertex<String, ArcData> {
     }
 
     public String toGraphvizRepresentation() {
-        return String.format("%s[label=\"%s: %s\"];", getId(), getId(), getData());
+        String text = getData().replace("\\", "\\\\")
+                .replace("\"", "\\\"");
+        return String.format("%s[label=\"%s: %s\"];", getId(), getId(), text);
     }
 
     public Set<String> getDeclaredVariables() {
