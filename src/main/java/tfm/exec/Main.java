@@ -46,9 +46,6 @@ public class Main {
         long tt = tf - t0;
 
         graphLog.log();
-
-        graphLog.generatePNGs();
-
         graphLog.openVisualRepresentation();
 
         Logger.log();

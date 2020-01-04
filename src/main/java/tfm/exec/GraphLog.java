@@ -1,9 +1,13 @@
 package tfm.exec;
 
 import com.github.javaparser.ast.Node;
+import guru.nidi.graphviz.engine.Format;
+import guru.nidi.graphviz.engine.Graphviz;
 import tfm.graphs.Graph;
+import tfm.utils.FileUtil;
 import tfm.utils.Logger;
 
+import java.io.File;
 import java.io.IOException;
 
 public abstract class GraphLog<G extends Graph> {
@@ -14,10 +18,12 @@ public abstract class GraphLog<G extends Graph> {
 
     G graph;
 
-    protected String pngName;
+    protected String imageName;
+    protected Format format;
+    protected boolean generated = false;
 
     public GraphLog() {
-
+        this(null);
     }
 
     public GraphLog(G graph) {
@@ -43,9 +49,29 @@ public abstract class GraphLog<G extends Graph> {
         Logger.log();
     }
 
-    public abstract void generatePNGs() throws IOException;
+    public void generateImages() throws IOException {
+        generateImages("graph");
+    }
 
-    public abstract void generatePNGs(String pngName) throws IOException;
+    public void generateImages(String imageName) throws IOException {
+        generateImages(imageName, Format.PNG);
+    }
 
-    public abstract void openVisualRepresentation() throws IOException;
+    public void generateImages(String imageName, Format format) throws IOException {
+        this.imageName = imageName;
+        this.format = format;
+        generated = true;
+        Graphviz.fromString(graph.toGraphvizRepresentation())
+                .render(format)
+                .toFile(getImageFile());
+    }
+
+    public void openVisualRepresentation() throws IOException {
+        if (!generated) generateImages();
+        FileUtil.open(getImageFile());
+    }
+
+    protected File getImageFile() {
+        return new File("./out/" + imageName + "." + format.name());
+    }
 }

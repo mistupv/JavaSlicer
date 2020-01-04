@@ -32,7 +32,7 @@ public class Slice {
 
         PDGLog pdgLog = new PDGLog(sliced);
         pdgLog.log();
-        pdgLog.generatePNGs(PROGRAM_NAME + "-sliced");
+        pdgLog.generateImages(PROGRAM_NAME + "-sliced");
         pdgLog.openVisualRepresentation();
 
         PDGValidator.printPDGProgram("Slice" + PROGRAM_NAME, sliced);
