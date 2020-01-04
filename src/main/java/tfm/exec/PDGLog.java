@@ -11,7 +11,8 @@ import java.util.Comparator;
 import java.util.stream.Collectors;
 
 public class PDGLog extends GraphLog<PDGGraph> {
-    private final CFGLog cfgLog;
+
+    private CFGLog cfgLog;
 
     public PDGLog() {
         this(null);
@@ -19,7 +20,8 @@ public class PDGLog extends GraphLog<PDGGraph> {
 
     public PDGLog(PDGGraph pdgGraph) {
         super(pdgGraph);
-        if (graph.getCfgGraph() != null)
+
+        if (graph != null && graph.getCfgGraph() != null)
             cfgLog = new CFGLog(graph.getCfgGraph());
         else cfgLog = null;
     }
@@ -29,6 +31,10 @@ public class PDGLog extends GraphLog<PDGGraph> {
         this.graph = new PDGGraph();
 
         node.accept(new PDGBuilder(graph), this.graph.getRootNode());
+
+        if (cfgLog == null) {
+            cfgLog = new CFGLog(graph.getCfgGraph());
+        }
     }
 
     @Override
@@ -57,8 +63,9 @@ public class PDGLog extends GraphLog<PDGGraph> {
 
     @Override
     public void openVisualRepresentation() throws IOException {
+        super.openVisualRepresentation();
+
         if (cfgLog != null)
             cfgLog.openVisualRepresentation();
-        super.openVisualRepresentation();
     }
 }
