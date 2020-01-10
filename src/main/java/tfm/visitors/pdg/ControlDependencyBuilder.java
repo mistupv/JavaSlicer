@@ -1,96 +1,106 @@
 package tfm.visitors.pdg;
 
-import com.github.javaparser.ast.stmt.*;
-import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
+import tfm.arcs.Arc;
+import tfm.arcs.data.ArcData;
 import tfm.graphs.CFGGraph;
 import tfm.graphs.PDGGraph;
 import tfm.nodes.GraphNode;
 
-import java.util.stream.Collectors;
+import java.util.*;
 
-public class ControlDependencyBuilder extends VoidVisitorAdapter<GraphNode> {
+/**
+ * A simple but slow finder of control dependencies.
+ * <br/>
+ * It has a polynomial complexity (between cubed and n**4) with respect to the number of nodes in the CFG.
+ * It uses the following definition of control dependence:
+ * <br/>
+ * A node <i>b</i> is control dependent on another node <i>a</i> if and only if <i>b</i> postdominates
+ * one but not all of the successors of <i>a</i>.
+ * <br/>
+ * A node <i>b</i> postdominates another node <i>a</i> if and only if <i>b</i> appears in every path
+ * from <i>a</i> to the "Exit" node.
+ * <br/>
+ * There exist better, cheaper approaches that have linear complexity w.r.t. the number of edges in the CFG.
+ * <b>Usage:</b> pass an empty {@link PDGGraph} and a filled {@link CFGGraph} and then run {@link #analyze()}.
+ * This builder should only be used once, and then discarded.
+ */
+public class ControlDependencyBuilder {
+    private final PDGGraph pdg;
+    private final CFGGraph cfg;
 
-    private CFGGraph cfgGraph;
-    private PDGGraph pdgGraph;
-
-    public ControlDependencyBuilder(PDGGraph pdgGraph, CFGGraph cfgGraph) {
-        this.pdgGraph = pdgGraph;
-        this.cfgGraph = cfgGraph;
+    public ControlDependencyBuilder(PDGGraph pdg, CFGGraph cfg) {
+        this.pdg = pdg;
+        this.cfg = cfg;
     }
 
-    @Override
-    public void visit(ExpressionStmt expressionStmt, GraphNode parent) {
-        addNodeAndControlDependency(expressionStmt, parent);
+    public void analyze() {
+        Map<GraphNode<?>, GraphNode<?>> nodeMap = new HashMap<>();
+        nodeMap.put(cfg.getRootNode(), pdg.getRootNode());
+        Set<GraphNode<?>> roots = new HashSet<>(cfg.getNodes());
+        roots.remove(cfg.getRootNode());
+        Set<GraphNode<?>> cfgNodes = new HashSet<>(cfg.getNodes());
+        cfgNodes.removeIf(node -> node.getData().equals("Exit"));
+
+        for (GraphNode<?> node : cfgNodes)
+            registerNode(node, nodeMap);
+
+        for (GraphNode<?> src : cfgNodes) {
+            for (GraphNode<?> dest : cfgNodes) {
+                if (src == dest) continue;
+                if (hasControlDependence(src, dest)) {
+                    pdg.addControlDependencyArc(nodeMap.get(src), nodeMap.get(dest));
+                    if (pdg.contains(src))
+                        roots.remove(dest);
+                }
+            }
+        }
+        // In the original definition, nodes were dependent by default on the Enter/Start node
+        for (GraphNode<?> node : roots)
+            if (!node.getData().equals("Exit"))
+                pdg.addControlDependencyArc(pdg.getRootNode(), nodeMap.get(node));
     }
 
-    @Override
-    public void visit(IfStmt ifStmt, GraphNode parent) {
-        GraphNode node = addNodeAndControlDependency(ifStmt, parent);
-
-        ifStmt.getThenStmt().accept(this, node);
-
-        ifStmt.getElseStmt().ifPresent(statement -> statement.accept(this, node));
+    public void registerNode(GraphNode<?> node, Map<GraphNode<?>, GraphNode<?>> nodeMap) {
+        if (nodeMap.containsKey(node) || node.getData().equals("Exit"))
+            return;
+        GraphNode<?> clone = new GraphNode<>(node.getId(), node.getData(), node.getAstNode());
+        nodeMap.put(node, clone);
+        pdg.addNode(clone);
     }
 
-    @Override
-    public void visit(WhileStmt whileStmt, GraphNode parent) {
-        GraphNode node = addNodeAndControlDependency(whileStmt, parent);
-
-        whileStmt.getBody().accept(this, node);
+    public static boolean hasControlDependence(GraphNode<?> a, GraphNode<?> b) {
+        int yes = 0;
+        List<Arc<ArcData>> list = a.getOutgoingArcs();
+        // Nodes with less than 1 outgoing arc cannot control another node.
+        if (list.size() < 2)
+            return false;
+        for (Arc<ArcData> arc : list) {
+            GraphNode<?> successor = arc.getToNode();
+            if (postdominates(successor, b))
+                yes++;
+        }
+        int no = list.size() - yes;
+        return yes > 0 && no > 0;
     }
 
-    @Override
-    public void visit(ForStmt forStmt, GraphNode parent) {
-        String initialization = forStmt.getInitialization().stream()
-                .map(com.github.javaparser.ast.Node::toString)
-                .collect(Collectors.joining(","));
-
-        String update = forStmt.getUpdate().stream()
-                .map(com.github.javaparser.ast.Node::toString)
-                .collect(Collectors.joining(","));
-
-        String compare = forStmt.getCompare()
-                .map(com.github.javaparser.ast.Node::toString)
-                .orElse("true");
-
-
-        GraphNode forNode = pdgGraph.addNode(
-                String.format("for (%s;%s;%s)", initialization, compare, update),
-                forStmt
-        );
-
-        pdgGraph.addControlDependencyArc(parent, forNode);
-
-        forStmt.getBody().accept(this, forNode);
+    public static boolean postdominates(GraphNode<?> a, GraphNode<?> b) {
+        return postdominates(a, b, new HashSet<>());
     }
 
-    @Override
-    public void visit(ForEachStmt forEachStmt, GraphNode parent) {
-        GraphNode node = addNodeAndControlDependency(forEachStmt, parent);
-
-        forEachStmt.getBody().accept(this, node);
-    }
-
-    @Override
-    public void visit(SwitchStmt switchStmt, GraphNode parent) {
-        GraphNode node = addNodeAndControlDependency(switchStmt, parent);
-
-        switchStmt.getEntries().accept(this, node);
-    }
-
-    @Override
-    public void visit(SwitchEntryStmt switchEntryStmt, GraphNode parent) {
-        GraphNode node = addNodeAndControlDependency(switchEntryStmt, parent);
-
-        switchEntryStmt.getStatements().accept(this, node);
-    }
-
-    private GraphNode addNodeAndControlDependency(Statement statement, GraphNode parent) {
-        GraphNode<?> cfgNode = cfgGraph.findNodeByASTNode(statement).get();
-
-        GraphNode node = pdgGraph.addNode(cfgNode.getData(), cfgNode.getAstNode());
-        pdgGraph.addControlDependencyArc(parent, node);
-
-        return node;
+    private static boolean postdominates(GraphNode<?> a, GraphNode<?> b, Set<GraphNode<?>> visited) {
+        // Stop w/ success if a == b or a has already been visited
+        if (a.equals(b) || visited.contains(a))
+            return true;
+        List<Arc<ArcData>> outgoing = a.getOutgoingArcs();
+        // Stop w/ failure if there are no edges to traverse from a
+        if (outgoing.size() == 0)
+            return false;
+        // Find all possible paths starting from a, if ALL find b, then true, else false
+        visited.add(a);
+        for (Arc<ArcData> out : outgoing) {
+            if (!postdominates(out.getToNode(), b, visited))
+                return false;
+        }
+        return true;
     }
 }

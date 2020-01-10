@@ -14,15 +14,15 @@ import tfm.visitors.cfg.CFGBuilder;
  * <br/>
  * <b>Usage:</b>
  * <ol>
- *     <li>Create and fill a {@link CFGGraph} for the desired method.</li>
+ *     <li>Create an empty {@link CFGGraph}.</li>
  *     <li>Create an empty {@link PDGGraph} (optionally passing the {@link CFGGraph} as argument).</li>
  *     <li>Create a new {@link PDGBuilder}, passing both graphs as arguments.</li>
  *     <li>Accept the builder as a visitor of the {@link MethodDeclaration} you want to analyse using
  *     {@link com.github.javaparser.ast.Node#accept(com.github.javaparser.ast.visitor.VoidVisitor, Object) Node#accept(VoidVisitor, Object)}:
  *     {@code methodDecl.accept(builder, null)}</li>
  *     <li>Once the previous step is finished, the complete PDG is saved in
- *     the object created in the second step. <emph>The builder should be discarded
- *     and not reused.</emph></li>
+ *     the object created in the second step. The builder should be discarded
+ *     and not reused.</li>
  * </ol>
  */
 public class PDGBuilder extends VoidVisitorAdapter<GraphNode<?>> {
@@ -60,7 +60,7 @@ public class PDGBuilder extends VoidVisitorAdapter<GraphNode<?>> {
 
         // Build control dependency
         ControlDependencyBuilder controlDependencyBuilder = new ControlDependencyBuilder(pdgGraph, cfgGraph);
-        methodBody.accept(controlDependencyBuilder, parent);
+        controlDependencyBuilder.analyze();
 
         // Build data dependency
         DataDependencyBuilder dataDependencyBuilder = new DataDependencyBuilder(pdgGraph, cfgGraph);

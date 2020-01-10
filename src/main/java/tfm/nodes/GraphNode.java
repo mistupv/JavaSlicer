@@ -14,6 +14,14 @@ import tfm.variables.VariableExtractor;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * Represents a node in the various graphs ({@link tfm.graphs.CFGGraph CFG},
+ * {@link tfm.graphs.PDGGraph PDG} and {@link tfm.graphs.SDGGraph SDG}),
+ * including its AST representation and the connections it has to other nodes
+ * in the same graph. It can hold a string of characters that will be used
+ * to represent it.
+ * @param <N> The type of the AST represented by this node.
+ */
 public class GraphNode<N extends Node> extends Vertex<String, ArcData> {
 
     private int id;
@@ -135,9 +143,10 @@ public class GraphNode<N extends Node> extends Vertex<String, ArcData> {
         if (!(o instanceof GraphNode))
             return false;
 
-        GraphNode other = (GraphNode) o;
+        GraphNode<?> other = (GraphNode<?>) o;
 
-        return Objects.equals(getData(), other.getData())
+        return this.getId() == other.getId()
+                && Objects.equals(getData(), other.getData())
                 && Objects.equals(astNode, other.astNode);
 //                && Objects.equals(getIncomingArrows(), other.getIncomingArrows())
 //                && Objects.equals(getOutgoingArrows(), other.getOutgoingArrows())
