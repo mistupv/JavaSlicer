@@ -2,6 +2,8 @@ package tfm.programs;
 
 public class WhileLoop {
 
+    void main() {}
+
     void while1() {
         int x = 1;
         int y = 2;
