@@ -2,11 +2,13 @@ package tfm.visitors.pdg;
 
 import tfm.arcs.Arc;
 import tfm.arcs.data.ArcData;
+import tfm.exec.Config;
 import tfm.graphs.CFGGraph;
 import tfm.graphs.PDGGraph;
 import tfm.nodes.GraphNode;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * A simple but slow finder of control dependencies.
@@ -65,7 +67,7 @@ public class ControlDependencyBuilder {
             return;
         GraphNode<?> clone = new GraphNode<>(node.getId(), node.getData(), node.getAstNode());
         nodeMap.put(node, clone);
-        pdg.addNode(clone);
+        pdg.addVertex(clone);
     }
 
     public static boolean hasControlDependence(GraphNode<?> a, GraphNode<?> b) {
@@ -92,6 +94,9 @@ public class ControlDependencyBuilder {
         if (a.equals(b) || visited.contains(a))
             return true;
         List<Arc<ArcData>> outgoing = a.getOutgoingArcs();
+        // Limit the traversal if it is a PPDG
+        if (Config.PDG_TYPE == Config.PPDG)
+            outgoing = outgoing.stream().filter(Arc::isExecutableControlFlowArrow).collect(Collectors.toList());
         // Stop w/ failure if there are no edges to traverse from a
         if (outgoing.size() == 0)
             return false;

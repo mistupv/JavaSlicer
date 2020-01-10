@@ -46,13 +46,6 @@ public class PDGGraph extends Graph {
         return "Entry";
     }
 
-    public GraphNode<?> addNode(GraphNode<?> node) {
-        GraphNode<?> vertex = new GraphNode<>(node);
-        super.addVertex(vertex);
-
-        return vertex;
-    }
-
     @Override
     public <ASTNode extends Node> GraphNode<ASTNode> addNode(String instruction, ASTNode node) {
         return addNode(getNextVertexId(), instruction, node);
