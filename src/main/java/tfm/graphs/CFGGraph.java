@@ -15,6 +15,13 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * The <b>Control Flow Graph</b> represents the statements of a method in
+ * a graph, displaying the connections between each statement and the ones that
+ * may follow it. You can build one manually or use the {@link tfm.visitors.cfg.CFGBuilder CFGBuilder}.
+ * @see ControlFlowArc
+ * @see tfm.exec.Config Config (for the available variations of the CFG)
+ */
 public class CFGGraph extends Graph {
 
     public CFGGraph() {
@@ -35,9 +42,16 @@ public class CFGGraph extends Graph {
         return "Start";
     }
 
+    public void addControlFlowEdge(GraphNode<?> from, GraphNode<?> to) {
+        addControlFlowEdge(from, to, true);
+    }
+
     @SuppressWarnings("unchecked")
-    public void addControlFlowEdge(GraphNode from, GraphNode to) {
-        super.addEdge((Arrow) new ControlFlowArc(from, to));
+    public void addControlFlowEdge(GraphNode<?> from, GraphNode<?> to, boolean executable) {
+        if (executable)
+            super.addEdge((Arrow) new ControlFlowArc(from, to));
+        else
+            super.addEdge((Arrow) new ControlFlowArc.NonExecutable(from, to));
     }
 
     @Override
@@ -51,8 +65,8 @@ public class CFGGraph extends Graph {
 
         String arrows =
                 getArrows().stream()
-                        .sorted(Comparator.comparingInt(arrow -> ((GraphNode) arrow.getFrom()).getId()))
-                        .map(arrow -> ((Arc) arrow).toGraphvizRepresentation())
+                        .sorted(Comparator.comparingInt(arrow -> ((GraphNode<?>) arrow.getFrom()).getId()))
+                        .map(arrow -> ((Arc<?>) arrow).toGraphvizRepresentation())
                         .collect(Collectors.joining(lineSep));
 
         return "digraph g{" + lineSep +
@@ -67,11 +81,6 @@ public class CFGGraph extends Graph {
     }
 
     public Set<GraphNode<?>> findLastDefinitionsFrom(GraphNode<?> startNode, String variable) {
-//        Logger.log("=======================================================");
-//        Logger.log("Starting from " + startNode);
-//        Logger.log("Looking for variable " + variable);
-//        Logger.log(cfgGraph.toString());
-        
         if (!this.contains(startNode)) {
             throw new NodeNotFoundException(startNode, this);
         }
@@ -81,33 +90,26 @@ public class CFGGraph extends Graph {
 
     private Set<GraphNode<?>> findLastDefinitionsFrom(Set<Integer> visited, GraphNode<?> startNode, GraphNode<?> currentNode, String variable) {
         visited.add(currentNode.getId());
-
-//        Logger.log("On " + currentNode);
-
         Set<GraphNode<?>> res = new HashSet<>();
 
         for (Arc<?> arc : currentNode.getIncomingArcs()) {
             ControlFlowArc controlFlowArc = (ControlFlowArc) arc;
+            // Ignore non-executable edges when computing data dependence.
+            if (arc instanceof ControlFlowArc.NonExecutable)
+                continue;
 
             GraphNode<?> from = controlFlowArc.getFromNode();
 
-//            Logger.log("Arrow from node: " + from);
-
             if (!Objects.equals(startNode, from) && visited.contains(from.getId())) {
-//                Logger.log("It's already visited. Continuing...");
                 continue;
             }
 
             if (from.getDefinedVariables().contains(variable)) {
-//                Logger.log("Contains defined variable: " + variable);
                 res.add(from);
             } else {
-//                Logger.log("Doesn't contain the variable, searching inside it");
                 res.addAll(findLastDefinitionsFrom(visited, startNode, from, variable));
             }
         }
-
-//        Logger.format("Done with node %s", currentNode.getId());
 
         return res;
     }

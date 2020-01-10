@@ -12,10 +12,16 @@ public abstract class Arc<D extends ArcData> extends edg.graphlib.Arrow<String, 
         super((edg.graphlib.Vertex<String, D>) from, (edg.graphlib.Vertex<String, D>) to);
     }
 
+    /** @see tfm.arcs.cfg.ControlFlowArc */
     public abstract boolean isControlFlowArrow();
 
+    /** @see tfm.arcs.cfg.ControlFlowArc.NonExecutable */
+    public abstract boolean isExecutableControlFlowArrow();
+
+    /** @see tfm.arcs.pdg.ControlDependencyArc */
     public abstract boolean isControlDependencyArrow();
 
+    /** @see tfm.arcs.pdg.DataDependencyArc */
     public abstract boolean isDataDependencyArrow();
 
     @Override
@@ -28,8 +34,8 @@ public abstract class Arc<D extends ArcData> extends edg.graphlib.Arrow<String, 
     }
 
     public String toGraphvizRepresentation() {
-        GraphNode from = (GraphNode) getFrom();
-        GraphNode to = (GraphNode) getTo();
+        GraphNode<?> from = (GraphNode<?>) getFrom();
+        GraphNode<?> to = (GraphNode<?>) getTo();
 
         return String.format("%s -> %s",
                 from.getId(),
@@ -58,12 +64,12 @@ public abstract class Arc<D extends ArcData> extends edg.graphlib.Arrow<String, 
         if (!(o instanceof Arc))
             return false;
 
-        Arc arc = (Arc) o;
+        Arc<?> arc = (Arc<?>) o;
 
-        GraphNode from = (GraphNode) arc.getFrom();
-        GraphNode from2 = (GraphNode) getFrom();
-        GraphNode to = (GraphNode) getTo();
-        GraphNode to2 = (GraphNode) arc.getTo();
+        GraphNode<?> from = (GraphNode<?>) arc.getFrom();
+        GraphNode<?> from2 = (GraphNode<?>) getFrom();
+        GraphNode<?> to = (GraphNode<?>) getTo();
+        GraphNode<?> to2 = (GraphNode<?>) arc.getTo();
 
         return Objects.equals(arc.getData(), getData()) &&
                 Objects.equals(from.getId(), from2.getId()) &&

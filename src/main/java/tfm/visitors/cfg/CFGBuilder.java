@@ -6,13 +6,33 @@ import com.github.javaparser.ast.expr.BooleanLiteralExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.SimpleName;
 import com.github.javaparser.ast.stmt.*;
+import com.github.javaparser.ast.visitor.VoidVisitor;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
+import tfm.exec.Config;
 import tfm.graphs.CFGGraph;
 import tfm.nodes.GraphNode;
 import tfm.utils.ASTUtils;
 
 import java.util.*;
 
+/**
+ * Populates a {@link CFGGraph}, given one and an AST root node.
+ * For now it only accepts {@link MethodDeclaration} as roots, as it disallows
+ * multiple methods.
+ * <br/>
+ * <b>Usage:</b>
+ * <ol>
+ *     <li>Create a new {@link CFGGraph}.</li>
+ *     <li>Create a new {@link CFGBuilder}, passing the graph as argument.</li>
+ *     <li>Accept the builder as a visitor of the {@link MethodDeclaration} you
+ *     want to analyse using {@link Node#accept(VoidVisitor, Object)}: {@code methodDecl.accept(builder, null)}</li>
+ *     <li>Once the previous step is finished, the complete CFG is saved in
+ *     the object created in the first step. <emph>The builder should be discarded
+ *     and not reused.</emph></li>
+ * </ol>
+ * <b>Configuration:</b> this builder can be used to generate both the CFG and ACFG (see {@link Config}).
+ * Before performing the visit you should set the configuration to the one you prefer.
+ */
 public class CFGBuilder extends VoidVisitorAdapter<Void> {
     /** Stores whether a method visit has started, to avoid mapping multiple methods onto one CFG. */
     private boolean begunMethod = false;
@@ -22,6 +42,8 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
     /** Nodes that haven't yet been connected to another one.
      * The next node will be the destination, they are the source. */
     private final List<GraphNode<?>> hangingNodes = new LinkedList<>();
+    /** Same as {@link CFGBuilder#hangingNodes}, but to be connected as non-executable edges. */
+    private final List<GraphNode<?>> nonExecHangingNodes = new LinkedList<>();
     /** Stack of break statements collected in various (nestable) breakable blocks. */
     private final Stack<List<GraphNode<BreakStmt>>> breakStack = new Stack<>();
     /** Stack of continue statements collected in various (nestable) continuable blocks. */
@@ -52,7 +74,10 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
     private void connectTo(GraphNode<?> node) {
         for (GraphNode<?> src : hangingNodes)
             graph.addControlFlowEdge(src, node);
+        for (GraphNode<?> src : nonExecHangingNodes)
+            graph.addControlFlowEdge(src, node, false);
         hangingNodes.clear();
+        nonExecHangingNodes.clear();
         hangingNodes.add(node);
     }
 
@@ -69,13 +94,16 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         // if -> {*then* else} -> after
         ifStmt.getThenStmt().accept(this, arg);
         List<GraphNode<?>> hangingThenNodes = new LinkedList<>(hangingNodes);
+        List<GraphNode<?>> hangingThenFalseNodes = new LinkedList<>(nonExecHangingNodes);
 
         if (ifStmt.getElseStmt().isPresent()) {
             // if -> {then *else*} -> after
             hangingNodes.clear();
+            nonExecHangingNodes.clear();
             hangingNodes.add(cond);
             ifStmt.getElseStmt().get().accept(this, arg);
             hangingNodes.addAll(hangingThenNodes);
+            nonExecHangingNodes.addAll(hangingThenFalseNodes);
         } else {
             // if -> {then **} -> after
             hangingNodes.add(cond);
@@ -118,6 +146,8 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         // Loop contains anything
         if (hangingNodes.size() != 1 || hangingNodes.get(0) != cond)
             connectTo(cond);
+        else if (!nonExecHangingNodes.isEmpty())
+            connectTo(cond);
         hangingNodes.addAll(breakStack.pop());
     }
 
@@ -134,6 +164,8 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         hangLabelledContinueStmts(doStmt.getParentNode().orElse(null));
         // Loop contains anything
         if (hangingNodes.size() != 1 || hangingNodes.get(0) != cond)
+            connectTo(cond);
+        else if (!nonExecHangingNodes.isEmpty())
             connectTo(cond);
         hangingNodes.addAll(breakStack.pop());
     }
@@ -159,6 +191,8 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         hangLabelledContinueStmts(forStmt.getParentNode().orElse(null));
         if ((hangingNodes.size()) != 1 || hangingNodes.get(0) != cond)
             connectTo(cond);
+        else if (!nonExecHangingNodes.isEmpty())
+            connectTo(cond);
         hangingNodes.addAll(breakStack.pop());
     }
 
@@ -175,6 +209,8 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         hangingNodes.addAll(continueStack.pop());
         hangLabelledContinueStmts(forEachStmt.getParentNode().orElse(null));
         if (hangingNodes.size() != 1 || hangingNodes.get(0) != cond)
+            connectTo(cond);
+        else if (!nonExecHangingNodes.isEmpty())
             connectTo(cond);
         hangingNodes.addAll(breakStack.pop());
     }
@@ -213,7 +249,31 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         // If the last case is a default case, remove the selector node from the list of nodes (see 2)
         if (ASTUtils.switchHasDefaultCase(switchStmt))
             hangingNodes.remove(cond);
-        switchEntriesStack.pop();
+        List<GraphNode<SwitchEntryStmt>> entries = switchEntriesStack.pop();
+        if (Config.CFG_TYPE == Config.ACFG) {
+            GraphNode<SwitchEntryStmt> def = null;
+            for (GraphNode<SwitchEntryStmt> entry : entries) {
+                if (!entry.getAstNode().getLabel().isPresent()) {
+                    def = entry;
+                    break;
+                }
+            }
+            if (def != null) {
+                List<GraphNode<?>> aux = new LinkedList<>(hangingNodes);
+                List<GraphNode<?>> aux2 = new LinkedList<>(nonExecHangingNodes);
+                hangingNodes.clear();
+                nonExecHangingNodes.clear();
+                entries.remove(def);
+                nonExecHangingNodes.addAll(entries);
+                connectTo(def);
+                hangingNodes.clear();
+                hangingNodes.addAll(aux);
+                nonExecHangingNodes.add(def);
+                nonExecHangingNodes.addAll(aux2);
+            } else {
+                nonExecHangingNodes.addAll(entries);
+            }
+        }
         // End block and break section
         hangingNodes.addAll(breakStack.pop());
     }
@@ -226,6 +286,8 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         else
             breakStack.peek().add(node);
         hangingNodes.clear();
+        if (Config.CFG_TYPE == Config.ACFG)
+            nonExecHangingNodes.add(node);
     }
 
     @Override
@@ -236,6 +298,8 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         else
             continueStack.peek().add(node);
         hangingNodes.clear();
+        if (Config.CFG_TYPE == Config.ACFG)
+            nonExecHangingNodes.add(node);
     }
 
     @Override
@@ -243,6 +307,8 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         GraphNode<ReturnStmt> node = connectTo(returnStmt);
         returnList.add(node);
         hangingNodes.clear();
+        if (Config.CFG_TYPE == Config.ACFG)
+            nonExecHangingNodes.add(node);
     }
 
     @Override
@@ -254,6 +320,8 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         hangingNodes.add(graph.getRootNode());
         super.visit(methodDeclaration, arg);
         returnList.stream().filter(node -> !hangingNodes.contains(node)).forEach(hangingNodes::add);
+        if (Config.CFG_TYPE == Config.ACFG)
+            nonExecHangingNodes.add(graph.getRootNode());
         connectTo(new EmptyStmt(), "Exit");
     }
 }

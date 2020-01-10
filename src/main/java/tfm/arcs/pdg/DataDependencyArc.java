@@ -8,9 +8,16 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * An arc used in the {@link tfm.graphs.PDGGraph} and {@link tfm.graphs.SDGGraph},
+ * representing the declaration of some data linked to its usage (of that value).
+ * There is data dependency between two nodes if and only if (1) the source <it>may</it>
+ * declare a variable, (2) the destination <it>may</it> use it, and (3) there is a
+ * path between the nodes where the variable is not redefined.
+ */
 public class DataDependencyArc extends Arc<VariableArcData> {
 
-    public DataDependencyArc(GraphNode from, GraphNode to, String variable, String... variables) {
+    public DataDependencyArc(GraphNode<?> from, GraphNode<?> to, String variable, String... variables) {
         super(from, to);
 
         List<String> variablesList = new ArrayList<>(variables.length + 1);
@@ -25,6 +32,11 @@ public class DataDependencyArc extends Arc<VariableArcData> {
 
     @Override
     public boolean isControlFlowArrow() {
+        return false;
+    }
+
+    @Override
+    public boolean isExecutableControlFlowArrow() {
         return false;
     }
 
