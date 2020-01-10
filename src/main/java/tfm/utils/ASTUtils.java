@@ -3,9 +3,7 @@ package tfm.utils;
 import com.github.javaparser.Position;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
-import com.github.javaparser.ast.stmt.BlockStmt;
-import com.github.javaparser.ast.stmt.EmptyStmt;
-import com.github.javaparser.ast.stmt.Statement;
+import com.github.javaparser.ast.stmt.*;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -58,5 +56,16 @@ public class ASTUtils {
         Node parent = optionalParent.get();
 
         return Objects.equals(parent, upper) || isContained(upper, parent);
+    }
+
+    public static boolean switchHasDefaultCase(SwitchStmt stmt) {
+        return switchGetDefaultCase(stmt) != null;
+    }
+
+    public static SwitchEntryStmt switchGetDefaultCase(SwitchStmt stmt) {
+        for (SwitchEntryStmt entry : stmt.getEntries())
+            if (!entry.getLabel().isPresent())
+                return entry;
+        return null;
     }
 }

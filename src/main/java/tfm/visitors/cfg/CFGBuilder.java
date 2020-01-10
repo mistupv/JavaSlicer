@@ -1,8 +1,10 @@
 package tfm.visitors.cfg;
 
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.BooleanLiteralExpr;
 import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.SimpleName;
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.graphs.CFGGraph;
@@ -12,259 +14,246 @@ import tfm.utils.ASTUtils;
 import java.util.*;
 
 public class CFGBuilder extends VoidVisitorAdapter<Void> {
+    /** Stores whether a method visit has started, to avoid mapping multiple methods onto one CFG. */
+    private boolean begunMethod = false;
 
-    private CFGGraph graph;
-
-    private Queue<GraphNode> lastParentNodes;
-    private List<GraphNode> bodyBreaks;
+    /** Stores the CFG representing the method analyzed. */
+    private final CFGGraph graph;
+    /** Nodes that haven't yet been connected to another one.
+     * The next node will be the destination, they are the source. */
+    private final List<GraphNode<?>> hangingNodes = new LinkedList<>();
+    /** Stack of break statements collected in various (nestable) breakable blocks. */
+    private final Stack<List<GraphNode<BreakStmt>>> breakStack = new Stack<>();
+    /** Stack of continue statements collected in various (nestable) continuable blocks. */
+    private final Stack<List<GraphNode<ContinueStmt>>> continueStack = new Stack<>();
+    /** Lists of labelled break statements, mapped according to their label. */
+    private final Map<SimpleName, List<GraphNode<BreakStmt>>> breakMap = new HashMap<>();
+    /** Lists of labelled continue statements, mapped according to their label. */
+    private final Map<SimpleName, List<GraphNode<ContinueStmt>>> continueMap = new HashMap<>();
+    /** Return statements that should be connected to the final node, if it is created at the end of the  */
+    private final List<GraphNode<ReturnStmt>> returnList = new LinkedList<>();
+    /** Stack of lists of hanging cases on switch statements */
+    private final Stack<List<GraphNode<SwitchEntryStmt>>> switchEntriesStack = new Stack<>();
 
     public CFGBuilder(CFGGraph graph) {
         this.graph = graph;
-        this.lastParentNodes = Collections.asLifoQueue(
-                new ArrayDeque<>(
-                        Collections.singletonList(graph.getRootNode())
-                )
-        );
+    }
 
-        this.bodyBreaks = new ArrayList<>();
+    private <T extends Node> GraphNode<T> connectTo(T n) {
+        return connectTo(n, n.toString());
+    }
+
+    private <T extends Node> GraphNode<T> connectTo(T n, String text) {
+        GraphNode<T> dest = graph.addNode(text, n);
+        connectTo(dest);
+        return dest;
+    }
+
+    private void connectTo(GraphNode<?> node) {
+        for (GraphNode<?> src : hangingNodes)
+            graph.addControlFlowEdge(src, node);
+        hangingNodes.clear();
+        hangingNodes.add(node);
     }
 
     @Override
     public void visit(ExpressionStmt expressionStmt, Void arg) {
-        String expression = expressionStmt.toString().replace("\"", "\\\"");
-
-        GraphNode nextNode = addNodeAndArcs(expression, expressionStmt);
-
-        lastParentNodes.add(nextNode);
+        connectTo(expressionStmt);
     }
-
-//    @Override
-//    public void visit(VariableDeclarationExpr variableDeclarationExpr, Void arg) {
-//        GraphNode<String> nextNode = addNodeAndArcs(variableDeclarationExpr.toString());
-//
-//        lastParentNodes.add(nextNode);
-//
-//        Logger.log(variableDeclarationExpr);
-//
-//        super.visit(variableDeclarationExpr, arg);
-//    }
 
     @Override
     public void visit(IfStmt ifStmt, Void arg) {
-        GraphNode ifCondition = addNodeAndArcs(
-                String.format("if (%s)", ifStmt.getCondition().toString()),
-                ifStmt
-        );
+        // *if* -> {then else} -> after
+        GraphNode<?> cond = connectTo(ifStmt, String.format("if (%s)", ifStmt.getCondition()));
 
-        lastParentNodes.add(ifCondition);
-
-        // Visit "then"
+        // if -> {*then* else} -> after
         ifStmt.getThenStmt().accept(this, arg);
+        List<GraphNode<?>> hangingThenNodes = new LinkedList<>(hangingNodes);
 
-        Queue<GraphNode> lastThenNodes = new ArrayDeque<>(lastParentNodes);
-
-        if (ifStmt.hasElseBranch()) {
-            lastParentNodes.clear();
-            lastParentNodes.add(ifCondition); // Set if nodes as root
-
+        if (ifStmt.getElseStmt().isPresent()) {
+            // if -> {then *else*} -> after
+            hangingNodes.clear();
+            hangingNodes.add(cond);
             ifStmt.getElseStmt().get().accept(this, arg);
-
-            lastParentNodes.addAll(lastThenNodes);
+            hangingNodes.addAll(hangingThenNodes);
         } else {
-            lastParentNodes.add(ifCondition);
+            // if -> {then **} -> after
+            hangingNodes.add(cond);
+        }
+        // if -> {then else} -> *after*
+    }
+
+    @Override
+    public void visit(LabeledStmt n, Void arg) {
+        breakMap.put(n.getLabel(), new LinkedList<>());
+        continueMap.put(n.getLabel(), new LinkedList<>());
+        super.visit(n, arg);
+        hangingNodes.addAll(breakMap.remove(n.getLabel()));
+        // Remove the label from the continue map; the list should have been emptied
+        // in the corresponding loop.
+        assert continueMap.remove(n.getLabel()).isEmpty();
+    }
+
+    private void hangLabelledContinueStmts(Node loopParent) {
+        if (loopParent instanceof LabeledStmt) {
+            SimpleName label = ((LabeledStmt) loopParent).getLabel();
+            if (continueMap.containsKey(label)) {
+                List<GraphNode<ContinueStmt>> list = continueMap.get(label);
+                hangingNodes.addAll(list);
+                list.clear();
+            }
         }
     }
 
     @Override
     public void visit(WhileStmt whileStmt, Void arg) {
-        GraphNode whileCondition = addNodeAndArcs(
-                String.format("while (%s)", whileStmt.getCondition().toString()),
-                whileStmt
-        );
-
-        lastParentNodes.add(whileCondition);
+        GraphNode<?> cond = connectTo(whileStmt, String.format("while (%s)", whileStmt.getCondition()));
+        breakStack.push(new LinkedList<>());
+        continueStack.push(new LinkedList<>());
 
         whileStmt.getBody().accept(this, arg);
 
-        while (!lastParentNodes.isEmpty()) {
-            graph.addControlFlowEdge(lastParentNodes.poll(), whileCondition);
-        }
-
-        lastParentNodes.add(whileCondition);
-        lastParentNodes.addAll(bodyBreaks);
-        bodyBreaks.clear();
+        hangingNodes.addAll(continueStack.pop());
+        hangLabelledContinueStmts(whileStmt.getParentNode().orElse(null));
+        // Loop contains anything
+        if (hangingNodes.size() != 1 || hangingNodes.get(0) != cond)
+            connectTo(cond);
+        hangingNodes.addAll(breakStack.pop());
     }
 
     @Override
     public void visit(DoStmt doStmt, Void arg) {
-        BlockStmt body = ASTUtils.blockWrapper(doStmt.getBody());
+        breakStack.push(new LinkedList<>());
+        continueStack.push(new LinkedList<>());
 
-        body.accept(this, arg);
+        GraphNode<?> cond = connectTo(doStmt, String.format("while (%s)", doStmt.getCondition()));
 
-        GraphNode doWhileNode = addNodeAndArcs(
-                String.format("while (%s)", doStmt.getCondition()),
-                doStmt
-        );
+        doStmt.getBody().accept(this, arg);
 
-        if (!body.isEmpty()) {
-            Statement firstBodyStatement = body.getStatement(0);
-
-            graph.findNodeByASTNode(firstBodyStatement)
-                    .ifPresent(node -> graph.addControlFlowEdge(doWhileNode, node));
-        }
-
-        lastParentNodes.add(doWhileNode);
-        lastParentNodes.addAll(bodyBreaks);
-        bodyBreaks.clear();
+        hangingNodes.addAll(continueStack.pop());
+        hangLabelledContinueStmts(doStmt.getParentNode().orElse(null));
+        // Loop contains anything
+        if (hangingNodes.size() != 1 || hangingNodes.get(0) != cond)
+            connectTo(cond);
+        hangingNodes.addAll(breakStack.pop());
     }
 
     @Override
     public void visit(ForStmt forStmt, Void arg) {
-//        String inizialization = forStmt.getInitialization().stream()
-//                .map(GraphNode::toString)
-//                .collect(Collectors.joining(","));
-//
-//        String update = forStmt.getUpdate().stream()
-//                .map(GraphNode::toString)
-//                .collect(Collectors.joining(","));
+        breakStack.push(new LinkedList<>());
+        continueStack.push(new LinkedList<>());
 
-        Expression comparison = forStmt.getCompare().orElse(new BooleanLiteralExpr(true));
-//
-        forStmt.getInitialization().forEach(expression -> new ExpressionStmt(expression).accept(this, null));
+        // Initialization
+        forStmt.getInitialization().forEach(expression -> new ExpressionStmt(expression).accept(this, arg));
 
-        GraphNode forNode = addNodeAndArcs(
-                String.format("for (;%s;)", comparison),
-                forStmt
-        );
+        // Condition
+        Expression condition = forStmt.getCompare().orElse(new BooleanLiteralExpr(true));
+        GraphNode<?> cond = connectTo(forStmt, String.format("for (;%s;)", condition));
 
-        lastParentNodes.add(forNode);
+        // Body and update expressions
+        forStmt.getBody().accept(this, arg);
+        forStmt.getUpdate().forEach(e -> new ExpressionStmt(e).accept(this, arg));
 
-        BlockStmt body = ASTUtils.blockWrapper(forStmt.getBody()).clone();
-
-        forStmt.getUpdate().forEach(body::addStatement);
-
-        body.accept(this, arg);
-
-        while (!lastParentNodes.isEmpty()) {
-            graph.addControlFlowEdge(lastParentNodes.poll(), forNode);
-        }
-
-        lastParentNodes.add(forNode);
-        lastParentNodes.addAll(bodyBreaks);
-        bodyBreaks.clear();
+        // Condition if body contained anything
+        hangingNodes.addAll(continueStack.pop());
+        hangLabelledContinueStmts(forStmt.getParentNode().orElse(null));
+        if ((hangingNodes.size()) != 1 || hangingNodes.get(0) != cond)
+            connectTo(cond);
+        hangingNodes.addAll(breakStack.pop());
     }
 
     @Override
     public void visit(ForEachStmt forEachStmt, Void arg) {
-        GraphNode foreachNode = addNodeAndArcs(
-                String.format("for (%s : %s)", forEachStmt.getVariable(), forEachStmt.getIterable()),
-                forEachStmt
-        );
+        breakStack.push(new LinkedList<>());
+        continueStack.push(new LinkedList<>());
 
-        lastParentNodes.add(foreachNode);
+        GraphNode<?> cond = connectTo(forEachStmt,
+                String.format("for (%s : %s)", forEachStmt.getVariable(), forEachStmt.getIterable()));
 
         forEachStmt.getBody().accept(this, arg);
 
-        while (!lastParentNodes.isEmpty()) {
-            graph.addControlFlowEdge(lastParentNodes.poll(), foreachNode);
-        }
+        hangingNodes.addAll(continueStack.pop());
+        hangLabelledContinueStmts(forEachStmt.getParentNode().orElse(null));
+        if (hangingNodes.size() != 1 || hangingNodes.get(0) != cond)
+            connectTo(cond);
+        hangingNodes.addAll(breakStack.pop());
+    }
 
-        lastParentNodes.add(foreachNode);
-        lastParentNodes.addAll(bodyBreaks);
-        bodyBreaks.clear();
+    /** Switch entry, considered part of the condition of the switch. */
+    @Override
+    public void visit(SwitchEntryStmt entryStmt, Void arg) {
+        // Case header (prev -> case EXPR)
+        GraphNode<SwitchEntryStmt> node;
+        if (entryStmt.getLabel().isPresent()) {
+            node = connectTo(entryStmt, "case " + entryStmt.getLabel().get());
+        } else {
+            node = connectTo(entryStmt, "default");
+        }
+        switchEntriesStack.peek().add(node);
+        // Case body (case EXPR --> body)
+        entryStmt.getStatements().accept(this, arg);
+        // body --> next
     }
 
     @Override
     public void visit(SwitchStmt switchStmt, Void arg) {
-        GraphNode switchNode = addNodeAndArcs(
-                String.format("switch (%s)", switchStmt.getSelector()),
-                switchStmt
-        );
-
-        lastParentNodes.add(switchNode);
-
-        List<GraphNode> allEntryBreaks = new ArrayList<>();
-
-        List<GraphNode> lastEntryStatementsWithNoBreak = new ArrayList<>();
-
-        switchStmt.getEntries().forEach(switchEntryStmt -> {
-            String label = switchEntryStmt.getLabel()
-                    .map(expression -> "case " + expression)
-                    .orElse("default");
-
-            GraphNode switchEntryNode = addNodeAndArcs(label, switchEntryStmt);
-
-            lastParentNodes.add(switchEntryNode);
-            lastParentNodes.addAll(lastEntryStatementsWithNoBreak);
-            lastEntryStatementsWithNoBreak.clear();
-
-            switchEntryStmt.getStatements().accept(this, null);
-
-            if (!bodyBreaks.isEmpty()) { // means it has break
-                allEntryBreaks.addAll(bodyBreaks); // save breaks of entry
-
-                lastParentNodes.clear();
-                lastParentNodes.add(switchEntryNode); // Set switch as the only parent
-
-                bodyBreaks.clear(); // Clear breaks
-            } else {
-                lastEntryStatementsWithNoBreak.addAll(lastParentNodes);
-                lastParentNodes.clear();
-                lastParentNodes.add(switchEntryNode);
-            }
-        });
-
-        lastParentNodes.addAll(allEntryBreaks);
+        // Link previous statement to the switch's selector
+        switchEntriesStack.push(new LinkedList<>());
+        breakStack.push(new LinkedList<>());
+        GraphNode<?> cond = connectTo(switchStmt, String.format("switch (%s)", switchStmt.getSelector()));
+        // expr --> each case (fallthrough by default, so case --> case too)
+        for (SwitchEntryStmt entry : switchStmt.getEntries()) {
+            entry.accept(this, arg); // expr && prev case --> case --> next case
+            hangingNodes.add(cond); // expr --> next case
+        }
+        // The next statement will be linked to:
+        //		1. All break statements that broke from the switch (done with break section)
+        // 		2. If the switch doesn't have a default statement, the switch's selector (already present)
+        // 		3. If the last entry doesn't break, to the last statement (present already)
+        // If the last case is a default case, remove the selector node from the list of nodes (see 2)
+        if (ASTUtils.switchHasDefaultCase(switchStmt))
+            hangingNodes.remove(cond);
+        switchEntriesStack.pop();
+        // End block and break section
+        hangingNodes.addAll(breakStack.pop());
     }
 
     @Override
     public void visit(BreakStmt breakStmt, Void arg) {
-        bodyBreaks.addAll(lastParentNodes);
+        GraphNode<BreakStmt> node = connectTo(breakStmt);
+        if (breakStmt.getLabel().isPresent())
+            breakMap.get(breakStmt.getLabel().get()).add(node);
+        else
+            breakStack.peek().add(node);
+        hangingNodes.clear();
     }
 
     @Override
     public void visit(ContinueStmt continueStmt, Void arg) {
-        Statement continuableStatement = ASTUtils.findFirstAncestorStatementFrom(continueStmt, ASTUtils::isLoop);
-
-        GraphNode continuableNode = graph.findNodeByASTNode(continuableStatement).get();
-
-        lastParentNodes.forEach(parentNode -> graph.addControlFlowEdge(parentNode, continuableNode));
+        GraphNode<ContinueStmt> node = connectTo(continueStmt);
+        if (continueStmt.getLabel().isPresent())
+            continueMap.get(continueStmt.getLabel().get()).add(node);
+        else
+            continueStack.peek().add(node);
+        hangingNodes.clear();
     }
 
     @Override
     public void visit(ReturnStmt returnStmt, Void arg) {
-        GraphNode node = addNodeAndArcs(
-                returnStmt.toString(),
-                returnStmt
-        );
-
-        lastParentNodes.add(node);
+        GraphNode<ReturnStmt> node = connectTo(returnStmt);
+        returnList.add(node);
+        hangingNodes.clear();
     }
 
     @Override
     public void visit(MethodDeclaration methodDeclaration, Void arg) {
-        if (!lastParentNodes.isEmpty() && Objects.equals(lastParentNodes.peek().getData(), "Stop")) {
+        if (begunMethod)
             throw new IllegalStateException("CFG is only allowed for one method, not multiple!");
-        }
+        begunMethod = true;
 
+        hangingNodes.add(graph.getRootNode());
         super.visit(methodDeclaration, arg);
-
-        lastParentNodes.add(addNodeAndArcs("Stop", new EmptyStmt()));
+        returnList.stream().filter(node -> !hangingNodes.contains(node)).forEach(hangingNodes::add);
+        connectTo(new EmptyStmt(), "Exit");
     }
-
-    private GraphNode addNodeAndArcs(String nodeData, Statement statement) {
-        GraphNode node = graph.addNode(nodeData, statement);
-
-        GraphNode parent = lastParentNodes.poll(); // ALWAYS exists a parent
-        graph.addControlFlowEdge(parent, node);
-
-        while (!lastParentNodes.isEmpty()) {
-            parent = lastParentNodes.poll();
-            graph.addControlFlowEdge(parent, node);
-        }
-
-        return node;
-    }
-
-
 }
