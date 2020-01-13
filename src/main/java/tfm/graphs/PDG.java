@@ -8,6 +8,7 @@ import tfm.arcs.Arc;
 import tfm.arcs.data.ArcData;
 import tfm.arcs.pdg.ControlDependencyArc;
 import tfm.arcs.pdg.DataDependencyArc;
+import tfm.graphs.CFG.ACFG;
 import tfm.nodes.GraphNode;
 import tfm.slicing.SlicingCriterion;
 import tfm.utils.ASTUtils;
@@ -24,20 +25,20 @@ import java.util.stream.Collectors;
  * a graph, connecting statements according to their {@link ControlDependencyArc control}
  * and {@link DataDependencyArc data} relationships. You can build one manually or use
  * the {@link tfm.visitors.pdg.PDGBuilder PDGBuilder}.
- * @see tfm.exec.Config Config (for the available variations of the PDG)
+ * The variations of the PDG are represented as child types.
  */
-public class PDGGraph extends Graph {
+public class PDG extends Graph {
     public static boolean isRanked = false, isSorted = false;
 
-    private CFGGraph cfgGraph;
+    private CFG cfg;
 
-    public PDGGraph() {
+    public PDG() {
         setRootVertex(new GraphNode<>(getNextVertexId(), getRootNodeData(), new MethodDeclaration()));
     }
 
-    public PDGGraph(CFGGraph cfgGraph) {
+    public PDG(CFG cfg) {
         this();
-        this.cfgGraph = cfgGraph;
+        this.cfg = cfg;
     }
 
     protected String getRootNodeData() {
@@ -110,8 +111,8 @@ public class PDGGraph extends Graph {
         return 1 + getLevelOf(parent);
     }
 
-    public void setCfgGraph(CFGGraph cfgGraph) {
-        this.cfgGraph = cfgGraph;
+    public void setCfg(CFG cfg) {
+        this.cfg = cfg;
     }
 
     @Override
@@ -192,7 +193,57 @@ public class PDGGraph extends Graph {
         }
     }
 
-    public CFGGraph getCfgGraph() {
-        return cfgGraph;
+    public CFG getCfg() {
+        return cfg;
+    }
+
+    public static class APDG extends PDG {
+        public APDG() {
+            super();
+        }
+
+        public APDG(ACFG acfg) {
+            super(acfg);
+        }
+    }
+
+    public static class PPDG extends APDG {
+        public PPDG() {
+            super();
+        }
+
+        public PPDG(ACFG acfg) {
+            super(acfg);
+        }
+
+        @Override
+        protected void getSliceNodes(Set<Integer> visited, GraphNode<?> node) {
+            visited.add(node.getId());
+
+            for (Arc<ArcData> arc : node.getIncomingArcs()) {
+                GraphNode<?> from = arc.getFromNode();
+
+                if (visited.contains(from.getId()))
+                    continue;
+
+                getSliceNodesPPDG(visited, from);
+            }
+        }
+
+        protected void getSliceNodesPPDG(Set<Integer> visited, GraphNode<?> node) {
+            visited.add(node.getId());
+
+            if (ASTUtils.isPseudoPredicate(node.getAstNode()))
+                return;
+
+            for (Arc<ArcData> arc : node.getIncomingArcs()) {
+                GraphNode<?> from = arc.getFromNode();
+
+                if (visited.contains(from.getId()))
+                    continue;
+
+                getSliceNodesPPDG(visited, from);
+            }
+        }
     }
 }

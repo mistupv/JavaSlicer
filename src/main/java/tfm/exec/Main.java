@@ -60,7 +60,7 @@ public class Main {
                 graphLog = new CFGLog();
                 break;
             case GraphLog.PDG:
-                graphLog = new PDGLog();
+                graphLog = new PDGLog(PDGLog.PDG);
                 break;
             case GraphLog.SDG:
                 graphLog = new SDGLog();

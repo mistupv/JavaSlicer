@@ -2,9 +2,9 @@ package tfm.visitors.pdg;
 
 import tfm.arcs.Arc;
 import tfm.arcs.data.ArcData;
-import tfm.exec.Config;
-import tfm.graphs.CFGGraph;
-import tfm.graphs.PDGGraph;
+import tfm.graphs.CFG;
+import tfm.graphs.PDG;
+import tfm.graphs.PDG.PPDG;
 import tfm.nodes.GraphNode;
 
 import java.util.*;
@@ -23,14 +23,14 @@ import java.util.stream.Collectors;
  * from <i>a</i> to the "Exit" node.
  * <br/>
  * There exist better, cheaper approaches that have linear complexity w.r.t. the number of edges in the CFG.
- * <b>Usage:</b> pass an empty {@link PDGGraph} and a filled {@link CFGGraph} and then run {@link #analyze()}.
+ * <b>Usage:</b> pass an empty {@link PDG} and a filled {@link CFG} and then run {@link #analyze()}.
  * This builder should only be used once, and then discarded.
  */
 public class ControlDependencyBuilder {
-    private final PDGGraph pdg;
-    private final CFGGraph cfg;
+    private final PDG pdg;
+    private final CFG cfg;
 
-    public ControlDependencyBuilder(PDGGraph pdg, CFGGraph cfg) {
+    public ControlDependencyBuilder(PDG pdg, CFG cfg) {
         this.pdg = pdg;
         this.cfg = cfg;
     }
@@ -70,7 +70,7 @@ public class ControlDependencyBuilder {
         pdg.addVertex(clone);
     }
 
-    public static boolean hasControlDependence(GraphNode<?> a, GraphNode<?> b) {
+    public boolean hasControlDependence(GraphNode<?> a, GraphNode<?> b) {
         int yes = 0;
         List<Arc<ArcData>> list = a.getOutgoingArcs();
         // Nodes with less than 1 outgoing arc cannot control another node.
@@ -85,17 +85,17 @@ public class ControlDependencyBuilder {
         return yes > 0 && no > 0;
     }
 
-    public static boolean postdominates(GraphNode<?> a, GraphNode<?> b) {
+    public boolean postdominates(GraphNode<?> a, GraphNode<?> b) {
         return postdominates(a, b, new HashSet<>());
     }
 
-    private static boolean postdominates(GraphNode<?> a, GraphNode<?> b, Set<GraphNode<?>> visited) {
+    private boolean postdominates(GraphNode<?> a, GraphNode<?> b, Set<GraphNode<?>> visited) {
         // Stop w/ success if a == b or a has already been visited
         if (a.equals(b) || visited.contains(a))
             return true;
         List<Arc<ArcData>> outgoing = a.getOutgoingArcs();
         // Limit the traversal if it is a PPDG
-        if (Config.PDG_TYPE == Config.PPDG)
+        if (pdg instanceof PPDG)
             outgoing = outgoing.stream().filter(Arc::isExecutableControlFlowArrow).collect(Collectors.toList());
         // Stop w/ failure if there are no edges to traverse from a
         if (outgoing.size() == 0)

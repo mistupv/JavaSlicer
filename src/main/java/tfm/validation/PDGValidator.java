@@ -12,7 +12,7 @@ import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.type.ArrayType;
 import com.github.javaparser.ast.type.VoidType;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import tfm.graphs.PDGGraph;
+import tfm.graphs.PDG;
 import tfm.nodes.GraphNode;
 import tfm.utils.Logger;
 import tfm.utils.Utils;
@@ -63,20 +63,20 @@ public class PDGValidator {
     }
 
     public static boolean generateAndCheck(MethodDeclaration methodDeclaration) {
-        PDGGraph graph = new PDGGraph();
+        PDG graph = new PDG();
 
         methodDeclaration.accept(new PDGBuilder(graph), graph.getRootNode());
 
         return check(methodDeclaration, graph);
     }
 
-    public static boolean check(MethodDeclaration methodDeclaration, PDGGraph graph) {
+    public static boolean check(MethodDeclaration methodDeclaration, PDG graph) {
         MethodDeclaration generatedMethod = generateMethod(methodDeclaration, graph);
 
         return ProgramComparator.areEqual(methodDeclaration, generatedMethod);
     }
 
-    public static MethodDeclaration generateMethod(MethodDeclaration info, PDGGraph graph) {
+    public static MethodDeclaration generateMethod(MethodDeclaration info, PDG graph) {
         MethodDeclaration methodDeclaration = new MethodDeclaration();
 
         methodDeclaration.setName(info.getNameAsString());
@@ -94,7 +94,7 @@ public class PDGValidator {
         return methodDeclaration;
     }
 
-    public static void printPDGProgram(String fileName, PDGGraph graph) throws FileNotFoundException {
+    public static void printPDGProgram(String fileName, PDG graph) throws FileNotFoundException {
         CompilationUnit generatedProgram = new CompilationUnit();
         ClassOrInterfaceDeclaration clazz = generatedProgram.addClass(fileName).setPublic(true);
 

@@ -9,7 +9,7 @@ import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import tfm.graphs.PDGGraph;
+import tfm.graphs.PDG;
 import tfm.nodes.GraphNode;
 import tfm.utils.Context;
 import tfm.utils.Logger;
@@ -21,10 +21,10 @@ import java.util.stream.Collectors;
 
 public class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
-    private PDGGraph pdgGraph;
+    private PDG pdg;
 
-    public MethodCallReplacerVisitor(PDGGraph pdgGraph) {
-        this.pdgGraph = pdgGraph;
+    public MethodCallReplacerVisitor(PDG pdg) {
+        this.pdg = pdg;
     }
 
     @Override
@@ -57,7 +57,7 @@ public class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
         if (!Objects.equals(scopeName, currentClass.getNameAsString())) {
 
             // Check if 'scopeName' is a variable
-            List<GraphNode<?>> declarations = pdgGraph.findDeclarationsOfVariable(scopeName);
+            List<GraphNode<?>> declarations = pdg.findDeclarationsOfVariable(scopeName);
 
             if (declarations.isEmpty()) {
                 // It is a static method call of another class. We do nothing

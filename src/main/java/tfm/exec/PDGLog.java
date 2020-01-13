@@ -1,7 +1,9 @@
 package tfm.exec;
 
 import guru.nidi.graphviz.engine.Format;
-import tfm.graphs.PDGGraph;
+import tfm.graphs.PDG;
+import tfm.graphs.PDG.APDG;
+import tfm.graphs.PDG.PPDG;
 import tfm.nodes.GraphNode;
 import tfm.utils.Logger;
 import tfm.visitors.pdg.PDGBuilder;
@@ -10,30 +12,45 @@ import java.io.IOException;
 import java.util.Comparator;
 import java.util.stream.Collectors;
 
-public class PDGLog extends GraphLog<PDGGraph> {
+public class PDGLog extends GraphLog<PDG> {
+    public static final int PDG = 0, APDG = 1, PPDG = 2;
 
     private CFGLog cfgLog;
+    private int type;
 
-    public PDGLog() {
+    public PDGLog(int type) {
         this(null);
+        this.type = type;
     }
 
-    public PDGLog(PDGGraph pdgGraph) {
-        super(pdgGraph);
+    public PDGLog(PDG pdg) {
+        super(pdg);
 
-        if (graph != null && graph.getCfgGraph() != null)
-            cfgLog = new CFGLog(graph.getCfgGraph());
+        if (graph != null && graph.getCfg() != null)
+            cfgLog = new CFGLog(graph.getCfg());
         else cfgLog = null;
     }
 
     @Override
     public void visit(com.github.javaparser.ast.Node node) {
-        this.graph = new PDGGraph();
+        switch (type) {
+            case PDG:
+                this.graph = new PDG();
+                break;
+            case APDG:
+                this.graph = new APDG();
+                break;
+            case PPDG:
+                this.graph = new PPDG();
+                break;
+            default:
+                throw new RuntimeException("Invalid type of PDG");
+        }
 
         node.accept(new PDGBuilder(graph), this.graph.getRootNode());
 
         if (cfgLog == null) {
-            cfgLog = new CFGLog(graph.getCfgGraph());
+            cfgLog = new CFGLog(graph.getCfg());
         }
     }
 

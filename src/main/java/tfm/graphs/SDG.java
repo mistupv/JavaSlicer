@@ -11,11 +11,11 @@ import tfm.utils.Context;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class SDGGraph extends Graph {
+public class SDG extends Graph {
 
-    private Map<Context, PDGGraph> contextPDGGraphMap;
+    private Map<Context, PDG> contextPDGGraphMap;
 
-    public SDGGraph() {
+    public SDG() {
         this.contextPDGGraphMap = new HashMap<>();
     }
 
@@ -30,7 +30,7 @@ public class SDGGraph extends Graph {
     @Override
     public String toGraphvizRepresentation() {
         return contextPDGGraphMap.values().stream()
-                .map(PDGGraph::toGraphvizRepresentation).collect(Collectors.joining("\n"));
+                .map(PDG::toGraphvizRepresentation).collect(Collectors.joining("\n"));
     }
 
     @Override
@@ -38,7 +38,7 @@ public class SDGGraph extends Graph {
         throw new RuntimeException("Slicing not implemented for the SDG");
     }
 
-    public Map<Context, PDGGraph> getContextPDGGraphMap() {
+    public Map<Context, PDG> getContextPDGGraphMap() {
         return contextPDGGraphMap;
     }
 
@@ -53,12 +53,12 @@ public class SDGGraph extends Graph {
                 .collect(Collectors.toSet());
     }
 
-    public Collection<PDGGraph> getPDGs() {
+    public Collection<PDG> getPDGs() {
         return contextPDGGraphMap.values();
     }
 
     @Deprecated
-    public void addPDG(PDGGraph pdgGraph, MethodDeclaration methodDeclaration) {
+    public void addPDG(PDG pdg, MethodDeclaration methodDeclaration) {
         if (this.rootVertex == null) {
             this.setRootVertex(new GraphNode<>(getNextVertexId(), methodDeclaration.getNameAsString(), methodDeclaration));
         }
@@ -73,7 +73,7 @@ public class SDGGraph extends Graph {
             addVertex(sdgNode);
         }
 
-        for (GraphNode<?> node : pdgGraph.getNodes()) {
+        for (GraphNode<?> node : pdg.getNodes()) {
             if (!this.verticies.contains(node)) {
                 GraphNode<?> sdgNode = new GraphNode<>(
                         getNextVertexId(),
@@ -91,7 +91,7 @@ public class SDGGraph extends Graph {
         }
     }
 
-    public void addMethod(MethodDeclaration methodDeclaration, PDGGraph pdgGraph) {
+    public void addMethod(MethodDeclaration methodDeclaration, PDG pdg) {
         GraphNode<MethodDeclaration> methodRootNode = new GraphNode<>(
                 getNextVertexId(),
                 "ENTER " + methodDeclaration.getDeclarationAsString(false, false, true),

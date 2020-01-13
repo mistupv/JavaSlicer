@@ -1,29 +1,22 @@
 package tfm.exec;
 
 import com.github.javaparser.ast.Node;
-import guru.nidi.graphviz.engine.Format;
-import guru.nidi.graphviz.engine.Graphviz;
-import tfm.graphs.CFGGraph;
-import tfm.utils.FileUtil;
+import tfm.graphs.CFG;
 import tfm.visitors.cfg.CFGBuilder;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.Arrays;
-
-public class CFGLog extends GraphLog<CFGGraph> {
+public class CFGLog extends GraphLog<CFG> {
 
     public CFGLog() {
         super();
     }
 
-    public CFGLog(CFGGraph graph) {
+    public CFGLog(CFG graph) {
         super(graph);
     }
 
     @Override
     public void visit(Node node) {
-        this.graph = new CFGGraph();
+        this.graph = new CFG();
         node.accept(new CFGBuilder(graph), null);
     }
 }

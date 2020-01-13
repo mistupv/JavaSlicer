@@ -1,20 +1,17 @@
 package tfm.visitors.sdg;
 
-import com.github.javaparser.ast.body.MethodDeclaration;
-import tfm.graphs.PDGGraph;
-import tfm.graphs.SDGGraph;
-import tfm.utils.Context;
+import tfm.graphs.SDG;
 
 public class MethodCallReplacer {
 
-    private SDGGraph sdgGraph;
+    private SDG sdg;
 
-    public MethodCallReplacer(SDGGraph sdgGraph) {
-        this.sdgGraph = sdgGraph;
+    public MethodCallReplacer(SDG sdg) {
+        this.sdg = sdg;
     }
 
     public void replace() {
-        this.sdgGraph.getContextPDGGraphMap()
+        this.sdg.getContextPDGGraphMap()
                 .forEach((context, pdgGraph) -> {
                     if (!context.getCurrentMethod().isPresent()) {
                         return; // Should NOT happen

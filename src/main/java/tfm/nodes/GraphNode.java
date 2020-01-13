@@ -15,8 +15,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Represents a node in the various graphs ({@link tfm.graphs.CFGGraph CFG},
- * {@link tfm.graphs.PDGGraph PDG} and {@link tfm.graphs.SDGGraph SDG}),
+ * Represents a node in the various graphs ({@link tfm.graphs.CFG CFG},
+ * {@link tfm.graphs.PDG PDG} and {@link tfm.graphs.SDG SDG}),
  * including its AST representation and the connections it has to other nodes
  * in the same graph. It can hold a string of characters that will be used
  * to represent it.

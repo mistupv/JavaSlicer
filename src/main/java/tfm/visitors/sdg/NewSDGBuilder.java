@@ -4,18 +4,17 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import javassist.expr.MethodCall;
 import tfm.graphbuilding.Graphs;
-import tfm.graphs.PDGGraph;
-import tfm.graphs.SDGGraph;
+import tfm.graphs.PDG;
+import tfm.graphs.SDG;
 import tfm.utils.Context;
 
 public class NewSDGBuilder extends VoidVisitorAdapter<Context> {
 
-    SDGGraph sdgGraph;
+    SDG sdg;
 
-    public NewSDGBuilder(SDGGraph sdgGraph) {
-        this.sdgGraph = sdgGraph;
+    public NewSDGBuilder(SDG sdg) {
+        this.sdg = sdg;
     }
 
     @Override
@@ -27,9 +26,9 @@ public class NewSDGBuilder extends VoidVisitorAdapter<Context> {
         context.setCurrentMethod(methodDeclaration);
 
         // Build PDG and add to SDGGraph
-        PDGGraph pdgGraph = Graphs.PDG.fromASTNode(methodDeclaration);
+        PDG pdg = Graphs.PDG.fromASTNode(methodDeclaration);
 
-        sdgGraph.addMethod(methodDeclaration, pdgGraph);
+        sdg.addMethod(methodDeclaration, pdg);
     }
 
     @Override
@@ -52,7 +51,7 @@ public class NewSDGBuilder extends VoidVisitorAdapter<Context> {
 
         // Once every PDG is built, expand method call nodes of each one
         // and link them to the corresponding method declaration node
-        MethodCallReplacer methodCallReplacer = new MethodCallReplacer(sdgGraph);
+        MethodCallReplacer methodCallReplacer = new MethodCallReplacer(sdg);
         methodCallReplacer.replace();
 
 

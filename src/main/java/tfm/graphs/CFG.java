@@ -19,12 +19,12 @@ import java.util.stream.Collectors;
  * The <b>Control Flow Graph</b> represents the statements of a method in
  * a graph, displaying the connections between each statement and the ones that
  * may follow it. You can build one manually or use the {@link tfm.visitors.cfg.CFGBuilder CFGBuilder}.
+ * The variations of the CFG are implemented as child classes.
  * @see ControlFlowArc
- * @see tfm.exec.Config Config (for the available variations of the CFG)
  */
-public class CFGGraph extends Graph {
+public class CFG extends Graph {
 
-    public CFGGraph() {
+    public CFG() {
         super();
         setRootVertex(new GraphNode<>(getNextVertexId(), getRootNodeData(), new EmptyStmt()));
     }
@@ -47,7 +47,7 @@ public class CFGGraph extends Graph {
     }
 
     @SuppressWarnings("unchecked")
-    public void addControlFlowEdge(GraphNode<?> from, GraphNode<?> to, boolean executable) {
+    protected void addControlFlowEdge(GraphNode<?> from, GraphNode<?> to, boolean executable) {
         if (executable)
             super.addEdge((Arrow) new ControlFlowArc(from, to));
         else
@@ -76,8 +76,8 @@ public class CFGGraph extends Graph {
     }
 
     @Override
-    public Graph slice(SlicingCriterion slicingCriterion) {
-        return this;
+    public Set<Integer> slice(SlicingCriterion slicingCriterion) {
+        throw new RuntimeException("Can't slice a CFG!");
     }
 
     public Set<GraphNode<?>> findLastDefinitionsFrom(GraphNode<?> startNode, String variable) {
@@ -112,5 +112,11 @@ public class CFGGraph extends Graph {
         }
 
         return res;
+    }
+
+    public static class ACFG extends CFG {
+        public void addNonExecutableControlFlowEdge(GraphNode<?> from, GraphNode<?> to) {
+            addControlFlowEdge(from, to, false);
+        }
     }
 }

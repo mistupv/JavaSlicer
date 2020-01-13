@@ -5,7 +5,7 @@ import tfm.arcs.data.VoidArcData;
 import tfm.nodes.GraphNode;
 
 /**
- * An edge of the {@link tfm.graphs.CFGGraph}, representing the direct
+ * An edge of the {@link tfm.graphs.CFG}, representing the direct
  * flow of control. It connects two instructions if, when the source
  * is executed, one of the possible next instructions is the destination.
  */
@@ -44,7 +44,7 @@ public class ControlFlowArc extends Arc<VoidArcData> {
     }
 
     /**
-     * Represents a non-executable control flow arc, used within the {@link tfm.exec.Config#ACFG}.
+     * Represents a non-executable control flow arc, used within the {@link tfm.graphs.CFG.ACFG ACFG}.
      * Initially it had the following meaning: connecting a statement with
      * the following one as if the source was a {@code nop} command (no operation).
      * <br/>

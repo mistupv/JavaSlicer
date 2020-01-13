@@ -3,19 +3,19 @@ package tfm.visitors.pdg;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import tfm.graphs.CFGGraph;
-import tfm.graphs.PDGGraph;
+import tfm.graphs.CFG;
+import tfm.graphs.PDG;
 import tfm.nodes.GraphNode;
 import tfm.visitors.cfg.CFGBuilder;
 
 /**
- * Populates a {@link PDGGraph}, given a complete {@link CFGGraph}, an empty {@link PDGGraph} and an AST root node.
+ * Populates a {@link PDG}, given a complete {@link CFG}, an empty {@link PDG} and an AST root node.
  * For now it only accepts {@link MethodDeclaration} as root, as it can only receive a single CFG.
  * <br/>
  * <b>Usage:</b>
  * <ol>
- *     <li>Create an empty {@link CFGGraph}.</li>
- *     <li>Create an empty {@link PDGGraph} (optionally passing the {@link CFGGraph} as argument).</li>
+ *     <li>Create an empty {@link CFG}.</li>
+ *     <li>Create an empty {@link PDG} (optionally passing the {@link CFG} as argument).</li>
  *     <li>Create a new {@link PDGBuilder}, passing both graphs as arguments.</li>
  *     <li>Accept the builder as a visitor of the {@link MethodDeclaration} you want to analyse using
  *     {@link com.github.javaparser.ast.Node#accept(com.github.javaparser.ast.visitor.VoidVisitor, Object) Node#accept(VoidVisitor, Object)}:
@@ -27,11 +27,11 @@ import tfm.visitors.cfg.CFGBuilder;
  */
 public class PDGBuilder extends VoidVisitorAdapter<GraphNode<?>> {
 
-    private PDGGraph pdgGraph;
-    private CFGGraph cfgGraph;
+    private PDG pdg;
+    private CFG cfg;
 
-    public PDGBuilder(PDGGraph pdgGraph) {
-        this(pdgGraph, new CFGGraph() {
+    public PDGBuilder(PDG pdg) {
+        this(pdg, new CFG() {
             @Override
             protected String getRootNodeData() {
                 return "Start";
@@ -39,11 +39,11 @@ public class PDGBuilder extends VoidVisitorAdapter<GraphNode<?>> {
         });
     }
 
-    public PDGBuilder(PDGGraph pdgGraph, CFGGraph cfgGraph) {
-        this.pdgGraph = pdgGraph;
-        this.cfgGraph = cfgGraph;
+    public PDGBuilder(PDG pdg, CFG cfg) {
+        this.pdg = pdg;
+        this.cfg = cfg;
 
-        this.pdgGraph.setCfgGraph(cfgGraph);
+        this.pdg.setCfg(cfg);
     }
 
     public void visit(MethodDeclaration methodDeclaration, GraphNode<?> parent) {
@@ -51,19 +51,19 @@ public class PDGBuilder extends VoidVisitorAdapter<GraphNode<?>> {
             return;
 
         // Assign the method declaration to the root node of the PDG graph
-        this.pdgGraph.getRootNode().setAstNode(methodDeclaration);
+        this.pdg.getRootNode().setAstNode(methodDeclaration);
 
         BlockStmt methodBody = methodDeclaration.getBody().get();
 
         // build CFG
-        methodDeclaration.accept(new CFGBuilder(cfgGraph), null);
+        methodDeclaration.accept(new CFGBuilder(cfg), null);
 
         // Build control dependency
-        ControlDependencyBuilder controlDependencyBuilder = new ControlDependencyBuilder(pdgGraph, cfgGraph);
+        ControlDependencyBuilder controlDependencyBuilder = new ControlDependencyBuilder(pdg, cfg);
         controlDependencyBuilder.analyze();
 
         // Build data dependency
-        DataDependencyBuilder dataDependencyBuilder = new DataDependencyBuilder(pdgGraph, cfgGraph);
+        DataDependencyBuilder dataDependencyBuilder = new DataDependencyBuilder(pdg, cfg);
         methodBody.accept(dataDependencyBuilder, null);
     }
 }

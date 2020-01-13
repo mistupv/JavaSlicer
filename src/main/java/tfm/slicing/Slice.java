@@ -2,16 +2,13 @@ package tfm.slicing;
 
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.CompilationUnit;
-import tfm.exec.PDGLog;
-import tfm.graphs.PDGGraph;
+import tfm.graphs.PDG;
 import tfm.utils.Logger;
 import tfm.utils.Utils;
-import tfm.validation.PDGValidator;
 import tfm.visitors.pdg.PDGBuilder;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Set;
 
 public class Slice {
 
@@ -21,9 +18,9 @@ public class Slice {
     public static void main(String[] args) throws IOException {
         CompilationUnit compilationUnit = JavaParser.parse(new File(PROGRAM_FOLDER + PROGRAM_NAME + ".java"));
 
-        PDGGraph pdgGraph = new PDGGraph();
+        PDG pdg = new PDG();
 
-        compilationUnit.accept(new PDGBuilder(pdgGraph), pdgGraph.getRootNode());
+        compilationUnit.accept(new PDGBuilder(pdg), pdg.getRootNode());
 
         Logger.log("==================");
         Logger.log("= Starting slice =");
