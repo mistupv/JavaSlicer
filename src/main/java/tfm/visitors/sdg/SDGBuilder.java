@@ -26,6 +26,7 @@ import java.util.Optional;
  * Asumimos que procesamos 1 archivo con una o más clases donde el primer método de la primera clase es el main
  *
  */
+@Deprecated
 public class SDGBuilder extends VoidVisitorAdapter<Void> {
 
     SDGGraph sdgGraph;
