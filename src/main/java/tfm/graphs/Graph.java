@@ -133,7 +133,7 @@ public abstract class Graph extends edg.graphlib.Graph<String, ArcData> {
                 .anyMatch(node -> Objects.equals(node, graphNode));
     }
 
-    public abstract Graph slice(SlicingCriterion slicingCriterion);
+    public abstract Set<Integer> slice(SlicingCriterion slicingCriterion);
 
     /**
      * Deprecated for incorrect behaviour. Use removeNode instead

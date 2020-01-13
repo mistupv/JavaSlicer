@@ -11,9 +11,7 @@ import tfm.arcs.pdg.DataDependencyArc;
 import tfm.nodes.GraphNode;
 import tfm.slicing.SlicingCriterion;
 import tfm.utils.ASTUtils;
-import tfm.utils.Logger;
 import tfm.utils.NodeNotFoundException;
-import tfm.visitors.pdg.PDGBuilder;
 
 import java.util.Comparator;
 import java.util.HashSet;
@@ -172,39 +170,19 @@ public class PDGGraph extends Graph {
     }
 
     @Override
-    public PDGGraph slice(SlicingCriterion slicingCriterion) {
-        Optional<GraphNode<?>> optionalGraphNode = slicingCriterion.findNode(this);
-
-        if (!optionalGraphNode.isPresent()) {
+    public Set<Integer> slice(SlicingCriterion slicingCriterion) {
+        Optional<GraphNode<?>> node = slicingCriterion.findNode(this);
+        if (!node.isPresent())
             throw new NodeNotFoundException(slicingCriterion);
-        }
-
-        GraphNode<?> node = optionalGraphNode.get();
-
-        // Simply get slice nodes from GraphNode
-        Set<Integer> sliceNodes = getSliceNodes(new HashSet<>(), node);
-
-        PDGGraph sliceGraph = new PDGGraph();
-
-        Node astCopy = ASTUtils.cloneAST(node.getAstNode());
-
-        astCopy.accept(new PDGBuilder(sliceGraph), sliceGraph.getRootNode());
-
-        for (GraphNode<?> sliceNode : sliceGraph.getNodes()) {
-            if (!sliceNodes.contains(sliceNode.getId())) {
-                Logger.log("Removing node " + sliceNode.getId());
-                sliceNode.getAstNode().removeForced();
-                sliceGraph.removeNode(sliceNode);
-            }
-        }
-
-        return sliceGraph;
+        Set<Integer> visited = new HashSet<>();
+        getSliceNodes(visited, node.get());
+        return visited;
     }
 
-    private Set<Integer> getSliceNodes(Set<Integer> visited, GraphNode<?> root) {
-        visited.add(root.getId());
+    protected void getSliceNodes(Set<Integer> visited, GraphNode<?> node) {
+        visited.add(node.getId());
 
-        for (Arc<ArcData> arc : root.getIncomingArcs()) {
+        for (Arc<ArcData> arc : node.getIncomingArcs()) {
             GraphNode<?> from = arc.getFromNode();
 
             if (visited.contains(from.getId()))
@@ -212,8 +190,6 @@ public class PDGGraph extends Graph {
 
             getSliceNodes(visited, from);
         }
-
-        return visited;
     }
 
     public CFGGraph getCfgGraph() {

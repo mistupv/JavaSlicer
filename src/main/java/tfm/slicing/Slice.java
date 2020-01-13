@@ -11,6 +11,7 @@ import tfm.visitors.pdg.PDGBuilder;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Set;
 
 public class Slice {
 
@@ -28,13 +29,13 @@ public class Slice {
         Logger.log("= Starting slice =");
         Logger.log("==================");
 
-        PDGGraph sliced = pdgGraph.slice(new LineNumberCriterion(18, "x"));
-
-        PDGLog pdgLog = new PDGLog(sliced);
-        pdgLog.log();
-        pdgLog.generateImages(PROGRAM_NAME + "-sliced");
-        pdgLog.openVisualRepresentation();
-
-        PDGValidator.printPDGProgram("Slice" + PROGRAM_NAME, sliced);
+//        PDGGraph sliced = pdgGraph.slice(new LineNumberCriterion(18, "x"));
+//
+//        PDGLog pdgLog = new PDGLog(sliced);
+//        pdgLog.log();
+//        pdgLog.generateImages(PROGRAM_NAME + "-sliced");
+//        pdgLog.openVisualRepresentation();
+//
+//        PDGValidator.printPDGProgram("Slice" + PROGRAM_NAME, sliced);
     }
 }

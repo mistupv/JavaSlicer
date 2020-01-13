@@ -34,8 +34,8 @@ public class SDGGraph extends Graph {
     }
 
     @Override
-    public Graph slice(SlicingCriterion slicingCriterion) {
-        return this;
+    public Set<Integer> slice(SlicingCriterion slicingCriterion) {
+        throw new RuntimeException("Slicing not implemented for the SDG");
     }
 
     public Map<Context, PDGGraph> getContextPDGGraphMap() {

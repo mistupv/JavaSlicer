@@ -68,4 +68,14 @@ public class ASTUtils {
                 return entry;
         return null;
     }
+
+    public static boolean isPseudoPredicate(Node node) {
+        return node instanceof BreakStmt
+                || node instanceof ContinueStmt
+                || node instanceof ReturnStmt
+                || node instanceof ThrowStmt
+                || node instanceof SwitchEntryStmt
+                || node instanceof TryStmt
+                || node instanceof CatchClause;
+    }
 }
