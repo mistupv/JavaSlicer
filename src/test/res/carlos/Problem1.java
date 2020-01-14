@@ -1,4 +1,4 @@
-public class Test {
+public class Problem1 {
     public static void main(String[] args) {
         while (X) {
             if (Y) {

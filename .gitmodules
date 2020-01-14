@@ -1,0 +1,3 @@
+[submodule "src/test/res/java-slicing-benchmarks"]
+	path = src/test/res/java-slicing-benchmarks
+	url = kaz:repos/java-slicing-benchmarks.git

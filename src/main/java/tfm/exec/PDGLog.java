@@ -73,9 +73,19 @@ public class PDGLog extends GraphLog<PDG> {
 
     @Override
     public void generateImages(String imageName, Format format) throws IOException {
-        super.generateImages(imageName + "-pdg", format);
+        super.generateImages(imageName + "-" + getExtra(), format);
         if (cfgLog != null)
             cfgLog.generateImages(imageName + "-cfg", format);
+    }
+
+    private String getExtra() {
+        if (graph instanceof PPDG)
+            return "ppdg";
+        else if (graph instanceof APDG)
+            return "apdg";
+        else if (graph instanceof PDG)
+            return "pdg";
+        throw new RuntimeException("invalid or null graph type");
     }
 
     @Override
