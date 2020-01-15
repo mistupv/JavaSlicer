@@ -12,6 +12,9 @@ import java.util.Collections;
 import java.util.List;
 
 public class FileFinder {
+    private static final String TEST_FILES = "./src/test/res/";
+    private static final String DOT_JAVA = ".java";
+
     public static Collection<Arguments> findFiles(File directory, String suffix) throws FileNotFoundException {
         Collection<Arguments> res = new ArrayList<>();
         File[] files = directory.listFiles();
@@ -27,9 +30,7 @@ public class FileFinder {
     }
 
     public static Arguments[] findAllMethodDeclarations() throws FileNotFoundException {
-        Collection<Arguments> args = findFiles(new File("./src/test/res/"), ".java");
-        args.add(Arguments.of(new File("./src/test/res/invalid/problem1"), "problem1", HandCraftedGraphs.problem1WithGotos()));
-        args.add(Arguments.of(new File("./src/test/res/invalid/problem1continue"), "problem1", HandCraftedGraphs.problem1ContinueWithGotos()));
+        Collection<Arguments> args = findFiles(new File(TEST_FILES), DOT_JAVA);
         return args.toArray(new Arguments[0]);
     }
 

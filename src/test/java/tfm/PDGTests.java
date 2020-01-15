@@ -1,7 +1,9 @@
 package tfm;
 
 import com.github.javaparser.JavaParser;
+import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.stmt.ThrowStmt;
 import com.github.javaparser.ast.stmt.TryStmt;
@@ -9,12 +11,14 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import tfm.exec.GraphLog;
 import tfm.exec.PDGLog;
+import tfm.graphs.CFG;
 import tfm.graphs.CFG.ACFG;
 import tfm.graphs.PDG;
 import tfm.graphs.PDG.APDG;
 import tfm.graphs.PDG.PPDG;
 import tfm.nodes.GraphNode;
 import tfm.slicing.GraphNodeCriterion;
+import tfm.slicing.Slice;
 import tfm.slicing.SlicingCriterion;
 import tfm.utils.Logger;
 import tfm.visitors.cfg.CFGBuilder;
@@ -22,9 +26,11 @@ import tfm.visitors.pdg.ControlDependencyBuilder;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.Set;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.stream.Collectors;
 
 public class PDGTests {
@@ -37,27 +43,27 @@ public class PDGTests {
     @ParameterizedTest(name = "[{index}] {0} ({1})")
     @MethodSource("tfm.FileFinder#findAllMethodDeclarations")
     public void ppdgTest(File file, String methodName, MethodDeclaration root) throws IOException {
-        runPdg(file, root, PDGLog.PPDG);
+        runPdg(file, methodName, root, PDGLog.PPDG);
     }
 
     @ParameterizedTest(name = "[{index}] {0} ({1})")
     @MethodSource("tfm.FileFinder#findAllMethodDeclarations")
     public void apdgTest(File file, String methodName, MethodDeclaration root) throws IOException {
-        runPdg(file, root, PDGLog.APDG);
+        runPdg(file, methodName, root, PDGLog.APDG);
     }
 
     @ParameterizedTest(name = "[{index}] {0} ({1})")
     @MethodSource("tfm.FileFinder#findAllMethodDeclarations")
     public void pdgTest(File file, String methodName, MethodDeclaration root) throws IOException {
-        runPdg(file, root, PDGLog.PDG);
+        runPdg(file, methodName, root, PDGLog.PDG);
     }
 
-    private void runPdg(File file, Node root, int type) throws IOException {
+    private void runPdg(File file, String methodName, Node root, int type) throws IOException {
         GraphLog<?> graphLog = new PDGLog(type);
         graphLog.visit(root);
         graphLog.log();
         try {
-            graphLog.generateImages(file.getPath());
+            graphLog.generateImages(file.getPath() + "-" + methodName);
         } catch (Exception e) {
             System.err.println("Could not generate PNG");
             System.err.println(e.getMessage());
@@ -73,6 +79,13 @@ public class PDGTests {
             System.err.println("Contains unsupported instructions");
         }
 
+        // Create PDG
+        CFG cfg = new CFG();
+        root.accept(new CFGBuilder(cfg), null);
+        PDG pdg = new PDG(cfg);
+        ctrlDepBuilder = new ControlDependencyBuilder(pdg, cfg);
+        ctrlDepBuilder.analyze();
+
         // Create APDG
         ACFG acfg = new ACFG();
         root.accept(new CFGBuilder(acfg), null);
@@ -85,9 +98,27 @@ public class PDGTests {
         ctrlDepBuilder = new ControlDependencyBuilder(ppdg, acfg);
         ctrlDepBuilder.analyze();
 
+        // Print graphs (commented to decrease the test's time)
+        String filePathNoExt = file.getPath().substring(0, file.getPath().lastIndexOf('.'));
+//        String name = filePathNoExt + "/" + methodName;
+//        new PDGLog(pdg).generateImages(name);
+//        new PDGLog(apdg).generateImages(name);
+//        new PDGLog(ppdg).generateImages(name);
+
         // Compare
-        Logger.log("COMPARE APDG and PPDG");
-        compareGraphs(apdg, ppdg);
+        List<MethodDeclaration> slicedMethods = compareGraphs(pdg, apdg, ppdg);
+
+        // Write sliced methods to a java file.
+        ClassOrInterfaceDeclaration clazz = new ClassOrInterfaceDeclaration();
+        slicedMethods.forEach(clazz::addMember);
+        clazz.setName(methodName);
+        clazz.setModifier(Modifier.Keyword.PUBLIC, true);
+        try (PrintWriter pw = new PrintWriter(new File("./out/" + filePathNoExt + "/" + methodName + ".java"))) {
+            pw.println(clazz);
+        } catch (Exception e) {
+            Logger.log("Error! Could not write classes to file");
+        }
+
         assert !error;
     }
 
@@ -98,34 +129,59 @@ public class PDGTests {
 
 
     /** Slices both graphs on every possible node and compares the result */
-    public void compareGraphs(PDG pdg1, PDG pdg2) {
-        for (GraphNode<?> node : pdg1.getNodes().stream()
+    public List<MethodDeclaration> compareGraphs(PDG... pdgs) {
+        List<MethodDeclaration> slicedMethods = new LinkedList<>();
+        assert pdgs.length > 0;
+        for (GraphNode<?> node : pdgs[0].getNodes().stream()
                 .sorted(Comparator.comparingInt(GraphNode::getId))
                 .collect(Collectors.toList())) {
+            // Skip start of graph
             if (node.getAstNode() instanceof MethodDeclaration)
                 continue;
+
+            // Perform slices
             SlicingCriterion sc = new GraphNodeCriterion(node, "x");
-            Set<Integer> slice1 = pdg1.slice(sc);
-            Set<Integer> slice2 = pdg2.slice(sc);
-            Logger.log("Slicing on " + node.getId());
-            boolean ok = slice1.equals(slice2);
-            if (!ok) {
-                Logger.log("FAILED!");
-                error = true;
+            Slice[] slices = Arrays.stream(pdgs).map(p -> p.slice(sc)).toArray(Slice[]::new);
+
+            // Compare slices
+            boolean ok = true;
+            Slice referenceSlice = slices[0];
+            for (Slice slice : slices) {
+                ok = referenceSlice.equals(slice);
+                error |= !ok;
+                if (!ok) break;
             }
-            printSlices(pdg1, slice1, slice2);
+
+            // Display slice
+            Logger.log("Slicing on " + node.getId());
+            if (!ok)
+                Logger.log("FAILED!");
+            printSlices(pdgs[0], slices);
+
+            // Save slices as MethodDeclaration
+            int i = 0;
+            for (Slice s : slices) {
+                i++;
+                try {
+                    MethodDeclaration m = ((MethodDeclaration) s.getAst());
+                    m.setName(m.getName() + "_slice" + node.getId() + "_pdg" + i);
+                    slicedMethods.add(m);
+                } catch (RuntimeException e) {
+                    Logger.log("Error: " + e.getMessage());
+                }
+            }
         }
+        return slicedMethods;
     }
 
-    @SafeVarargs
-    public final void printSlices(PDG pdg, Set<Integer>... slices) {
+    public final void printSlices(PDG pdg, Slice... slices) {
         pdg.getNodes().stream()
                 .sorted(Comparator.comparingInt(GraphNode::getId))
                 .forEach(n -> Logger.format("%3d: %s %s",
                         n.getId(),
                         Arrays.stream(slices)
-                                .map(s -> s.contains(n.getId()) ? "x" : " ")
-                                .reduce((a, b) -> a + " " + b),
+                                .map(s -> s.contains(n) ? "x" : " ")
+                                .reduce((a, b) -> a + " " + b).orElse("--error--"),
                         n.getData()));
     }
 }
