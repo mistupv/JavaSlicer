@@ -5,13 +5,15 @@ import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.stmt.EmptyStmt;
 import tfm.nodes.GraphNode;
+import tfm.slicing.Slice;
+import tfm.slicing.Sliceable;
 import tfm.slicing.SlicingCriterion;
 import tfm.utils.Context;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class SDG extends Graph {
+public class SDG extends Graph implements Sliceable {
 
     private Map<Context, PDG> contextPDGGraphMap;
 
@@ -34,7 +36,7 @@ public class SDG extends Graph {
     }
 
     @Override
-    public Set<Integer> slice(SlicingCriterion slicingCriterion) {
+    public Slice slice(SlicingCriterion slicingCriterion) {
         throw new RuntimeException("Slicing not implemented for the SDG");
     }
 

@@ -1,38 +1,65 @@
 package tfm.slicing;
 
-import com.github.javaparser.JavaParser;
-import com.github.javaparser.ast.CompilationUnit;
-import tfm.graphs.PDG;
-import tfm.utils.Logger;
-import tfm.utils.Utils;
-import tfm.visitors.pdg.PDGBuilder;
+import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.visitor.CloneVisitor;
+import com.github.javaparser.ast.visitor.Visitable;
+import tfm.nodes.GraphNode;
 
-import java.io.File;
-import java.io.IOException;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class Slice {
+    private final Map<Integer, GraphNode<?>> map = new HashMap<>();
+    private final Set<Node> nodes = new HashSet<>();
 
-    public static final String PROGRAM_FOLDER = Utils.PROGRAMS_FOLDER + "pdg/";
-    public static final String PROGRAM_NAME = "Example2";
+    public Slice() {}
 
-    public static void main(String[] args) throws IOException {
-        CompilationUnit compilationUnit = JavaParser.parse(new File(PROGRAM_FOLDER + PROGRAM_NAME + ".java"));
+    public void add(GraphNode<?> node) {
+        assert !map.containsKey(node.getId());
+        map.put(node.getId(), node);
+        nodes.add(node.getAstNode());
+    }
 
-        PDG pdg = new PDG();
+    public boolean contains(GraphNode<?> node) {
+        return map.containsKey(node.getId());
+    }
 
-        compilationUnit.accept(new PDGBuilder(pdg), pdg.getRootNode());
+    public boolean contains(Node node) {
+        return nodes.contains(node);
+    }
 
-        Logger.log("==================");
-        Logger.log("= Starting slice =");
-        Logger.log("==================");
+    @Override
+    public int hashCode() {
+        return map.hashCode();
+    }
 
-//        PDGGraph sliced = pdgGraph.slice(new LineNumberCriterion(18, "x"));
-//
-//        PDGLog pdgLog = new PDGLog(sliced);
-//        pdgLog.log();
-//        pdgLog.generateImages(PROGRAM_NAME + "-sliced");
-//        pdgLog.openVisualRepresentation();
-//
-//        PDGValidator.printPDGProgram("Slice" + PROGRAM_NAME, sliced);
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof Slice && map.equals(((Slice) obj).map);
+    }
+
+    public Node getAst() {
+        List<GraphNode<?>> methods = map.values().stream().filter(e -> e.getAstNode() instanceof MethodDeclaration).collect(Collectors.toList());
+        if (methods.size() == 1) {
+            Optional<Integer> secondNode = map.keySet().stream()
+                    .sorted(Integer::compareTo).skip(1).findFirst();
+            assert secondNode.isPresent();
+            Node n = map.get(secondNode.get()).getAstNode();
+            assert !(n instanceof MethodDeclaration);
+            while (!(n instanceof MethodDeclaration) && n.getParentNode().isPresent())
+                n = n.getParentNode().get();
+            assert n instanceof MethodDeclaration;
+            return getMethodAst(n);
+        } else if (methods.size() > 1)
+            throw new RuntimeException("Not implemented");
+        throw new RuntimeException("No method found in the slice");
+    }
+
+    private MethodDeclaration getMethodAst(Node node) {
+        Visitable clone = node.accept(new CloneVisitor(), null);
+        assert clone instanceof MethodDeclaration;
+        clone.accept(new SliceAstVisitor(), this);
+        return ((MethodDeclaration) clone);
     }
 }

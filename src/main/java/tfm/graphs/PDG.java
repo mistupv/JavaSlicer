@@ -10,12 +10,13 @@ import tfm.arcs.pdg.ControlDependencyArc;
 import tfm.arcs.pdg.DataDependencyArc;
 import tfm.graphs.CFG.ACFG;
 import tfm.nodes.GraphNode;
+import tfm.slicing.Slice;
+import tfm.slicing.Sliceable;
 import tfm.slicing.SlicingCriterion;
 import tfm.utils.ASTUtils;
 import tfm.utils.NodeNotFoundException;
 
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -27,7 +28,7 @@ import java.util.stream.Collectors;
  * the {@link tfm.visitors.pdg.PDGBuilder PDGBuilder}.
  * The variations of the PDG are represented as child types.
  */
-public class PDG extends Graph {
+public class PDG extends Graph implements Sliceable {
     public static boolean isRanked = false, isSorted = false;
 
     private CFG cfg;
@@ -171,25 +172,25 @@ public class PDG extends Graph {
     }
 
     @Override
-    public Set<Integer> slice(SlicingCriterion slicingCriterion) {
+    public Slice slice(SlicingCriterion slicingCriterion) {
         Optional<GraphNode<?>> node = slicingCriterion.findNode(this);
         if (!node.isPresent())
             throw new NodeNotFoundException(slicingCriterion);
-        Set<Integer> visited = new HashSet<>();
-        getSliceNodes(visited, node.get());
-        return visited;
+        Slice slice = new Slice();
+        getSliceNodes(slice, node.get());
+        return slice;
     }
 
-    protected void getSliceNodes(Set<Integer> visited, GraphNode<?> node) {
-        visited.add(node.getId());
+    protected void getSliceNodes(Slice slice, GraphNode<?> node) {
+        slice.add(node);
 
         for (Arc<ArcData> arc : node.getIncomingArcs()) {
             GraphNode<?> from = arc.getFromNode();
 
-            if (visited.contains(from.getId()))
+            if (slice.contains(from))
                 continue;
 
-            getSliceNodes(visited, from);
+            getSliceNodes(slice, from);
         }
     }
 
@@ -217,21 +218,21 @@ public class PDG extends Graph {
         }
 
         @Override
-        protected void getSliceNodes(Set<Integer> visited, GraphNode<?> node) {
-            visited.add(node.getId());
+        protected void getSliceNodes(Slice slice, GraphNode<?> node) {
+            slice.add(node);
 
             for (Arc<ArcData> arc : node.getIncomingArcs()) {
                 GraphNode<?> from = arc.getFromNode();
 
-                if (visited.contains(from.getId()))
+                if (slice.contains(from))
                     continue;
 
-                getSliceNodesPPDG(visited, from);
+                getSliceNodesPPDG(slice, from);
             }
         }
 
-        protected void getSliceNodesPPDG(Set<Integer> visited, GraphNode<?> node) {
-            visited.add(node.getId());
+        protected void getSliceNodesPPDG(Slice slice, GraphNode<?> node) {
+            slice.add(node);
 
             if (ASTUtils.isPseudoPredicate(node.getAstNode()))
                 return;
@@ -239,10 +240,10 @@ public class PDG extends Graph {
             for (Arc<ArcData> arc : node.getIncomingArcs()) {
                 GraphNode<?> from = arc.getFromNode();
 
-                if (visited.contains(from.getId()))
+                if (slice.contains(from))
                     continue;
 
-                getSliceNodesPPDG(visited, from);
+                getSliceNodesPPDG(slice, from);
             }
         }
     }

@@ -178,7 +178,7 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         continueStack.push(new LinkedList<>());
 
         // Initialization
-        forStmt.getInitialization().forEach(expression -> new ExpressionStmt(expression).accept(this, arg));
+        forStmt.getInitialization().forEach(this::connectTo);
 
         // Condition
         Expression condition = forStmt.getCompare().orElse(new BooleanLiteralExpr(true));
@@ -186,7 +186,7 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
 
         // Body and update expressions
         forStmt.getBody().accept(this, arg);
-        forStmt.getUpdate().forEach(e -> new ExpressionStmt(e).accept(this, arg));
+        forStmt.getUpdate().forEach(this::connectTo);
 
         // Condition if body contained anything
         hangingNodes.addAll(continueStack.pop());

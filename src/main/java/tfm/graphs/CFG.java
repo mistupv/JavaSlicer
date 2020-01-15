@@ -75,11 +75,6 @@ public class CFG extends Graph {
                 "}";
     }
 
-    @Override
-    public Set<Integer> slice(SlicingCriterion slicingCriterion) {
-        throw new RuntimeException("Can't slice a CFG!");
-    }
-
     public Set<GraphNode<?>> findLastDefinitionsFrom(GraphNode<?> startNode, String variable) {
         if (!this.contains(startNode)) {
             throw new NodeNotFoundException(startNode, this);
