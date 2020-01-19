@@ -1,6 +1,5 @@
 package tfm.exec;
 
-import guru.nidi.graphviz.engine.Format;
 import tfm.graphs.PDGGraph;
 import tfm.nodes.GraphNode;
 import tfm.utils.Logger;
