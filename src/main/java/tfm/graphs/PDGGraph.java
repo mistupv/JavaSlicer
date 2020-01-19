@@ -2,7 +2,6 @@ package tfm.graphs;
 
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.stmt.EmptyStmt;
 import edg.graphlib.Arrow;
 import org.jetbrains.annotations.NotNull;
 import tfm.arcs.Arc;
@@ -15,10 +14,7 @@ import tfm.utils.Logger;
 import tfm.utils.NodeNotFoundException;
 import tfm.visitors.pdg.PDGBuilder;
 
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class PDGGraph extends Graph {
@@ -26,64 +22,40 @@ public class PDGGraph extends Graph {
     private CFGGraph cfgGraph;
 
     public PDGGraph() {
-        setRootVertex(new GraphNode<>(getNextVertexId(), getRootNodeData(), new MethodDeclaration()));
+        super();
     }
 
     public PDGGraph(CFGGraph cfgGraph) {
-        this();
+        super();
         this.cfgGraph = cfgGraph;
     }
 
-    protected String getRootNodeData() {
-        return "Entry";
+    public GraphNode<?> getRootNode() {
+        Iterator<GraphNode<?>> iterator = this.getNodesAtLevel(0).iterator();
+
+        if (iterator.hasNext()) {
+            return iterator.next();
+        }
+
+        return null;
     }
 
-    public GraphNode addNode(GraphNode<?> node) {
-        GraphNode<?> vertex = new GraphNode<>(node);
-        super.addVertex(vertex);
-
-        return vertex;
+    public void addControlDependencyArc(GraphNode<?> from, GraphNode<?> to) {
+        this.addEdge(from, to);
     }
 
-    @Override
-    public <ASTNode extends Node> GraphNode<ASTNode> addNode(String instruction, ASTNode node) {
-        return addNode(getNextVertexId(), instruction, node);
+    public void addDataDependencyArc(GraphNode<?> from, GraphNode<?> to, String variable) {
+        this.addEdge(from, to, new DataDependencyArc(variable));
     }
 
-    public <ASTNode extends Node> GraphNode<ASTNode> addNode(int id, String instruction, ASTNode node) {
-        GraphNode<ASTNode> vertex = new GraphNode<>(id, instruction, node);
-        super.addVertex(vertex);
-
-        return vertex;
-    }
-
-    @SuppressWarnings("unchecked")
-    private void addArc(Arc arc) {
-        super.addEdge(arc);
-    }
-
-    public void addControlDependencyArc(GraphNode from, GraphNode to) {
-        ControlDependencyArc controlDependencyArc = new ControlDependencyArc(from, to);
-
-        this.addArc(controlDependencyArc);
-    }
-
-    public void addDataDependencyArc(GraphNode from, GraphNode to, String variable) {
-        DataDependencyArc dataDataDependencyArc = new DataDependencyArc(from, to, variable);
-
-        this.addArc(dataDataDependencyArc);
-    }
-
-    public Set<GraphNode> getNodesAtLevel(int level) {
-        return getVerticies().stream()
-                .map(vertex -> (GraphNode) vertex)
+    public Set<GraphNode<?>> getNodesAtLevel(int level) {
+        return getNodes().stream()
                 .filter(node -> getLevelOf(node) == level)
                 .collect(Collectors.toSet());
     }
 
     public int getLevels() {
-        return getVerticies().stream()
-                .map(vertex -> (GraphNode) vertex)
+        return getNodes().stream()
                 .max(Comparator.comparingInt(this::getLevelOf))
                 .map(node -> getLevelOf(node) + 1)
                 .orElse(0);
@@ -96,7 +68,7 @@ public class PDGGraph extends Graph {
     }
 
     public int getLevelOf(@NotNull GraphNode<?> node) {
-        Optional<ControlDependencyArc> optionalControlDependencyArc = node.getIncomingArcs().stream()
+        Optional<ControlDependencyArc> optionalControlDependencyArc = incomingEdgesOf(node).stream()
                 .filter(Arc::isControlDependencyArrow)
                 .findFirst()
                 .map(arc -> (ControlDependencyArc) arc);
@@ -105,7 +77,7 @@ public class PDGGraph extends Graph {
             return 0;
         }
 
-        GraphNode<?> parent = optionalControlDependencyArc.get().getFromNode();
+        GraphNode<?> parent = this.getEdgeSource(optionalControlDependencyArc.get());
 
         return 1 + getLevelOf(parent);
     }
@@ -127,7 +99,7 @@ public class PDGGraph extends Graph {
 
         // No level 0 is needed (only one node)
         for (int i = 0; i < getLevels(); i++) {
-            Set<GraphNode> levelNodes = getNodesAtLevel(i);
+            Set<GraphNode<?>> levelNodes = getNodesAtLevel(i);
 
             if (levelNodes.size() <= 1) {
                 continue;
@@ -152,7 +124,7 @@ public class PDGGraph extends Graph {
 
         String arrows =
                 getArcs().stream()
-                        .sorted(Comparator.comparingInt(arrow -> ((GraphNode) arrow.getFrom()).getId()))
+                        .sorted(Comparator.comparingInt(arc -> this.getEdgeSource(arc).getId()))
                         .map(Arc::toGraphvizRepresentation)
                         .collect(Collectors.joining(lineSep));
 
@@ -197,9 +169,9 @@ public class PDGGraph extends Graph {
 
         Node astCopy = ASTUtils.cloneAST(node.getAstNode());
 
-        astCopy.accept(new PDGBuilder(sliceGraph), sliceGraph.getRootNode());
+        astCopy.accept(new PDGBuilder(sliceGraph), sliceGraph.getNodesAtLevel(0).iterator().next());
 
-        for (GraphNode sliceNode : sliceGraph.getNodes()) {
+        for (GraphNode<?> sliceNode : sliceGraph.getNodes()) {
             if (!sliceNodes.contains(sliceNode.getId())) {
                 Logger.log("Removing node " + sliceNode.getId());
                 sliceNode.getAstNode().removeForced();
@@ -230,10 +202,8 @@ public class PDGGraph extends Graph {
     private Set<Integer> getSliceNodes(Set<Integer> visited, GraphNode<?> root) {
         visited.add(root.getId());
 
-        for (Arrow arrow : root.getIncomingArcs()) {
-            Arc arc = (Arc) arrow;
-
-            GraphNode<?> from = (GraphNode) arc.getFromNode();
+        for (Arc arc : incomingEdgesOf(root)) {
+            GraphNode<?> from = this.getEdgeSource(arc);
 
             if (visited.contains(from.getId())) {
                 continue;

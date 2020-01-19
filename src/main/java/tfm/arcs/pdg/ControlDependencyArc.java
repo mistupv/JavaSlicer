@@ -4,10 +4,13 @@ import tfm.arcs.Arc;
 import tfm.arcs.data.ArcData;
 import tfm.nodes.GraphNode;
 
-public class ControlDependencyArc extends Arc<ArcData> {
+public class ControlDependencyArc extends Arc {
 
-    public ControlDependencyArc(GraphNode from, GraphNode to) {
-        super(from, to);
+    public ControlDependencyArc(String variable) {
+        super(variable);
+    }
+
+    public ControlDependencyArc() {
     }
 
     @Override
@@ -27,9 +30,6 @@ public class ControlDependencyArc extends Arc<ArcData> {
 
     @Override
     public String toString() {
-        return String.format("ControlDependencyArc{%s -> %s}",
-                ((GraphNode) getFrom()).getId(),
-                ((GraphNode) getTo()).getId()
-        );
+        return String.format("ControlDependencyArc{%s}", super.toString());
     }
 }

@@ -4,10 +4,9 @@ import tfm.arcs.Arc;
 import tfm.arcs.data.VoidArcData;
 import tfm.nodes.GraphNode;
 
-public class ControlFlowArc extends Arc<VoidArcData> {
+public class ControlFlowArc extends Arc {
 
-    public ControlFlowArc(GraphNode from, GraphNode to) {
-        super(from, to);
+    public ControlFlowArc() {
     }
 
     @Override
@@ -27,10 +26,7 @@ public class ControlFlowArc extends Arc<VoidArcData> {
 
     @Override
     public String toString() {
-        return String.format("ControlFlowArc{%s -> %s}",
-                getFromNode().getId(),
-                getToNode().getId()
-        );
+        return String.format("ControlFlowArc{%s}", super.toString());
     }
 
 }

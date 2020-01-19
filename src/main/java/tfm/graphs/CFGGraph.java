@@ -1,7 +1,6 @@
 package tfm.graphs;
 
 import com.github.javaparser.ast.Node;
-import com.github.javaparser.ast.stmt.EmptyStmt;
 import edg.graphlib.Arrow;
 import tfm.arcs.Arc;
 import tfm.arcs.cfg.ControlFlowArc;
@@ -19,7 +18,6 @@ public class CFGGraph extends Graph {
 
     public CFGGraph() {
         super();
-        setRootVertex(new GraphNode<>(getNextVertexId(), getRootNodeData(), new EmptyStmt()));
     }
 
     @Override
@@ -30,14 +28,9 @@ public class CFGGraph extends Graph {
         return vertex;
     }
 
-
-    protected String getRootNodeData() {
-        return "Start";
-    }
-
     @SuppressWarnings("unchecked")
-    public void addControlFlowEdge(GraphNode from, GraphNode to) {
-        super.addEdge((Arrow) new ControlFlowArc(from, to));
+    public void addControlFlowEdge(GraphNode<?> from, GraphNode<?> to) {
+        super.addEdge(from, to);
     }
 
     @Override
@@ -50,9 +43,9 @@ public class CFGGraph extends Graph {
                 .collect(Collectors.joining(lineSep));
 
         String arrows =
-                getArrows().stream()
-                        .sorted(Comparator.comparingInt(arrow -> ((GraphNode) arrow.getFrom()).getId()))
-                        .map(arrow -> ((Arc) arrow).toGraphvizRepresentation())
+                getArcs().stream()
+                        .sorted(Comparator.comparingInt(arc -> this.getEdgeSource(arc).getId()))
+                        .map(Arc::toGraphvizRepresentation)
                         .collect(Collectors.joining(lineSep));
 
         return "digraph g{" + lineSep +
@@ -86,10 +79,10 @@ public class CFGGraph extends Graph {
 
         Set<GraphNode<?>> res = new HashSet<>();
 
-        for (Arc<?> arc : currentNode.getIncomingArcs()) {
+        for (Arc arc : incomingEdgesOf(currentNode)) {
             ControlFlowArc controlFlowArc = (ControlFlowArc) arc;
 
-            GraphNode<?> from = controlFlowArc.getFromNode();
+            GraphNode<?> from = this.getEdgeSource(controlFlowArc);
 
 //            Logger.log("Arrow from node: " + from);
 

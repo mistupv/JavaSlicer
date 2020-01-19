@@ -1,15 +1,21 @@
 package tfm.arcs;
 
-import tfm.arcs.data.ArcData;
+import org.jgrapht.graph.DefaultEdge;;
 import tfm.nodes.GraphNode;
 
 import java.util.Objects;
+import java.util.Optional;
 
-public abstract class Arc<D extends ArcData> extends edg.graphlib.Arrow<String, D> {
+public abstract class Arc extends DefaultEdge {
 
-    @SuppressWarnings("unchecked")
-    public Arc(GraphNode<?> from, GraphNode<?> to) {
-        super((edg.graphlib.Vertex<String, D>) from, (edg.graphlib.Vertex<String, D>) to);
+    private String variable;
+
+    public Arc() {
+
+    }
+
+    public Arc(String variable) {
+        this.variable = variable;
     }
 
     public abstract boolean isControlFlowArrow();
@@ -18,18 +24,14 @@ public abstract class Arc<D extends ArcData> extends edg.graphlib.Arrow<String, 
 
     public abstract boolean isDataDependencyArrow();
 
-    @Override
-    public String toString() {
-        return String.format("Arc{data: %s, %s -> %s}",
-                getData(),
-                getFrom(),
-                getTo()
-        );
+    public Optional<String> getVariable() {
+        return Optional.ofNullable(this.variable);
     }
 
-    public String toGraphvizRepresentation() {
-        GraphNode from = (GraphNode) getFrom();
-        GraphNode to = (GraphNode) getTo();
+    @Override
+    public String toString() {
+        GraphNode<?> from = (GraphNode<?>) getSource();
+        GraphNode<?> to = (GraphNode<?>) getTarget();
 
         return String.format("%s -> %s",
                 from.getId(),
@@ -37,36 +39,21 @@ public abstract class Arc<D extends ArcData> extends edg.graphlib.Arrow<String, 
         );
     }
 
-    public GraphNode<?> getFromNode() {
-        return (GraphNode<?>) super.getFrom();
-    }
-
-    public GraphNode<?> getToNode() {
-        return (GraphNode<?>) super.getTo();
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(getData()) + getFrom().hashCode() + getTo().hashCode();
+    public String toGraphvizRepresentation() {
+        return toString();
     }
 
     @Override
     public boolean equals(Object o) {
-        if (this == o)
-            return true;
-
-        if (!(o instanceof Arc))
+        if (this != o) {
             return false;
+        }
 
-        Arc arc = (Arc) o;
+        return Objects.equals(variable, ((Arc) o).variable);
+    }
 
-        GraphNode from = (GraphNode) arc.getFrom();
-        GraphNode from2 = (GraphNode) getFrom();
-        GraphNode to = (GraphNode) getTo();
-        GraphNode to2 = (GraphNode) arc.getTo();
-
-        return Objects.equals(arc.getData(), getData()) &&
-                Objects.equals(from.getId(), from2.getId()) &&
-                Objects.equals(to.getId(), to2.getId());
+    @Override
+    public int hashCode() {
+        return Objects.hash(variable, getSource(), getTarget());
     }
 }

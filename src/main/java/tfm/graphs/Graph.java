@@ -1,10 +1,8 @@
 package tfm.graphs;
 
 import com.github.javaparser.ast.Node;
-import edg.graphlib.Arrow;
-import edg.graphlib.Vertex;
+import org.jgrapht.graph.DefaultDirectedGraph;
 import tfm.arcs.Arc;
-import tfm.arcs.data.ArcData;
 import tfm.nodes.GraphNode;
 import tfm.slicing.SlicingCriterion;
 
@@ -12,81 +10,62 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * A graphlib Graph without cost and data in arcs
+ *
  * */
-public abstract class Graph extends edg.graphlib.Graph<String, ArcData> {
+public abstract class Graph extends DefaultDirectedGraph<GraphNode<?>, Arc> {
 
     private int nextVertexId = 0;
 
-//    public final static class NodeId {
-//        private static int nextVertexId = 0;
-//
-//        private int id;
-//
-//        private NodeId(int id) {
-//            this.id = id;
-//        }
-//
-//        static synchronized NodeId getVertexId() {
-//            return new NodeId(nextVertexId++);
-//        }
-//
-//        public int getId() {
-//            return id;
-//        }
-//
-//        @Override
-//        public String toString() {
-//            return String.valueOf(id);
-//        }
-//    }
-
     public Graph() {
-        super();
+        super(null, null, false);
+    }
+
+    private <ASTNode extends Node> GraphNode<ASTNode> addNode(GraphNode<ASTNode> node) {
+        this.addVertex(node);
+
+        return node;
+    }
+
+    private <ASTNode extends Node> GraphNode<ASTNode> addNode(int id, String instruction, ASTNode node) {
+        GraphNode<ASTNode> newNode = new GraphNode<>(id, instruction, node);
+
+        return this.addNode(newNode);
+    }
+
+    public <ASTNode extends Node> GraphNode<ASTNode> addNode(String instruction, ASTNode node) {
+        return this.addNode(getNextVertexId(), instruction, node);
     }
 
     /**
-      Library fix: if a node had an edge to itself resulted in 2 outgoing nodes instead of 1 outgoing and 1 incoming
+     * Adds the given node to the graph.
+     *
+     * One must be careful with this method, as the given node will have
+     * an id and arcs corresponding to the graph in which it was created, and may not fit
+     * in the current graph.
+     *
+     * @param node the node to add to the graph
+     * @param copyId whether to copy the id node or not
+     * @param copyArcs whether to copy the arcs of the node or not
+     * @return the node instance added to the graph
      */
-    @Override
-    public boolean addEdge(Arrow<String, ArcData> arrow) {
-        Vertex<String, ArcData> from = arrow.getFrom();
-        Vertex<String, ArcData> to = arrow.getTo();
-        int cost = arrow.getCost();
-        ArcData data = arrow.getData();
+    public <ASTNode extends Node> GraphNode<ASTNode> addNode(GraphNode<ASTNode> node, boolean copyId, boolean copyArcs) {
+        GraphNode<ASTNode> res = node;
 
-        if (!verticies.contains(from))
-            throw new IllegalArgumentException(String.format("from (%s) is not in graph", from));
-        if (!verticies.contains(to))
-            throw new IllegalArgumentException(String.format("to (%s) is not in graph", to));
+        if (copyId && copyArcs) {
+            this.addVertex(node);
+        } else if (copyId) {
+            res = this.addNode(node.getId(), node.getInstruction(), node.getAstNode());
+        } else if (copyArcs) {
+            res = new GraphNode<>(node);
+            res.setId(getNextVertexId());
 
-        List<Arrow<String, ArcData>> es2 = from.findEdges(to);
-
-        for (Arrow<String, ArcData> e2 : es2) {
-            if (e2 != null && cost == e2.getCost() &&
-                    ((data == null && e2.getData() == null) ||
-                            (data != null && data.equals(e2.getData()))))
-                return false;
-        }
-
-        // FIX
-        if (Objects.equals(from, to)) {
-            from.getOutgoingArrows().add(arrow);
-            from.getIncomingArrows().add(arrow);
+            this.addVertex(res);
         } else {
-            from.addEdge(arrow);
-            to.addEdge(arrow);
+            res = this.addNode(node.getInstruction(), node.getAstNode());
         }
-        edges.add(arrow);
-        return true;
-    }
 
-    @SuppressWarnings("unchecked")
-    public <ASTNode extends Node> GraphNode<ASTNode> getRootNode() {
-        return (GraphNode<ASTNode>) super.getRootVertex();
+        return res;
     }
-
-    public abstract <ASTNode extends Node> GraphNode<ASTNode> addNode(String instruction, ASTNode node);
 
     @SuppressWarnings("unchecked")
     public <ASTNode extends Node> Optional<GraphNode<ASTNode>> findNodeByASTNode(ASTNode astNode) {
@@ -102,17 +81,12 @@ public abstract class Graph extends edg.graphlib.Graph<String, ArcData> {
                 .findFirst();
     }
 
-    @SuppressWarnings("unchecked")
     public Set<GraphNode<?>> getNodes() {
-        return getVerticies().stream()
-                .map(vertex -> (GraphNode<?>) vertex)
-                .collect(Collectors.toSet());
+        return vertexSet();
     }
 
-    public Set<Arc<ArcData>> getArcs() {
-        return getArrows().stream()
-                .map(arrow -> (Arc<ArcData>) arrow)
-                .collect(Collectors.toSet());
+    public Set<Arc> getArcs() {
+        return edgeSet();
     }
 
     public String toString() {
@@ -129,26 +103,13 @@ public abstract class Graph extends edg.graphlib.Graph<String, ArcData> {
     }
 
     public boolean contains(GraphNode<?> graphNode) {
-        return getNodes().stream()
-                .anyMatch(node -> Objects.equals(node, graphNode));
+        return super.containsVertex(graphNode);
     }
 
     public abstract Graph slice(SlicingCriterion slicingCriterion);
 
-    /**
-     * Deprecated for incorrect behaviour. Use removeNode instead
-     */
-    @Override
-    @Deprecated
-    public boolean removeVertex(Vertex<String, ArcData> vertex) {
-        throw new UnsupportedOperationException("Deprecated method. Use removeNode instead");
-    }
-
     public void removeNode(GraphNode<?> node) {
-        verticies.remove(node);
-
-        edges.removeAll(node.getOutgoingArcs());
-        edges.removeAll(node.getIncomingArcs());
+        removeVertex(node);
     }
 
     public List<GraphNode<?>> findDeclarationsOfVariable(String variable) {

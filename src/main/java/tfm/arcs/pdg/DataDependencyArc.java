@@ -1,26 +1,13 @@
 package tfm.arcs.pdg;
 
 import tfm.arcs.Arc;
-import tfm.arcs.data.VariableArcData;
-import tfm.nodes.GraphNode;
+public class DataDependencyArc extends Arc {
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+    public DataDependencyArc() {
+    }
 
-public class DataDependencyArc extends Arc<VariableArcData> {
-
-    public DataDependencyArc(GraphNode from, GraphNode to, String variable, String... variables) {
-        super(from, to);
-
-        List<String> variablesList = new ArrayList<>(variables.length + 1);
-
-        variablesList.add(variable);
-        variablesList.addAll(Arrays.asList(variables));
-
-        VariableArcData variableArcData = new VariableArcData(variablesList);
-
-        setData(variableArcData);
+    public DataDependencyArc(String variable) {
+        super(variable);
     }
 
     @Override
@@ -40,15 +27,15 @@ public class DataDependencyArc extends Arc<VariableArcData> {
 
     @Override
     public String toString() {
-        return String.format("DataDependencyArc{%s, %s -> %s}",
-                getData(),
-                getFromNode().getId(),
-                getToNode().getId());
+        return String.format("DataDependencyArc{%s}", super.toString());
     }
 
     @Override
     public String toGraphvizRepresentation() {
-        return String.format("%s [style=dashed, color=red, label=\"%s\"];", super.toGraphvizRepresentation(), getData().toString());
+        return String.format("%s [style=dashed, color=red%s];",
+                super.toGraphvizRepresentation(),
+                getVariable().map(variable -> String.format(", label=\"%s\"", variable)).orElse("")
+        );
     }
 }
 

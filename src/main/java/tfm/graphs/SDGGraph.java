@@ -20,14 +20,6 @@ public class SDGGraph extends Graph {
     }
 
     @Override
-    public <ASTNode extends Node> GraphNode<ASTNode> addNode(String instruction, ASTNode node) {
-        GraphNode<ASTNode> sdgNode = new GraphNode<>(getNextVertexId(), instruction, node);
-        super.addVertex(sdgNode);
-
-        return sdgNode;
-    }
-
-    @Override
     public String toGraphvizRepresentation() {
         return contextPDGGraphMap.values().stream()
                 .map(PDGGraph::toGraphvizRepresentation).collect(Collectors.joining("\n"));
@@ -59,10 +51,6 @@ public class SDGGraph extends Graph {
 
     @Deprecated
     public void addPDG(PDGGraph pdgGraph, MethodDeclaration methodDeclaration) {
-        if (this.rootVertex == null) {
-            this.setRootVertex(new GraphNode<>(getNextVertexId(), methodDeclaration.getNameAsString(), methodDeclaration));
-        }
-
         for (Parameter parameter : methodDeclaration.getParameters()) {
             GraphNode<?> sdgNode = new GraphNode<>(
                     getNextVertexId(),
@@ -74,13 +62,11 @@ public class SDGGraph extends Graph {
         }
 
         for (GraphNode<?> node : pdgGraph.getNodes()) {
-            if (!this.verticies.contains(node)) {
+            if (!this.contains(node)) {
                 GraphNode<?> sdgNode = new GraphNode<>(
                         getNextVertexId(),
-                        node.getData(),
+                        node.getInstruction(),
                         node.getAstNode(),
-                        node.getIncomingArcs(),
-                        node.getOutgoingArcs(),
                         node.getDeclaredVariables(),
                         node.getDefinedVariables(),
                         node.getUsedVariables()
