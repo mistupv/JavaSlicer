@@ -1,14 +1,11 @@
 package tfm.graphs;
 
 import com.github.javaparser.ast.Node;
-import com.github.javaparser.ast.stmt.Statement;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.jgrapht.graph.DefaultDirectedGraph;
+import org.jgrapht.io.DOTExporter;
 import tfm.arcs.Arc;
 import tfm.nodes.GraphNode;
-import tfm.slicing.SlicingCriterion;
 import tfm.utils.NodeFactory;
-import tfm.variables.VariableExtractor;
 
 import java.util.*;
 import java.util.function.Consumer;
@@ -69,57 +66,47 @@ public abstract class Graph extends DefaultDirectedGraph<GraphNode<?>, Arc> {
 
     @SuppressWarnings("unchecked")
     public <ASTNode extends Node> Optional<GraphNode<ASTNode>> findNodeByASTNode(ASTNode astNode) {
-        return getNodes().stream()
+        return vertexSet().stream()
                 .filter(node -> Objects.equals(node.getAstNode(), astNode))
                 .findFirst()
                 .map(node -> (GraphNode<ASTNode>) node);
     }
 
     public Optional<GraphNode<?>> findNodeById(int id) {
-        return getNodes().stream()
+        return vertexSet().stream()
                 .filter(node -> Objects.equals(node.getId(), id))
                 .findFirst();
     }
 
-    public Set<GraphNode<?>> getNodes() {
-        return vertexSet();
-    }
-
-    public Set<Arc> getArcs() {
-        return edgeSet();
-    }
-
+    @Override
     public String toString() {
-        return getNodes().stream()
+        return vertexSet().stream()
                 .sorted(Comparator.comparingInt(GraphNode::getId))
                 .map(GraphNode::toString)
                 .collect(Collectors.joining(System.lineSeparator()));
     }
 
-    public abstract String toGraphvizRepresentation();
-
     protected synchronized int getNextVertexId() {
         return nextVertexId++;
     }
 
-    public boolean contains(GraphNode<?> graphNode) {
-        return super.containsVertex(graphNode);
-    }
-
-    public abstract Graph slice(SlicingCriterion slicingCriterion);
-
-    public void removeNode(GraphNode<?> node) {
-        removeVertex(node);
-    }
-
     public List<GraphNode<?>> findDeclarationsOfVariable(String variable) {
-        return getNodes().stream()
+        return vertexSet().stream()
                 .filter(node -> node.getDeclaredVariables().contains(variable))
                 .collect(Collectors.toList());
     }
 
     public boolean isEmpty() {
-        return this.getNodes().size() == 0;
+        return this.vertexSet().isEmpty();
+    }
+
+    public DOTExporter<GraphNode<?>, Arc> getDOTExporter() {
+        return new DOTExporter<>(
+                graphNode -> String.valueOf(graphNode.getId()),
+                GraphNode::getInstruction,
+                Arc::getLabel,
+                null,
+                Arc::getDotAttributes);
     }
 
     /**
@@ -134,7 +121,7 @@ public abstract class Graph extends DefaultDirectedGraph<GraphNode<?>, Arc> {
             Set<Arc> incomingArcs = new HashSet<>(incomingEdgesOf(node));
             Set<Arc> outgoingArcs = new HashSet<>(outgoingEdgesOf(node));
 
-            this.removeNode(node);
+            this.removeVertex(node);
 
             MutableGraphNode<ASTNode> modifiedNode = new MutableGraphNode<>((GraphNode<ASTNode>) node);
 

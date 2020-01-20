@@ -5,9 +5,7 @@ import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.graphs.CFGGraph;
 import tfm.graphs.PDGGraph;
 import tfm.nodes.GraphNode;
-import tfm.utils.Logger;
 
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class ControlDependencyBuilder extends VoidVisitorAdapter<GraphNode<?>> {

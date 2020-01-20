@@ -80,11 +80,6 @@ public class GraphNode<N extends Node> {
         return astNode;
     }
 
-    public Optional<Integer> getFileLineNumber() {
-        return astNode.getBegin()
-                .map(begin -> begin.line);
-    }
-
     public void addDeclaredVariable(String variable) {
         declaredVariables.add(variable);
     }
@@ -115,12 +110,6 @@ public class GraphNode<N extends Node> {
     @Override
     public int hashCode() {
         return Objects.hash(getId(), getInstruction(), getAstNode());
-    }
-
-    public String toGraphvizRepresentation() {
-        String text = getInstruction().replace("\\", "\\\\")
-                .replace("\"", "\\\"");
-        return String.format("%s[label=\"%s: %s\"];", getId(), getId(), text);
     }
 
     public Set<String> getDeclaredVariables() {

@@ -1,41 +1,30 @@
 package tfm.arcs.pdg;
 
+import org.jgrapht.io.Attribute;
+import org.jgrapht.io.DefaultAttribute;
 import tfm.arcs.Arc;
-public class DataDependencyArc extends Arc {
 
-    public DataDependencyArc() {
-    }
+import java.util.Map;
+
+public class DataDependencyArc extends Arc {
+    private final String variable;
 
     public DataDependencyArc(String variable) {
-        super(variable);
+        super();
+        this.variable = variable;
     }
 
     @Override
-    public boolean isControlFlowArrow() {
-        return false;
+    public String getLabel() {
+        return variable;
     }
 
     @Override
-    public boolean isControlDependencyArrow() {
-        return false;
-    }
-
-    @Override
-    public boolean isDataDependencyArrow() {
-        return true;
-    }
-
-    @Override
-    public String toString() {
-        return String.format("DataDependencyArc{%s}", super.toString());
-    }
-
-    @Override
-    public String toGraphvizRepresentation() {
-        return String.format("%s [style=dashed, color=red%s];",
-                super.toGraphvizRepresentation(),
-                getVariable().map(variable -> String.format(", label=\"%s\"", variable)).orElse("")
-        );
+    public Map<String, Attribute> getDotAttributes() {
+        Map<String, Attribute> map = super.getDotAttributes();
+        map.put("style", DefaultAttribute.createAttribute("dashed"));
+        map.put("color", DefaultAttribute.createAttribute("red"));
+        return map;
     }
 }
 

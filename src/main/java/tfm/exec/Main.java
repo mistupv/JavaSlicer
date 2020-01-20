@@ -45,10 +45,6 @@ public class Main {
 
         long tt = tf - t0;
 
-        graphLog.graph.modifyNode(12, node -> {
-            node.setInstruction("hahhdh");
-        });
-
         graphLog.log();
         graphLog.openVisualRepresentation();
 

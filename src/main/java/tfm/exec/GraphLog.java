@@ -1,20 +1,11 @@
 package tfm.exec;
 
 import com.github.javaparser.ast.Node;
-import org.jgrapht.io.ComponentNameProvider;
-import org.jgrapht.io.DOTExporter;
-import org.jgrapht.io.ExportException;
-import org.jgrapht.io.GraphExporter;
-import tfm.arcs.Arc;
 import tfm.graphs.Graph;
-import tfm.nodes.GraphNode;
 import tfm.utils.FileUtil;
 import tfm.utils.Logger;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.Writer;
+import java.io.*;
 
 public abstract class GraphLog<G extends Graph> {
     public enum Format {
@@ -64,8 +55,11 @@ public abstract class GraphLog<G extends Graph> {
                 "*         GRAPHVIZ         *\n" +
                 "****************************"
         );
-        Logger.log(graph.toGraphvizRepresentation());
-        Logger.log();
+        try (StringWriter stringWriter = new StringWriter()) {
+            graph.getDOTExporter().exportGraph(graph, stringWriter);
+            stringWriter.append('\n');
+            Logger.log(stringWriter.toString());
+        }
     }
 
     public void generateImages() throws IOException {
@@ -81,29 +75,21 @@ public abstract class GraphLog<G extends Graph> {
         this.format = format;
         generated = true;
         File tmpDot = File.createTempFile("graph-source-", ".dot");
-        tmpDot.deleteOnExit();
 
+        // Graph -> DOT -> file
         try (Writer w = new FileWriter(tmpDot)) {
-//            w.write(graph.toGraphvizRepresentation());
-
-            // JGraphT DOT export
-            GraphExporter<GraphNode<?>, Arc> exporter = new DOTExporter<>(
-                    component -> String.valueOf(component.getId()),
-                    GraphNode::getInstruction,
-                    component -> component.getVariable().orElse(""));
-
-            exporter.exportGraph(graph, w);
-        } catch (ExportException e) {
-            e.printStackTrace();
+            graph.getDOTExporter().exportGraph(graph, w);
         }
+        // Execute dot
         ProcessBuilder pb = new ProcessBuilder("dot",
             tmpDot.getAbsolutePath(), "-T" + format.getExt(),
             "-o", getImageFile().getAbsolutePath());
         try {
             int result = pb.start().waitFor();
-            if (result != 0) {
-                Logger.log("Image generation failed");
-            }
+            if (result == 0)
+                tmpDot.deleteOnExit();
+            else
+                Logger.log("Image generation failed, try running \"" + pb.toString() + "\" on your terminal.");
         } catch (InterruptedException e) {
             Logger.log("Image generation failed\n" + e.getMessage());
         }

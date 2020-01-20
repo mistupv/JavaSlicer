@@ -116,7 +116,7 @@ public class SDGBuilder extends VoidVisitorAdapter<Void> {
 
         sdgGraph.addNode(methodDeclaration.getNameAsString(), methodDeclaration);
 
-        pdgGraph.getNodes().stream().skip(1).forEach(pdgNode -> {
+        pdgGraph.vertexSet().stream().skip(1).forEach(pdgNode -> {
             Statement statement = (Statement) pdgNode.getAstNode();
 
             if (statement.isExpressionStmt()) {

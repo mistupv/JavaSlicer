@@ -3,6 +3,8 @@ package tfm.graphs;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.stmt.EmptyStmt;
+import org.jgrapht.io.DOTExporter;
+import tfm.arcs.Arc;
 import tfm.nodes.GraphNode;
 import tfm.slicing.SlicingCriterion;
 import tfm.utils.Context;
@@ -13,7 +15,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class SDGGraph extends Graph {
+public class SDGGraph extends Graph implements Sliceable<SDGGraph> {
 
     private Map<Context, PDGGraph> contextPDGGraphMap;
 
@@ -22,14 +24,8 @@ public class SDGGraph extends Graph {
     }
 
     @Override
-    public String toGraphvizRepresentation() {
-        return contextPDGGraphMap.values().stream()
-                .map(PDGGraph::toGraphvizRepresentation).collect(Collectors.joining("\n"));
-    }
-
-    @Override
-    public Graph slice(SlicingCriterion slicingCriterion) {
-        return this;
+    public SDGGraph slice(SlicingCriterion slicingCriterion) {
+        throw new IllegalStateException("Not implemented (yet)");
     }
 
     public Map<Context, PDGGraph> getContextPDGGraphMap() {
@@ -63,8 +59,8 @@ public class SDGGraph extends Graph {
             addVertex(sdgNode);
         }
 
-        for (GraphNode<?> node : pdgGraph.getNodes()) {
-            if (!this.contains(node)) {
+        for (GraphNode<?> node : pdgGraph.vertexSet()) {
+            if (!this.containsVertex(node)) {
                 GraphNode<?> sdgNode = new GraphNode<>(
                         getNextVertexId(),
                         node.getInstruction(),

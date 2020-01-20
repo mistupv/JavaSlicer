@@ -76,22 +76,25 @@ public class PDGValidator {
         return ProgramComparator.areEqual(methodDeclaration, generatedMethod);
     }
 
+    @Deprecated
     public static MethodDeclaration generateMethod(MethodDeclaration info, PDGGraph graph) {
-        MethodDeclaration methodDeclaration = new MethodDeclaration();
-
-        methodDeclaration.setName(info.getNameAsString());
-        methodDeclaration.setModifiers(info.getModifiers());
-        methodDeclaration.setType(info.getType());
-        methodDeclaration.setParameters(info.getParameters());
-
-        BlockStmt methodBody = new BlockStmt();
-        methodDeclaration.setBody(methodBody);
-
-        graph.getNodesAtLevel(1).stream()
-                .sorted(Comparator.comparingInt(GraphNode::getId))
-                .forEach(node -> methodBody.addStatement((Statement) node.getAstNode()));
-
-        return methodDeclaration;
+        // TODO: this does not work properly, replace or remove
+        throw new IllegalStateException("Deprecated method");
+//        MethodDeclaration methodDeclaration = new MethodDeclaration();
+//
+//        methodDeclaration.setName(info.getNameAsString());
+//        methodDeclaration.setModifiers(info.getModifiers());
+//        methodDeclaration.setType(info.getType());
+//        methodDeclaration.setParameters(info.getParameters());
+//
+//        BlockStmt methodBody = new BlockStmt();
+//        methodDeclaration.setBody(methodBody);
+//
+//        graph.getNodesAtLevel(1).stream()
+//                .sorted(Comparator.comparingInt(GraphNode::getId))
+//                .forEach(node -> methodBody.addStatement((Statement) node.getAstNode()));
+//
+//        return methodDeclaration;
     }
 
     public static void printPDGProgram(String fileName, PDGGraph graph) throws FileNotFoundException {
