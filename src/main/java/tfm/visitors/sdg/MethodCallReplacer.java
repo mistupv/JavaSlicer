@@ -1,9 +1,6 @@
 package tfm.visitors.sdg;
 
-import com.github.javaparser.ast.body.MethodDeclaration;
-import tfm.graphs.PDGGraph;
 import tfm.graphs.SDGGraph;
-import tfm.utils.Context;
 
 public class MethodCallReplacer {
 

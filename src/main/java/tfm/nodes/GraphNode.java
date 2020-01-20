@@ -9,27 +9,20 @@ import tfm.variables.VariableExtractor;
 
 import java.util.*;
 
+/**
+ * Immutable class that represents an AST node inside a CFG, PDG or SDG.
+ *
+ * @param <N> the AST node that represents
+ */
 public class GraphNode<N extends Node> {
 
-    private int id;
-    private String instruction;
+    private final int id;
+    private final String instruction;
+    private final N astNode;
 
-    protected N astNode;
-
-    protected Set<String> declaredVariables;
-    protected Set<String> definedVariables;
-    protected Set<String> usedVariables;
-
-    public <N1 extends GraphNode<N>> GraphNode(N1 node) {
-        this(
-                node.getId(),
-                node.getInstruction(),
-                node.getAstNode(),
-                node.getDeclaredVariables(),
-                node.getDefinedVariables(),
-                node.getUsedVariables()
-        );
-    }
+    private final Set<String> declaredVariables;
+    private final Set<String> definedVariables;
+    private final Set<String> usedVariables;
 
     public GraphNode(int id, String instruction, @NotNull N astNode) {
         this(
@@ -40,39 +33,35 @@ public class GraphNode<N extends Node> {
                 Utils.emptySet(),
                 Utils.emptySet()
         );
-    }
-
-    public GraphNode(
-                int id,
-                String instruction,
-                @NonNull N astNode,
-                Set<String> declaredVariables,
-                Set<String> definedVariables,
-                Set<String> usedVariables
-    ) {
-        this.id = id;
-        this.instruction = instruction;
-        this.astNode = astNode;
-
-        this.declaredVariables = declaredVariables;
-        this.definedVariables = definedVariables;
-        this.usedVariables = usedVariables;
 
         if (astNode instanceof Statement) {
             extractVariables((Statement) astNode);
         }
     }
 
-    private void extractVariables(@NonNull Statement statement) {
-        new VariableExtractor()
-                .setOnVariableDeclarationListener(variable -> this.declaredVariables.add(variable))
-                .setOnVariableDefinitionListener(variable -> this.definedVariables.add(variable))
-                .setOnVariableUseListener(variable -> this.usedVariables.add(variable))
-                .visit(statement);
+    public GraphNode(
+                int id,
+                String instruction,
+                @NonNull N astNode,
+                Collection<String> declaredVariables,
+                Collection<String> definedVariables,
+                Collection<String> usedVariables
+    ) {
+        this.id = id;
+        this.instruction = instruction;
+        this.astNode = astNode;
+
+        this.declaredVariables = new HashSet<>(declaredVariables);
+        this.definedVariables = new HashSet<>(definedVariables);
+        this.usedVariables = new HashSet<>(usedVariables);
     }
 
-    public void setId(int id) {
-        this.id = id;
+    private void extractVariables(@NonNull Statement statement) {
+        new VariableExtractor()
+                .setOnVariableDeclarationListener(this.declaredVariables::add)
+                .setOnVariableDefinitionListener(this.definedVariables::add)
+                .setOnVariableUseListener(this.usedVariables::add)
+                .visit(statement);
     }
 
     public int getId() {
@@ -80,18 +69,15 @@ public class GraphNode<N extends Node> {
     }
 
     public String toString() {
-        return String.format("GraphNode{id: %s, instruction: '%s'}",
+        return String.format("GraphNode{id: %s, instruction: '%s', astNodeType: %s}",
                 getId(),
-                getInstruction()
+                getInstruction(),
+                getAstNode().getClass().getSimpleName()
         );
     }
 
     public N getAstNode() {
         return astNode;
-    }
-
-    public void setAstNode(N node) {
-        this.astNode = node;
     }
 
     public Optional<Integer> getFileLineNumber() {
@@ -151,9 +137,5 @@ public class GraphNode<N extends Node> {
 
     public String getInstruction() {
         return instruction;
-    }
-
-    public void setInstruction(String instruction) {
-        this.instruction = instruction;
     }
 }

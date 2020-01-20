@@ -46,13 +46,7 @@ public class SDGBuilder extends VoidVisitorAdapter<Void> {
 
 
         if (sdgGraph.isEmpty()) {
-            sdgGraph.setRootVertex(
-                    new GraphNode<>(
-                            0,
-                            "ENTER " + methodDeclaration.getNameAsString(),
-                            methodDeclaration
-                    )
-            );
+            sdgGraph.addNode("ENTER " + methodDeclaration.getNameAsString(), methodDeclaration);
         } else {
 //            sdgGraph.addMethod(methodDeclaration);
         }
@@ -61,7 +55,7 @@ public class SDGBuilder extends VoidVisitorAdapter<Void> {
 
         PDGBuilder PDGBuilder = new PDGBuilder(pdgGraph) {
             @Override
-            public void visit(MethodCallExpr methodCallExpr, GraphNode<?> parent) {
+            public void visit(MethodCallExpr methodCallExpr, Void empty) {
                 if (methodCallExpr.getScope().isPresent()) {
                     String scopeName = methodCallExpr.getScope().get().toString();
 
@@ -117,7 +111,7 @@ public class SDGBuilder extends VoidVisitorAdapter<Void> {
             }
         };
 
-        PDGBuilder.visit(methodDeclaration, pdgGraph.getRootNode());
+        PDGBuilder.visit(methodDeclaration, null);
 
 
         sdgGraph.addNode(methodDeclaration.getNameAsString(), methodDeclaration);

@@ -45,7 +45,7 @@ class PDGOptions extends GraphOptions<PDGGraph> {
 
     @Override
     protected void buildGraphWithSpecificVisitor(PDGGraph emptyGraph, Node node) {
-        node.accept(new PDGBuilder(emptyGraph), emptyGraph.getRootNode());
+        node.accept(new PDGBuilder(emptyGraph), null);
     }
 }
 

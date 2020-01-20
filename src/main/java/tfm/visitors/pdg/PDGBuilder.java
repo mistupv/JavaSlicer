@@ -1,26 +1,19 @@
 package tfm.visitors.pdg;
 
-import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.graphs.CFGGraph;
 import tfm.graphs.PDGGraph;
-import tfm.nodes.GraphNode;
 import tfm.visitors.cfg.CFGBuilder;
 
-public class PDGBuilder extends VoidVisitorAdapter<GraphNode<?>> {
+public class PDGBuilder extends VoidVisitorAdapter<Void> {
 
     private PDGGraph pdgGraph;
     private CFGGraph cfgGraph;
 
     public PDGBuilder(PDGGraph pdgGraph) {
-        this(pdgGraph, new CFGGraph() {
-            @Override
-            protected String getRootNodeData() {
-                return "Start";
-            }
-        });
+        this(pdgGraph, new CFGGraph());
     }
 
     public PDGBuilder(PDGGraph pdgGraph, CFGGraph cfgGraph) {
@@ -30,12 +23,15 @@ public class PDGBuilder extends VoidVisitorAdapter<GraphNode<?>> {
         this.pdgGraph.setCfgGraph(cfgGraph);
     }
 
-    public void visit(MethodDeclaration methodDeclaration, GraphNode<?> parent) {
+    public void visit(MethodDeclaration methodDeclaration, Void empty) {
         if (!methodDeclaration.getBody().isPresent())
             return;
 
-        // Assign the method declaration to the root node of the PDG graph
-        this.pdgGraph.getRootNode().setAstNode(methodDeclaration);
+        // Assign the method declaration to the root node of the PDG graph. Here parent will always be the root node
+        this.pdgGraph.modifyNode(pdgGraph.getRootNode().getId(), mutableGraphNode -> {
+            mutableGraphNode.setInstruction("ENTER " + methodDeclaration.getNameAsString());
+            mutableGraphNode.setAstNode(methodDeclaration);
+        });
 
         BlockStmt methodBody = methodDeclaration.getBody().get();
 
@@ -44,7 +40,7 @@ public class PDGBuilder extends VoidVisitorAdapter<GraphNode<?>> {
 
         // Build control dependency
         ControlDependencyBuilder controlDependencyBuilder = new ControlDependencyBuilder(pdgGraph, cfgGraph);
-        methodBody.accept(controlDependencyBuilder, parent);
+        methodBody.accept(controlDependencyBuilder, pdgGraph.getRootNode());
 
         // Build data dependency
         DataDependencyBuilder dataDependencyBuilder = new DataDependencyBuilder(pdgGraph, cfgGraph);

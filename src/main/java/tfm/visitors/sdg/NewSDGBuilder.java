@@ -4,7 +4,6 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import javassist.expr.MethodCall;
 import tfm.graphbuilding.Graphs;
 import tfm.graphs.PDGGraph;
 import tfm.graphs.SDGGraph;

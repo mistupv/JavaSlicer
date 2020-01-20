@@ -29,7 +29,7 @@ public class PDGLog extends GraphLog<PDGGraph> {
     public void visit(com.github.javaparser.ast.Node node) {
         this.graph = new PDGGraph();
 
-        node.accept(new PDGBuilder(graph), this.graph.getRootNode());
+        node.accept(new PDGBuilder(graph), null);
 
         if (cfgLog == null) {
             cfgLog = new CFGLog(graph.getCfgGraph());

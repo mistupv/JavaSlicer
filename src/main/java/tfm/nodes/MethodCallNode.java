@@ -14,7 +14,7 @@ public class MethodCallNode extends GraphNode<ExpressionStmt> {
     private List<GraphNode> outParameters;
 
     public <N1 extends GraphNode<ExpressionStmt>> MethodCallNode(N1 node) {
-        super(node);
+        super(node.getId(), node.getInstruction(), node.getAstNode());
 
         this.inParameters = new ArrayList<>();
         this.outParameters = new ArrayList<>();

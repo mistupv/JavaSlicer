@@ -1,7 +1,7 @@
 package tfm.graphs;
 
 import com.github.javaparser.ast.Node;
-import edg.graphlib.Arrow;
+import com.github.javaparser.ast.stmt.EmptyStmt;
 import tfm.arcs.Arc;
 import tfm.arcs.cfg.ControlFlowArc;
 import tfm.nodes.GraphNode;
@@ -14,23 +14,19 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class CFGGraph extends Graph {
+public class CFGGraph extends GraphWithRootNode {
 
     public CFGGraph() {
         super();
     }
 
     @Override
-    public <ASTNode extends Node> GraphNode<ASTNode> addNode(String instruction, ASTNode node) {
-        GraphNode<ASTNode> vertex = new GraphNode<>(getNextVertexId(), instruction, node);
-        this.addVertex(vertex);
-
-        return vertex;
+    protected GraphNode<?> buildRootNode() {
+        return new GraphNode<>(getNextVertexId(), "Start", new EmptyStmt());
     }
 
-    @SuppressWarnings("unchecked")
     public void addControlFlowEdge(GraphNode<?> from, GraphNode<?> to) {
-        super.addEdge(from, to);
+        super.addEdge(from, to, new ControlFlowArc());
     }
 
     @Override

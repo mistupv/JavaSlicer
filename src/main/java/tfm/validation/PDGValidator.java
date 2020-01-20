@@ -65,7 +65,7 @@ public class PDGValidator {
     public static boolean generateAndCheck(MethodDeclaration methodDeclaration) {
         PDGGraph graph = new PDGGraph();
 
-        methodDeclaration.accept(new PDGBuilder(graph), graph.getRootNode());
+        methodDeclaration.accept(new PDGBuilder(graph), null);
 
         return check(methodDeclaration, graph);
     }

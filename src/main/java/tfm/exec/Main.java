@@ -13,7 +13,7 @@ import java.util.Optional;
 
 public class Main {
 
-    public static final String PROGRAM = Utils.PROGRAMS_FOLDER + "sdg/Example1.java";
+    public static final String PROGRAM = Utils.PROGRAMS_FOLDER + "cfg/Eval_4.java";
     public static final String GRAPH = GraphLog.SDG;
     public static final String METHOD = "main";
 
@@ -44,6 +44,10 @@ public class Main {
         long tf = System.nanoTime();
 
         long tt = tf - t0;
+
+        graphLog.graph.modifyNode(12, node -> {
+            node.setInstruction("hahhdh");
+        });
 
         graphLog.log();
         graphLog.openVisualRepresentation();

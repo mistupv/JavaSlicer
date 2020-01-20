@@ -22,7 +22,7 @@ public class Slice {
 
         PDGGraph pdgGraph = new PDGGraph();
 
-        compilationUnit.accept(new PDGBuilder(pdgGraph), pdgGraph.getRootNode());
+        compilationUnit.accept(new PDGBuilder(pdgGraph), null);
 
         Logger.log("==================");
         Logger.log("= Starting slice =");

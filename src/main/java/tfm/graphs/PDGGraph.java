@@ -2,7 +2,6 @@ package tfm.graphs;
 
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
-import edg.graphlib.Arrow;
 import org.jetbrains.annotations.NotNull;
 import tfm.arcs.Arc;
 import tfm.arcs.pdg.ControlDependencyArc;
@@ -17,7 +16,7 @@ import tfm.visitors.pdg.PDGBuilder;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class PDGGraph extends Graph {
+public class PDGGraph extends GraphWithRootNode {
 
     private CFGGraph cfgGraph;
 
@@ -25,23 +24,18 @@ public class PDGGraph extends Graph {
         super();
     }
 
+    @Override
+    protected GraphNode<?> buildRootNode() {
+        return new GraphNode<>(getNextVertexId(), "ENTER", new MethodDeclaration());
+    }
+
     public PDGGraph(CFGGraph cfgGraph) {
         super();
         this.cfgGraph = cfgGraph;
     }
 
-    public GraphNode<?> getRootNode() {
-        Iterator<GraphNode<?>> iterator = this.getNodesAtLevel(0).iterator();
-
-        if (iterator.hasNext()) {
-            return iterator.next();
-        }
-
-        return null;
-    }
-
     public void addControlDependencyArc(GraphNode<?> from, GraphNode<?> to) {
-        this.addEdge(from, to);
+        this.addEdge(from, to, new ControlDependencyArc());
     }
 
     public void addDataDependencyArc(GraphNode<?> from, GraphNode<?> to, String variable) {
@@ -169,7 +163,7 @@ public class PDGGraph extends Graph {
 
         Node astCopy = ASTUtils.cloneAST(node.getAstNode());
 
-        astCopy.accept(new PDGBuilder(sliceGraph), sliceGraph.getNodesAtLevel(0).iterator().next());
+        astCopy.accept(new PDGBuilder(sliceGraph), null);
 
         for (GraphNode<?> sliceNode : sliceGraph.getNodes()) {
             if (!sliceNodes.contains(sliceNode.getId())) {

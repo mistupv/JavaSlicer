@@ -5,10 +5,12 @@ import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.graphs.CFGGraph;
 import tfm.graphs.PDGGraph;
 import tfm.nodes.GraphNode;
+import tfm.utils.Logger;
 
+import java.util.Objects;
 import java.util.stream.Collectors;
 
-public class ControlDependencyBuilder extends VoidVisitorAdapter<GraphNode> {
+public class ControlDependencyBuilder extends VoidVisitorAdapter<GraphNode<?>> {
 
     private CFGGraph cfgGraph;
     private PDGGraph pdgGraph;
@@ -25,7 +27,7 @@ public class ControlDependencyBuilder extends VoidVisitorAdapter<GraphNode> {
 
     @Override
     public void visit(IfStmt ifStmt, GraphNode parent) {
-        GraphNode node = addNodeAndControlDependency(ifStmt, parent);
+        GraphNode<?> node = addNodeAndControlDependency(ifStmt, parent);
 
         ifStmt.getThenStmt().accept(this, node);
 
@@ -34,7 +36,7 @@ public class ControlDependencyBuilder extends VoidVisitorAdapter<GraphNode> {
 
     @Override
     public void visit(WhileStmt whileStmt, GraphNode parent) {
-        GraphNode node = addNodeAndControlDependency(whileStmt, parent);
+        GraphNode<?> node = addNodeAndControlDependency(whileStmt, parent);
 
         whileStmt.getBody().accept(this, node);
     }
@@ -54,7 +56,7 @@ public class ControlDependencyBuilder extends VoidVisitorAdapter<GraphNode> {
                 .orElse("true");
 
 
-        GraphNode forNode = pdgGraph.addNode(
+        GraphNode<?> forNode = pdgGraph.addNode(
                 String.format("for (%s;%s;%s)", initialization, compare, update),
                 forStmt
         );
@@ -66,29 +68,28 @@ public class ControlDependencyBuilder extends VoidVisitorAdapter<GraphNode> {
 
     @Override
     public void visit(ForEachStmt forEachStmt, GraphNode parent) {
-        GraphNode node = addNodeAndControlDependency(forEachStmt, parent);
+        GraphNode<?> node = addNodeAndControlDependency(forEachStmt, parent);
 
         forEachStmt.getBody().accept(this, node);
     }
 
     @Override
     public void visit(SwitchStmt switchStmt, GraphNode parent) {
-        GraphNode node = addNodeAndControlDependency(switchStmt, parent);
+        GraphNode<?> node = addNodeAndControlDependency(switchStmt, parent);
 
         switchStmt.getEntries().accept(this, node);
     }
 
     @Override
     public void visit(SwitchEntryStmt switchEntryStmt, GraphNode parent) {
-        GraphNode node = addNodeAndControlDependency(switchEntryStmt, parent);
+        GraphNode<?> node = addNodeAndControlDependency(switchEntryStmt, parent);
 
         switchEntryStmt.getStatements().accept(this, node);
     }
 
-    private GraphNode addNodeAndControlDependency(Statement statement, GraphNode parent) {
+    private GraphNode<?> addNodeAndControlDependency(Statement statement, GraphNode<?> parent) {
         GraphNode<?> cfgNode = cfgGraph.findNodeByASTNode(statement).get();
-
-        GraphNode node = pdgGraph.addNode(cfgNode.getData(), cfgNode.getAstNode());
+        GraphNode<?> node = pdgGraph.addNode(cfgNode.getInstruction(), cfgNode.getAstNode());
         pdgGraph.addControlDependencyArc(parent, node);
 
         return node;

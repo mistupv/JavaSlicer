@@ -1,8 +1,6 @@
 package tfm.arcs.pdg;
 
 import tfm.arcs.Arc;
-import tfm.arcs.data.ArcData;
-import tfm.nodes.GraphNode;
 
 public class ControlDependencyArc extends Arc {
 

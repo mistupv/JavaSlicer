@@ -1,8 +1,6 @@
 package tfm.arcs.cfg;
 
 import tfm.arcs.Arc;
-import tfm.arcs.data.VoidArcData;
-import tfm.nodes.GraphNode;
 
 public class ControlFlowArc extends Arc {
 

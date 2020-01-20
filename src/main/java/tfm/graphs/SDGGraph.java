@@ -1,6 +1,5 @@
 package tfm.graphs;
 
-import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.stmt.EmptyStmt;
@@ -8,7 +7,10 @@ import tfm.nodes.GraphNode;
 import tfm.slicing.SlicingCriterion;
 import tfm.utils.Context;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class SDGGraph extends Graph {

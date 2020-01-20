@@ -4,8 +4,6 @@ import com.github.javaparser.ast.Node;
 import tfm.graphs.SDGGraph;
 import tfm.visitors.sdg.SDGBuilder;
 
-import java.io.IOException;
-
 public class SDGLog extends GraphLog<SDGGraph> {
 
     @Override

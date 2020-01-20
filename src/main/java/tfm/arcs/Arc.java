@@ -1,6 +1,6 @@
 package tfm.arcs;
 
-import org.jgrapht.graph.DefaultEdge;;
+import org.jgrapht.graph.DefaultEdge;
 import tfm.nodes.GraphNode;
 
 import java.util.Objects;
@@ -30,6 +30,10 @@ public abstract class Arc extends DefaultEdge {
 
     @Override
     public String toString() {
+        return toGraphvizRepresentation();
+    }
+
+    public String toGraphvizRepresentation() {
         GraphNode<?> from = (GraphNode<?>) getSource();
         GraphNode<?> to = (GraphNode<?>) getTarget();
 
@@ -39,14 +43,10 @@ public abstract class Arc extends DefaultEdge {
         );
     }
 
-    public String toGraphvizRepresentation() {
-        return toString();
-    }
-
     @Override
     public boolean equals(Object o) {
-        if (this != o) {
-            return false;
+        if (this == o) {
+            return true;
         }
 
         return Objects.equals(variable, ((Arc) o).variable);

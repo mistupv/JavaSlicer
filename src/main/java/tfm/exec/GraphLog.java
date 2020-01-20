@@ -1,11 +1,20 @@
 package tfm.exec;
 
 import com.github.javaparser.ast.Node;
+import org.jgrapht.io.ComponentNameProvider;
+import org.jgrapht.io.DOTExporter;
+import org.jgrapht.io.ExportException;
+import org.jgrapht.io.GraphExporter;
+import tfm.arcs.Arc;
 import tfm.graphs.Graph;
+import tfm.nodes.GraphNode;
 import tfm.utils.FileUtil;
 import tfm.utils.Logger;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Writer;
 
 public abstract class GraphLog<G extends Graph> {
     public enum Format {
@@ -73,8 +82,19 @@ public abstract class GraphLog<G extends Graph> {
         generated = true;
         File tmpDot = File.createTempFile("graph-source-", ".dot");
         tmpDot.deleteOnExit();
+
         try (Writer w = new FileWriter(tmpDot)) {
-            w.write(graph.toGraphvizRepresentation());
+//            w.write(graph.toGraphvizRepresentation());
+
+            // JGraphT DOT export
+            GraphExporter<GraphNode<?>, Arc> exporter = new DOTExporter<>(
+                    component -> String.valueOf(component.getId()),
+                    GraphNode::getInstruction,
+                    component -> component.getVariable().orElse(""));
+
+            exporter.exportGraph(graph, w);
+        } catch (ExportException e) {
+            e.printStackTrace();
         }
         ProcessBuilder pb = new ProcessBuilder("dot",
             tmpDot.getAbsolutePath(), "-T" + format.getExt(),
