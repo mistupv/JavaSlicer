@@ -31,9 +31,7 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
 
     @Override
     public void visit(ExpressionStmt expressionStmt, Void arg) {
-        String expression = expressionStmt.toString().replace("\"", "\\\"");
-
-        GraphNode<?> nextNode = addNodeAndArcs(expression, expressionStmt);
+        GraphNode<?> nextNode = addNodeAndArcs(expressionStmt.toString(), expressionStmt);
 
         lastParentNodes.add(nextNode);
     }
