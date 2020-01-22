@@ -15,17 +15,12 @@ import tfm.visitors.pdg.PDGBuilder;
 
 import java.util.*;
 
-public class PDGGraph extends GraphWithRootNode implements Sliceable<PDGGraph> {
+public class PDGGraph extends GraphWithRootNode<MethodDeclaration> implements Sliceable<PDGGraph> {
 
     private CFGGraph cfgGraph;
 
     public PDGGraph() {
         super();
-    }
-
-    @Override
-    protected GraphNode<?> buildRootNode() {
-        return new GraphNode<>(getNextVertexId(), "ENTER", new MethodDeclaration());
     }
 
     public PDGGraph(CFGGraph cfgGraph) {

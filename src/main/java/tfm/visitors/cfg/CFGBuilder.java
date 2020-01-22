@@ -20,11 +20,7 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
 
     public CFGBuilder(CFGGraph graph) {
         this.graph = graph;
-        this.lastParentNodes = Collections.asLifoQueue(
-                new ArrayDeque<>(
-                        Collections.singletonList(graph.getRootNode())
-                )
-        );
+        this.lastParentNodes = Collections.asLifoQueue(new ArrayDeque<>());
 
         this.bodyBreaks = new ArrayList<>();
     }
@@ -224,6 +220,12 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         if (!lastParentNodes.isEmpty() && Objects.equals(lastParentNodes.peek().getInstruction(), "Stop")) {
             throw new IllegalStateException("CFG is only allowed for one method, not multiple!");
         }
+
+        this.graph.buildRootNode("Start", methodDeclaration);
+
+        assert this.graph.getRootNode().isPresent();
+
+        lastParentNodes.add(this.graph.getRootNode().get());
 
         super.visit(methodDeclaration, arg);
 

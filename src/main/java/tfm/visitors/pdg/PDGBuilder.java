@@ -27,20 +27,18 @@ public class PDGBuilder extends VoidVisitorAdapter<Void> {
         if (!methodDeclaration.getBody().isPresent())
             return;
 
-        // Assign the method declaration to the root node of the PDG graph. Here parent will always be the root node
-        this.pdgGraph.modifyNode(pdgGraph.getRootNode().getId(), mutableGraphNode -> {
-            mutableGraphNode.setInstruction("ENTER " + methodDeclaration.getNameAsString());
-            mutableGraphNode.setAstNode(methodDeclaration);
-        });
+        this.pdgGraph.buildRootNode("ENTER " + methodDeclaration.getNameAsString(), methodDeclaration);
+
+        assert this.pdgGraph.getRootNode().isPresent();
+
+        // build CFG
+        methodDeclaration.accept(new CFGBuilder(cfgGraph), null);
 
         BlockStmt methodBody = methodDeclaration.getBody().get();
 
-        // build CFG
-        methodBody.accept(new CFGBuilder(cfgGraph), null);
-
         // Build control dependency
         ControlDependencyBuilder controlDependencyBuilder = new ControlDependencyBuilder(pdgGraph, cfgGraph);
-        methodBody.accept(controlDependencyBuilder, pdgGraph.getRootNode());
+        methodBody.accept(controlDependencyBuilder, pdgGraph.getRootNode().get());
 
         // Build data dependency
         DataDependencyBuilder dataDependencyBuilder = new DataDependencyBuilder(pdgGraph, cfgGraph);

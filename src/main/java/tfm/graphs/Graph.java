@@ -16,10 +16,17 @@ import java.util.stream.Collectors;
  * */
 public abstract class Graph extends DefaultDirectedGraph<GraphNode<?>, Arc> {
 
-    private int nextVertexId = 0;
+    protected static final int DEFAULT_VERTEX_START_ID = 0;
+
+    private int nextVertexId;
 
     public Graph() {
+        this(DEFAULT_VERTEX_START_ID);
+    }
+
+    protected Graph(int vertexStartId) {
         super(null, null, false);
+        this.nextVertexId = vertexStartId;
     }
 
     private <ASTNode extends Node> GraphNode<ASTNode> addNode(GraphNode<ASTNode> node) {

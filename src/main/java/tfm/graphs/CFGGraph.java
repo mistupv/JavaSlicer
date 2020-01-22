@@ -1,5 +1,6 @@
 package tfm.graphs;
 
+import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.stmt.EmptyStmt;
 import org.jgrapht.io.DOTExporter;
 import tfm.arcs.Arc;
@@ -11,15 +12,10 @@ import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 
-public class CFGGraph extends GraphWithRootNode {
+public class CFGGraph extends GraphWithRootNode<MethodDeclaration> {
 
     public CFGGraph() {
         super();
-    }
-
-    @Override
-    protected GraphNode<?> buildRootNode() {
-        return new GraphNode<>(getNextVertexId(), "Start", new EmptyStmt());
     }
 
     public void addControlFlowEdge(GraphNode<?> from, GraphNode<?> to) {
