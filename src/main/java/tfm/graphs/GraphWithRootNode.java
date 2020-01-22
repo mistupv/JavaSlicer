@@ -2,7 +2,7 @@ package tfm.graphs;
 
 import com.github.javaparser.ast.Node;
 import tfm.nodes.GraphNode;
-import tfm.utils.NodeFactory;
+import tfm.nodes.NodeFactory;
 
 import java.util.Objects;
 import java.util.Optional;

@@ -5,7 +5,7 @@ import org.jgrapht.graph.DefaultDirectedGraph;
 import org.jgrapht.io.DOTExporter;
 import tfm.arcs.Arc;
 import tfm.nodes.GraphNode;
-import tfm.utils.NodeFactory;
+import tfm.nodes.NodeFactory;
 
 import java.util.*;
 import java.util.function.Consumer;

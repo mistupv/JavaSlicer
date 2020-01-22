@@ -24,7 +24,7 @@ public class GraphNode<N extends Node> {
     private final Set<String> definedVariables;
     private final Set<String> usedVariables;
 
-    public GraphNode(int id, String instruction, @NotNull N astNode) {
+    GraphNode(int id, String instruction, @NotNull N astNode) {
         this(
                 id,
                 instruction,
@@ -39,7 +39,7 @@ public class GraphNode<N extends Node> {
         }
     }
 
-    public GraphNode(
+    GraphNode(
                 int id,
                 String instruction,
                 @NonNull N astNode,

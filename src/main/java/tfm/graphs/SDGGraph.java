@@ -6,6 +6,7 @@ import com.github.javaparser.ast.stmt.EmptyStmt;
 import org.jgrapht.io.DOTExporter;
 import tfm.arcs.Arc;
 import tfm.nodes.GraphNode;
+import tfm.nodes.NodeFactory;
 import tfm.slicing.SlicingCriterion;
 import tfm.utils.Context;
 
@@ -50,7 +51,7 @@ public class SDGGraph extends Graph implements Sliceable<SDGGraph> {
     @Deprecated
     public void addPDG(PDGGraph pdgGraph, MethodDeclaration methodDeclaration) {
         for (Parameter parameter : methodDeclaration.getParameters()) {
-            GraphNode<?> sdgNode = new GraphNode<>(
+            GraphNode<?> sdgNode = NodeFactory.graphNode(
                     getNextVertexId(),
                     String.format("%s = %s_in", parameter.getNameAsString(), parameter.getNameAsString()),
                     new EmptyStmt()
@@ -61,7 +62,7 @@ public class SDGGraph extends Graph implements Sliceable<SDGGraph> {
 
         for (GraphNode<?> node : pdgGraph.vertexSet()) {
             if (!this.containsVertex(node)) {
-                GraphNode<?> sdgNode = new GraphNode<>(
+                GraphNode<?> sdgNode = NodeFactory.computedGraphNode(
                         getNextVertexId(),
                         node.getInstruction(),
                         node.getAstNode(),
@@ -76,7 +77,7 @@ public class SDGGraph extends Graph implements Sliceable<SDGGraph> {
     }
 
     public void addMethod(MethodDeclaration methodDeclaration, PDGGraph pdgGraph) {
-        GraphNode<MethodDeclaration> methodRootNode = new GraphNode<>(
+        GraphNode<MethodDeclaration> methodRootNode = NodeFactory.graphNode(
                 getNextVertexId(),
                 "ENTER " + methodDeclaration.getDeclarationAsString(false, false, true),
                 methodDeclaration

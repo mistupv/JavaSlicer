@@ -1,9 +1,11 @@
-package tfm.utils;
+package tfm.nodes;
 
 import com.github.javaparser.ast.Node;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import tfm.nodes.GraphNode;
 
 import java.util.Collection;
+import java.util.Objects;
 
 public class NodeFactory {
 
@@ -28,6 +30,12 @@ public class NodeFactory {
             Collection<String> definedVariables,
             Collection<String> usedVariables
     ) {
+        Objects.requireNonNull(instruction, "Instruction cannot be null!");
+        Objects.requireNonNull(node, "AST Node cannot be null");
+        Objects.requireNonNull(declaredVariables, "declared variables collection cannot be null!");
+        Objects.requireNonNull(definedVariables, "defined variables collection cannot be null");
+        Objects.requireNonNull(usedVariables, "Used variables collection cannot be null!");
+
         return new GraphNode<>(
                 id,
                 instruction,
@@ -52,6 +60,9 @@ public class NodeFactory {
             String instruction,
             ASTNode node
     ) {
+        Objects.requireNonNull(instruction, "Instruction cannot be null!");
+        Objects.requireNonNull(node, "AST Node cannot be null");
+
         return new GraphNode<>(
                 id,
                 instruction,
