@@ -1,13 +1,16 @@
 package tfm.visitors.pdg;
 
 import tfm.arcs.Arc;
-import tfm.arcs.data.ArcData;
 import tfm.graphs.CFG;
 import tfm.graphs.PDG;
-import tfm.graphs.PDG.PPDG;
+import tfm.graphs.augmented.PPDG;
 import tfm.nodes.GraphNode;
+import tfm.nodes.NodeFactory;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -37,11 +40,13 @@ public class ControlDependencyBuilder {
 
     public void analyze() {
         Map<GraphNode<?>, GraphNode<?>> nodeMap = new HashMap<>();
-        nodeMap.put(cfg.getRootNode(), pdg.getRootNode());
-        Set<GraphNode<?>> roots = new HashSet<>(cfg.getNodes());
-        roots.remove(cfg.getRootNode());
-        Set<GraphNode<?>> cfgNodes = new HashSet<>(cfg.getNodes());
-        cfgNodes.removeIf(node -> node.getData().equals("Exit"));
+        assert cfg.getRootNode().isPresent();
+        assert pdg.getRootNode().isPresent();
+        nodeMap.put(cfg.getRootNode().get(), pdg.getRootNode().get());
+        Set<GraphNode<?>> roots = new HashSet<>(cfg.vertexSet());
+        roots.remove(cfg.getRootNode().get());
+        Set<GraphNode<?>> cfgNodes = new HashSet<>(cfg.vertexSet());
+        cfgNodes.removeIf(node -> node.getInstruction().equals("Exit"));
 
         for (GraphNode<?> node : cfgNodes)
             registerNode(node, nodeMap);
@@ -51,33 +56,32 @@ public class ControlDependencyBuilder {
                 if (src == dest) continue;
                 if (hasControlDependence(src, dest)) {
                     pdg.addControlDependencyArc(nodeMap.get(src), nodeMap.get(dest));
-                    if (pdg.contains(src))
-                        roots.remove(dest);
+                    roots.remove(dest);
                 }
             }
         }
         // In the original definition, nodes were dependent by default on the Enter/Start node
         for (GraphNode<?> node : roots)
-            if (!node.getData().equals("Exit"))
-                pdg.addControlDependencyArc(pdg.getRootNode(), nodeMap.get(node));
+            if (!node.getInstruction().equals("Exit"))
+                pdg.addControlDependencyArc(pdg.getRootNode().get(), nodeMap.get(node));
     }
 
     public void registerNode(GraphNode<?> node, Map<GraphNode<?>, GraphNode<?>> nodeMap) {
-        if (nodeMap.containsKey(node) || node.getData().equals("Exit"))
+        if (nodeMap.containsKey(node) || node.getInstruction().equals("Exit"))
             return;
-        GraphNode<?> clone = new GraphNode<>(node.getId(), node.getData(), node.getAstNode());
+        GraphNode<?> clone = NodeFactory.graphNode(node.getId(), node.getInstruction(), node.getAstNode());
         nodeMap.put(node, clone);
         pdg.addVertex(clone);
     }
 
     public boolean hasControlDependence(GraphNode<?> a, GraphNode<?> b) {
         int yes = 0;
-        List<Arc<ArcData>> list = a.getOutgoingArcs();
+        Set<Arc> list = cfg.outgoingEdgesOf(a);
         // Nodes with less than 1 outgoing arc cannot control another node.
-        if (list.size() < 2)
+        if (cfg.outDegreeOf(a) < 2)
             return false;
-        for (Arc<ArcData> arc : list) {
-            GraphNode<?> successor = arc.getToNode();
+        for (Arc arc : cfg.outgoingEdgesOf(a)) {
+            GraphNode<?> successor = cfg.getEdgeTarget(arc);
             if (postdominates(successor, b))
                 yes++;
         }
@@ -93,17 +97,17 @@ public class ControlDependencyBuilder {
         // Stop w/ success if a == b or a has already been visited
         if (a.equals(b) || visited.contains(a))
             return true;
-        List<Arc<ArcData>> outgoing = a.getOutgoingArcs();
+        Set<Arc> outgoing = cfg.outgoingEdgesOf(a);
         // Limit the traversal if it is a PPDG
         if (pdg instanceof PPDG)
-            outgoing = outgoing.stream().filter(Arc::isExecutableControlFlowArrow).collect(Collectors.toList());
+            outgoing = outgoing.stream().filter(Arc::isExecutableControlFlowArc).collect(Collectors.toSet());
         // Stop w/ failure if there are no edges to traverse from a
-        if (outgoing.size() == 0)
+        if (outgoing.isEmpty())
             return false;
         // Find all possible paths starting from a, if ALL find b, then true, else false
         visited.add(a);
-        for (Arc<ArcData> out : outgoing) {
-            if (!postdominates(out.getToNode(), b, visited))
+        for (Arc out : outgoing) {
+            if (!postdominates(cfg.getEdgeTarget(out), b, visited))
                 return false;
         }
         return true;

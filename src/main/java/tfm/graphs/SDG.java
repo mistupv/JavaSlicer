@@ -1,20 +1,25 @@
 package tfm.graphs;
 
-import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.stmt.EmptyStmt;
 import tfm.nodes.GraphNode;
+import tfm.nodes.NodeFactory;
 import tfm.slicing.Slice;
 import tfm.slicing.Sliceable;
 import tfm.slicing.SlicingCriterion;
 import tfm.utils.Context;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
-public class SDG extends Graph implements Sliceable {
-
+public class SDG extends Graph implements Sliceable, Buildable<NodeList<CompilationUnit>> {
+    private boolean built = false;
     private Map<Context, PDG> contextPDGGraphMap;
 
     public SDG() {
@@ -22,22 +27,18 @@ public class SDG extends Graph implements Sliceable {
     }
 
     @Override
-    public <ASTNode extends Node> GraphNode<ASTNode> addNode(String instruction, ASTNode node) {
-        GraphNode<ASTNode> sdgNode = new GraphNode<>(getNextVertexId(), instruction, node);
-        super.addVertex(sdgNode);
-
-        return sdgNode;
-    }
-
-    @Override
-    public String toGraphvizRepresentation() {
-        return contextPDGGraphMap.values().stream()
-                .map(PDG::toGraphvizRepresentation).collect(Collectors.joining("\n"));
-    }
-
-    @Override
     public Slice slice(SlicingCriterion slicingCriterion) {
         throw new RuntimeException("Slicing not implemented for the SDG");
+    }
+
+    @Override
+    public void build(NodeList<CompilationUnit> nodeList) {
+        nodeList.accept(new SDGBuilder(this), null);
+    }
+
+    @Override
+    public boolean isBuilt() {
+        return built;
     }
 
     public Map<Context, PDG> getContextPDGGraphMap() {
@@ -61,12 +62,8 @@ public class SDG extends Graph implements Sliceable {
 
     @Deprecated
     public void addPDG(PDG pdg, MethodDeclaration methodDeclaration) {
-        if (this.rootVertex == null) {
-            this.setRootVertex(new GraphNode<>(getNextVertexId(), methodDeclaration.getNameAsString(), methodDeclaration));
-        }
-
         for (Parameter parameter : methodDeclaration.getParameters()) {
-            GraphNode<?> sdgNode = new GraphNode<>(
+            GraphNode<?> sdgNode = NodeFactory.graphNode(
                     getNextVertexId(),
                     String.format("%s = %s_in", parameter.getNameAsString(), parameter.getNameAsString()),
                     new EmptyStmt()
@@ -75,14 +72,12 @@ public class SDG extends Graph implements Sliceable {
             addVertex(sdgNode);
         }
 
-        for (GraphNode<?> node : pdg.getNodes()) {
-            if (!this.verticies.contains(node)) {
-                GraphNode<?> sdgNode = new GraphNode<>(
+        for (GraphNode<?> node : pdg.vertexSet()) {
+            if (!this.containsVertex(node)) {
+                GraphNode<?> sdgNode = NodeFactory.computedGraphNode(
                         getNextVertexId(),
-                        node.getData(),
+                        node.getInstruction(),
                         node.getAstNode(),
-                        node.getIncomingArcs(),
-                        node.getOutgoingArcs(),
                         node.getDeclaredVariables(),
                         node.getDefinedVariables(),
                         node.getUsedVariables()
@@ -94,7 +89,7 @@ public class SDG extends Graph implements Sliceable {
     }
 
     public void addMethod(MethodDeclaration methodDeclaration, PDG pdg) {
-        GraphNode<MethodDeclaration> methodRootNode = new GraphNode<>(
+        GraphNode<MethodDeclaration> methodRootNode = NodeFactory.graphNode(
                 getNextVertexId(),
                 "ENTER " + methodDeclaration.getDeclarationAsString(false, false, true),
                 methodDeclaration

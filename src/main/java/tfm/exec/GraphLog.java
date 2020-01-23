@@ -1,16 +1,25 @@
 package tfm.exec;
 
-import com.github.javaparser.ast.Node;
-import guru.nidi.graphviz.engine.Format;
-import guru.nidi.graphviz.engine.Graphviz;
 import tfm.graphs.Graph;
 import tfm.utils.FileUtil;
 import tfm.utils.Logger;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 
 public abstract class GraphLog<G extends Graph> {
+    public enum Format {
+        PNG("png"),
+        PDF("pdf");
+
+        private String ext;
+        Format(String ext) {
+            this.ext = ext;
+        }
+
+        public String getExt() {
+            return ext;
+        }
+    }
 
     static final String CFG = "cfg";
     static final String PDG = "pdg";
@@ -30,9 +39,6 @@ public abstract class GraphLog<G extends Graph> {
         this.graph = graph;
     }
 
-    public abstract void visit(Node node);
-
-
     public void log() throws IOException {
         Logger.log(
                 "****************************\n" +
@@ -45,8 +51,11 @@ public abstract class GraphLog<G extends Graph> {
                 "*         GRAPHVIZ         *\n" +
                 "****************************"
         );
-        Logger.log(graph.toGraphvizRepresentation());
-        Logger.log();
+        try (StringWriter stringWriter = new StringWriter()) {
+            graph.getDOTExporter().exportGraph(graph, stringWriter);
+            stringWriter.append('\n');
+            Logger.log(stringWriter.toString());
+        }
     }
 
     public void generateImages() throws IOException {
@@ -58,12 +67,28 @@ public abstract class GraphLog<G extends Graph> {
     }
 
     public void generateImages(String imageName, Format format) throws IOException {
-        this.imageName = imageName;
+        this.imageName = imageName + "-" + graph.getClass().getName();
         this.format = format;
         generated = true;
-        Graphviz.fromString(graph.toGraphvizRepresentation())
-                .render(format)
-                .toFile(getImageFile());
+        File tmpDot = File.createTempFile("graph-source-", ".dot");
+
+        // Graph -> DOT -> file
+        try (Writer w = new FileWriter(tmpDot)) {
+            graph.getDOTExporter().exportGraph(graph, w);
+        }
+        // Execute dot
+        ProcessBuilder pb = new ProcessBuilder("dot",
+            tmpDot.getAbsolutePath(), "-T" + format.getExt(),
+            "-o", getImageFile().getAbsolutePath());
+        try {
+            int result = pb.start().waitFor();
+            if (result == 0)
+                tmpDot.deleteOnExit();
+            else
+                Logger.log("Image generation failed, try running \"" + pb.toString() + "\" on your terminal.");
+        } catch (InterruptedException e) {
+            Logger.log("Image generation failed\n" + e.getMessage());
+        }
     }
 
     public void openVisualRepresentation() throws IOException {
@@ -72,6 +97,6 @@ public abstract class GraphLog<G extends Graph> {
     }
 
     protected File getImageFile() {
-        return new File("./out/" + imageName + "." + format.name());
+        return new File("./out/" + imageName + "." + format.getExt());
     }
 }

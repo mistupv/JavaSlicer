@@ -1,4 +1,4 @@
-package tfm.visitors.cfg;
+package tfm.graphs;
 
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
@@ -8,8 +8,6 @@ import com.github.javaparser.ast.expr.SimpleName;
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitor;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import tfm.graphs.CFG;
-import tfm.graphs.CFG.ACFG;
 import tfm.nodes.GraphNode;
 import tfm.utils.ASTUtils;
 
@@ -30,57 +28,49 @@ import java.util.*;
  *     the object created in the first step. <emph>The builder should be discarded
  *     and not reused.</emph></li>
  * </ol>
- * <b>Configuration:</b> this builder can be used to generate both the CFG and ACFG,
- * depending on the type of the empty graph.
- * Before performing the visit you should set the configuration to the one you prefer.
  */
 public class CFGBuilder extends VoidVisitorAdapter<Void> {
-    /** Stores whether a method visit has started, to avoid mapping multiple methods onto one CFG. */
-    private boolean begunMethod = false;
-
     /** Stores the CFG representing the method analyzed. */
-    private final CFG graph;
+    protected final CFG graph;
     /** Nodes that haven't yet been connected to another one.
      * The next node will be the destination, they are the source. */
-    private final List<GraphNode<?>> hangingNodes = new LinkedList<>();
-    /** Same as {@link CFGBuilder#hangingNodes}, but to be connected as non-executable edges. */
-    private final List<GraphNode<?>> nonExecHangingNodes = new LinkedList<>();
+    protected final List<GraphNode<?>> hangingNodes = new LinkedList<>();
     /** Stack of break statements collected in various (nestable) breakable blocks. */
-    private final Stack<List<GraphNode<BreakStmt>>> breakStack = new Stack<>();
+    protected final Deque<List<GraphNode<BreakStmt>>> breakStack = new LinkedList<>();
     /** Stack of continue statements collected in various (nestable) continuable blocks. */
-    private final Stack<List<GraphNode<ContinueStmt>>> continueStack = new Stack<>();
+    protected final Deque<List<GraphNode<ContinueStmt>>> continueStack = new LinkedList<>();
     /** Lists of labelled break statements, mapped according to their label. */
-    private final Map<SimpleName, List<GraphNode<BreakStmt>>> breakMap = new HashMap<>();
+    protected final Map<SimpleName, List<GraphNode<BreakStmt>>> breakMap = new HashMap<>();
     /** Lists of labelled continue statements, mapped according to their label. */
-    private final Map<SimpleName, List<GraphNode<ContinueStmt>>> continueMap = new HashMap<>();
+    protected final Map<SimpleName, List<GraphNode<ContinueStmt>>> continueMap = new HashMap<>();
     /** Return statements that should be connected to the final node, if it is created at the end of the  */
-    private final List<GraphNode<ReturnStmt>> returnList = new LinkedList<>();
+    protected final List<GraphNode<ReturnStmt>> returnList = new LinkedList<>();
     /** Stack of lists of hanging cases on switch statements */
-    private final Stack<List<GraphNode<SwitchEntryStmt>>> switchEntriesStack = new Stack<>();
+    protected final Deque<List<GraphNode<SwitchEntryStmt>>> switchEntriesStack = new LinkedList<>();
 
-    public CFGBuilder(CFG graph) {
+    protected CFGBuilder(CFG graph) {
         this.graph = graph;
     }
 
-    private <T extends Node> GraphNode<T> connectTo(T n) {
+    protected <T extends Node> GraphNode<T> connectTo(T n) {
         return connectTo(n, n.toString());
     }
 
-    private <T extends Node> GraphNode<T> connectTo(T n, String text) {
+    protected <T extends Node> GraphNode<T> connectTo(T n, String text) {
         GraphNode<T> dest = graph.addNode(text, n);
         connectTo(dest);
         return dest;
     }
 
-    private void connectTo(GraphNode<?> node) {
+    protected void connectTo(GraphNode<?> node) {
         for (GraphNode<?> src : hangingNodes)
             graph.addControlFlowEdge(src, node);
-        assert nonExecHangingNodes.isEmpty() || graph instanceof ACFG;
-        for (GraphNode<?> src : nonExecHangingNodes)
-            ((ACFG) graph).addNonExecutableControlFlowEdge(src, node);
-        hangingNodes.clear();
-        nonExecHangingNodes.clear();
+        clearHanging();
         hangingNodes.add(node);
+    }
+
+    protected void clearHanging() {
+        hangingNodes.clear();
     }
 
     @Override
@@ -96,16 +86,13 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         // if -> {*then* else} -> after
         ifStmt.getThenStmt().accept(this, arg);
         List<GraphNode<?>> hangingThenNodes = new LinkedList<>(hangingNodes);
-        List<GraphNode<?>> hangingThenFalseNodes = new LinkedList<>(nonExecHangingNodes);
 
         if (ifStmt.getElseStmt().isPresent()) {
             // if -> {then *else*} -> after
-            hangingNodes.clear();
-            nonExecHangingNodes.clear();
+            clearHanging();
             hangingNodes.add(cond);
             ifStmt.getElseStmt().get().accept(this, arg);
             hangingNodes.addAll(hangingThenNodes);
-            nonExecHangingNodes.addAll(hangingThenFalseNodes);
         } else {
             // if -> {then **} -> after
             hangingNodes.add(cond);
@@ -121,10 +108,11 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         hangingNodes.addAll(breakMap.remove(n.getLabel()));
         // Remove the label from the continue map; the list should have been emptied
         // in the corresponding loop.
-        assert continueMap.remove(n.getLabel()).isEmpty();
+        if (continueMap.remove(n.getLabel()).isEmpty())
+            throw new IllegalStateException("Labeled loop has not cleared its list of continue statements!");
     }
 
-    private void hangLabelledContinueStmts(Node loopParent) {
+    protected void hangLabelledContinueStmts(Node loopParent) {
         if (loopParent instanceof LabeledStmt) {
             SimpleName label = ((LabeledStmt) loopParent).getLabel();
             if (continueMap.containsKey(label)) {
@@ -148,8 +136,6 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         // Loop contains anything
         if (hangingNodes.size() != 1 || hangingNodes.get(0) != cond)
             connectTo(cond);
-        else if (!nonExecHangingNodes.isEmpty())
-            connectTo(cond);
         hangingNodes.addAll(breakStack.pop());
     }
 
@@ -166,8 +152,6 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         hangLabelledContinueStmts(doStmt.getParentNode().orElse(null));
         // Loop contains anything
         if (hangingNodes.size() != 1 || hangingNodes.get(0) != cond)
-            connectTo(cond);
-        else if (!nonExecHangingNodes.isEmpty())
             connectTo(cond);
         hangingNodes.addAll(breakStack.pop());
     }
@@ -193,8 +177,6 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         hangLabelledContinueStmts(forStmt.getParentNode().orElse(null));
         if ((hangingNodes.size()) != 1 || hangingNodes.get(0) != cond)
             connectTo(cond);
-        else if (!nonExecHangingNodes.isEmpty())
-            connectTo(cond);
         hangingNodes.addAll(breakStack.pop());
     }
 
@@ -211,8 +193,6 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         hangingNodes.addAll(continueStack.pop());
         hangLabelledContinueStmts(forEachStmt.getParentNode().orElse(null));
         if (hangingNodes.size() != 1 || hangingNodes.get(0) != cond)
-            connectTo(cond);
-        else if (!nonExecHangingNodes.isEmpty())
             connectTo(cond);
         hangingNodes.addAll(breakStack.pop());
     }
@@ -252,30 +232,6 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         if (ASTUtils.switchHasDefaultCase(switchStmt))
             hangingNodes.remove(cond);
         List<GraphNode<SwitchEntryStmt>> entries = switchEntriesStack.pop();
-        if (graph instanceof ACFG) {
-            GraphNode<SwitchEntryStmt> def = null;
-            for (GraphNode<SwitchEntryStmt> entry : entries) {
-                if (!entry.getAstNode().getLabel().isPresent()) {
-                    def = entry;
-                    break;
-                }
-            }
-            if (def != null) {
-                List<GraphNode<?>> aux = new LinkedList<>(hangingNodes);
-                List<GraphNode<?>> aux2 = new LinkedList<>(nonExecHangingNodes);
-                hangingNodes.clear();
-                nonExecHangingNodes.clear();
-                entries.remove(def);
-                nonExecHangingNodes.addAll(entries);
-                connectTo(def);
-                hangingNodes.clear();
-                hangingNodes.addAll(aux);
-                nonExecHangingNodes.add(def);
-                nonExecHangingNodes.addAll(aux2);
-            } else {
-                nonExecHangingNodes.addAll(entries);
-            }
-        }
         // End block and break section
         hangingNodes.addAll(breakStack.pop());
     }
@@ -287,9 +243,7 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
             breakMap.get(breakStmt.getLabel().get()).add(node);
         else
             breakStack.peek().add(node);
-        hangingNodes.clear();
-        if (graph instanceof ACFG)
-            nonExecHangingNodes.add(node);
+        clearHanging();
     }
 
     @Override
@@ -299,31 +253,28 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
             continueMap.get(continueStmt.getLabel().get()).add(node);
         else
             continueStack.peek().add(node);
-        hangingNodes.clear();
-        if (graph instanceof ACFG)
-            nonExecHangingNodes.add(node);
+        clearHanging();
     }
 
     @Override
     public void visit(ReturnStmt returnStmt, Void arg) {
         GraphNode<ReturnStmt> node = connectTo(returnStmt);
         returnList.add(node);
-        hangingNodes.clear();
-        if (graph instanceof ACFG)
-            nonExecHangingNodes.add(node);
+        clearHanging();
     }
 
     @Override
     public void visit(MethodDeclaration methodDeclaration, Void arg) {
-        if (begunMethod)
+        if (graph.getRootNode().isPresent())
             throw new IllegalStateException("CFG is only allowed for one method, not multiple!");
-        begunMethod = true;
+        if (!methodDeclaration.getBody().isPresent())
+            throw new IllegalStateException("The method must have a body!");
 
-        hangingNodes.add(graph.getRootNode());
-        super.visit(methodDeclaration, arg);
+        graph.buildRootNode("ENTER " + methodDeclaration.getNameAsString(), methodDeclaration);
+
+        hangingNodes.add(graph.getRootNode().get());
+        methodDeclaration.getBody().get().accept(this, arg);
         returnList.stream().filter(node -> !hangingNodes.contains(node)).forEach(hangingNodes::add);
-        if (graph instanceof ACFG)
-            nonExecHangingNodes.add(graph.getRootNode());
         connectTo(new EmptyStmt(), "Exit");
     }
 }

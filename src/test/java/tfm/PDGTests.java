@@ -12,16 +12,15 @@ import org.junit.jupiter.params.provider.MethodSource;
 import tfm.exec.GraphLog;
 import tfm.exec.PDGLog;
 import tfm.graphs.CFG;
-import tfm.graphs.CFG.ACFG;
 import tfm.graphs.PDG;
-import tfm.graphs.PDG.APDG;
-import tfm.graphs.PDG.PPDG;
+import tfm.graphs.augmented.ACFG;
+import tfm.graphs.augmented.APDG;
+import tfm.graphs.augmented.PPDG;
 import tfm.nodes.GraphNode;
 import tfm.slicing.GraphNodeCriterion;
 import tfm.slicing.Slice;
 import tfm.slicing.SlicingCriterion;
 import tfm.utils.Logger;
-import tfm.visitors.cfg.CFGBuilder;
 import tfm.visitors.pdg.ControlDependencyBuilder;
 
 import java.io.File;
@@ -43,24 +42,24 @@ public class PDGTests {
     @ParameterizedTest(name = "[{index}] {0} ({1})")
     @MethodSource("tfm.FileFinder#findAllMethodDeclarations")
     public void ppdgTest(File file, String methodName, MethodDeclaration root) throws IOException {
-        runPdg(file, methodName, root, PDGLog.PPDG);
+        runPdg(file, methodName, root, new PPDG());
     }
 
     @ParameterizedTest(name = "[{index}] {0} ({1})")
     @MethodSource("tfm.FileFinder#findAllMethodDeclarations")
     public void apdgTest(File file, String methodName, MethodDeclaration root) throws IOException {
-        runPdg(file, methodName, root, PDGLog.APDG);
+        runPdg(file, methodName, root, new APDG());
     }
 
     @ParameterizedTest(name = "[{index}] {0} ({1})")
     @MethodSource("tfm.FileFinder#findAllMethodDeclarations")
     public void pdgTest(File file, String methodName, MethodDeclaration root) throws IOException {
-        runPdg(file, methodName, root, PDGLog.PDG);
+        runPdg(file, methodName, root, new PDG());
     }
 
-    private void runPdg(File file, String methodName, Node root, int type) throws IOException {
-        GraphLog<?> graphLog = new PDGLog(type);
-        graphLog.visit(root);
+    private void runPdg(File file, String methodName, MethodDeclaration root, PDG pdg) throws IOException {
+        pdg.build(root);
+        GraphLog<?> graphLog = new PDGLog(pdg);
         graphLog.log();
         try {
             graphLog.generateImages(file.getPath() + "-" + methodName);
@@ -81,14 +80,14 @@ public class PDGTests {
 
         // Create PDG
         CFG cfg = new CFG();
-        root.accept(new CFGBuilder(cfg), null);
+        cfg.build(root);
         PDG pdg = new PDG(cfg);
         ctrlDepBuilder = new ControlDependencyBuilder(pdg, cfg);
         ctrlDepBuilder.analyze();
 
         // Create APDG
         ACFG acfg = new ACFG();
-        root.accept(new CFGBuilder(acfg), null);
+        acfg.build(root);
         APDG apdg = new APDG(acfg);
         ctrlDepBuilder = new ControlDependencyBuilder(apdg, acfg);
         ctrlDepBuilder.analyze();
@@ -132,7 +131,7 @@ public class PDGTests {
     public List<MethodDeclaration> compareGraphs(PDG... pdgs) {
         List<MethodDeclaration> slicedMethods = new LinkedList<>();
         assert pdgs.length > 0;
-        for (GraphNode<?> node : pdgs[0].getNodes().stream()
+        for (GraphNode<?> node : pdgs[0].vertexSet().stream()
                 .sorted(Comparator.comparingInt(GraphNode::getId))
                 .collect(Collectors.toList())) {
             // Skip start of graph
@@ -175,13 +174,13 @@ public class PDGTests {
     }
 
     public final void printSlices(PDG pdg, Slice... slices) {
-        pdg.getNodes().stream()
+        pdg.vertexSet().stream()
                 .sorted(Comparator.comparingInt(GraphNode::getId))
                 .forEach(n -> Logger.format("%3d: %s %s",
                         n.getId(),
                         Arrays.stream(slices)
                                 .map(s -> s.contains(n) ? "x" : " ")
                                 .reduce((a, b) -> a + " " + b).orElse("--error--"),
-                        n.getData()));
+                        n.getInstruction()));
     }
 }

@@ -1,13 +1,13 @@
 package tfm.graphbuilding;
 
+import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.NodeList;
+import com.github.javaparser.ast.body.MethodDeclaration;
 import tfm.graphs.CFG;
 import tfm.graphs.Graph;
 import tfm.graphs.PDG;
 import tfm.graphs.SDG;
-import tfm.visitors.cfg.CFGBuilder;
-import tfm.visitors.pdg.PDGBuilder;
-import tfm.visitors.sdg.SDGBuilder;
 
 public abstract class GraphOptions<G extends Graph> {
     public abstract G empty();
@@ -32,7 +32,12 @@ class CFGOptions extends GraphOptions<CFG> {
 
     @Override
     protected void buildGraphWithSpecificVisitor(CFG emptyGraph, Node node) {
-        node.accept(new CFGBuilder(emptyGraph), null);
+        if (node instanceof MethodDeclaration) {
+            emptyGraph.build((MethodDeclaration) node);
+        } else {
+            for (Node n : node.getChildNodes())
+                buildGraphWithSpecificVisitor(emptyGraph, n);
+        }
     }
 }
 
@@ -45,7 +50,12 @@ class PDGOptions extends GraphOptions<PDG> {
 
     @Override
     protected void buildGraphWithSpecificVisitor(PDG emptyGraph, Node node) {
-        node.accept(new PDGBuilder(emptyGraph), emptyGraph.getRootNode());
+        if (node instanceof MethodDeclaration) {
+            emptyGraph.build((MethodDeclaration) node);
+        } else {
+            for (Node n : node.getChildNodes())
+                buildGraphWithSpecificVisitor(emptyGraph, n);
+        }
     }
 }
 
@@ -58,6 +68,9 @@ class SDGOptions extends GraphOptions<SDG> {
 
     @Override
     protected void buildGraphWithSpecificVisitor(SDG emptyGraph, Node node) {
-        node.accept(new SDGBuilder(emptyGraph), null);
+        if (node instanceof CompilationUnit)
+            emptyGraph.build(new NodeList<>(((CompilationUnit) node)));
+        else
+            throw new IllegalStateException("The node needs to be a CompilationUnit");
     }
 }

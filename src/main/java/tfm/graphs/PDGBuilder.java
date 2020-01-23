@@ -1,12 +1,9 @@
-package tfm.visitors.pdg;
+package tfm.graphs;
 
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.stmt.BlockStmt;
-import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import tfm.graphs.CFG;
-import tfm.graphs.PDG;
-import tfm.nodes.GraphNode;
-import tfm.visitors.cfg.CFGBuilder;
+import tfm.visitors.pdg.ControlDependencyBuilder;
+import tfm.visitors.pdg.DataDependencyBuilder;
 
 /**
  * Populates a {@link PDG}, given a complete {@link CFG}, an empty {@link PDG} and an AST root node.
@@ -25,38 +22,28 @@ import tfm.visitors.cfg.CFGBuilder;
  *     and not reused.</li>
  * </ol>
  */
-public class PDGBuilder extends VoidVisitorAdapter<GraphNode<?>> {
-
+public class PDGBuilder {
     private PDG pdg;
     private CFG cfg;
 
-    public PDGBuilder(PDG pdg) {
-        this(pdg, new CFG() {
-            @Override
-            protected String getRootNodeData() {
-                return "Start";
-            }
-        });
-    }
-
-    public PDGBuilder(PDG pdg, CFG cfg) {
+    protected PDGBuilder(PDG pdg) {
+        assert pdg.getCfg() != null;
         this.pdg = pdg;
-        this.cfg = cfg;
-
-        this.pdg.setCfg(cfg);
+        this.cfg = pdg.getCfg();
     }
 
-    public void visit(MethodDeclaration methodDeclaration, GraphNode<?> parent) {
+    public void createFrom(MethodDeclaration methodDeclaration) {
         if (!methodDeclaration.getBody().isPresent())
-            return;
+            throw new IllegalStateException("Method needs to have a body");
 
-        // Assign the method declaration to the root node of the PDG graph
-        this.pdg.getRootNode().setAstNode(methodDeclaration);
+        this.pdg.buildRootNode("ENTER " + methodDeclaration.getNameAsString(), methodDeclaration);
+
+        assert this.pdg.getRootNode().isPresent();
 
         BlockStmt methodBody = methodDeclaration.getBody().get();
 
         // build CFG
-        methodDeclaration.accept(new CFGBuilder(cfg), null);
+        cfg.build(methodDeclaration);
 
         // Build control dependency
         ControlDependencyBuilder controlDependencyBuilder = new ControlDependencyBuilder(pdg, cfg);

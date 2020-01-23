@@ -3,6 +3,10 @@ package tfm.exec;
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import tfm.graphs.CFG;
+import tfm.graphs.Graph;
+import tfm.graphs.PDG;
+import tfm.graphs.SDG;
 import tfm.utils.Logger;
 import tfm.utils.Utils;
 
@@ -13,7 +17,7 @@ import java.util.Optional;
 
 public class Main {
 
-    public static final String PROGRAM = Utils.PROGRAMS_FOLDER + "sdg/Example1.java";
+    public static final String PROGRAM = Utils.PROGRAMS_FOLDER + "cfg/Eval_4.java";
     public static final String GRAPH = GraphLog.SDG;
     public static final String METHOD = "main";
 
@@ -37,14 +41,12 @@ public class Main {
         }
 
         // GraphLog
-        GraphLog<?> graphLog = getGraphLog(args.length == 1 ? args[0] : GRAPH);
-
         long t0 = System.nanoTime();
-        graphLog.visit(root);
+        Graph graph = getBuiltGraph(args.length == 1 ? args[0] : GRAPH, (MethodDeclaration) root);
         long tf = System.nanoTime();
-
         long tt = tf - t0;
 
+        GraphLog<?> graphLog = getGraphLog(graph);
         graphLog.log();
         graphLog.openVisualRepresentation();
 
@@ -52,24 +54,35 @@ public class Main {
         Logger.format("Graph generated in %.2f ms", tt / 10e6);
     }
 
-    private static GraphLog<?> getGraphLog(String graph) throws IOException {
-        GraphLog<?> graphLog = null;
-
+    private static Graph getBuiltGraph(String graph, MethodDeclaration method) {
         switch (graph) {
             case GraphLog.CFG:
-                graphLog = new CFGLog();
-                break;
+                CFG cfg = new CFG();
+                cfg.build(method);
+                return cfg;
             case GraphLog.PDG:
-                graphLog = new PDGLog(PDGLog.PDG);
-                break;
+                PDG pdg = new PDG();
+                pdg.build(method);
+                return pdg;
             case GraphLog.SDG:
-                graphLog = new SDGLog();
-                break;
+                Logger.log("Not yet considered!");
+                return new SDG();
             default:
                 Logger.log("Unkown graph type");
                 System.exit(1);
+                return null;
         }
+    }
 
-        return graphLog;
+    private static GraphLog<?> getGraphLog(Graph graph) {
+        if (graph instanceof CFG)
+            return new CFGLog((CFG) graph);
+        else if (graph instanceof PDG)
+            return new PDGLog((PDG) graph);
+        else if (graph instanceof SDG)
+            return new SDGLog((SDG) graph);
+        Logger.log("Unknown graph type");
+        System.exit(1);
+        return null;
     }
 }

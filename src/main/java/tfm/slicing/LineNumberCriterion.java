@@ -27,7 +27,7 @@ public class LineNumberCriterion extends SlicingCriterion {
     @Override
     public Optional<GraphNode<?>> findNode(PDG graph) {
         // find node by line number
-        return graph.getNodes().stream().filter(node -> {
+        return graph.vertexSet().stream().filter(node -> {
             Node astNode = node.getAstNode();
 
             if (!astNode.getBegin().isPresent() || !astNode.getEnd().isPresent())

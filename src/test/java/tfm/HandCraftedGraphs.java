@@ -1,13 +1,16 @@
 package tfm;
 
+import com.github.javaparser.ast.NodeList;
+import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.stmt.ContinueStmt;
 import com.github.javaparser.ast.stmt.EmptyStmt;
 import com.github.javaparser.ast.stmt.IfStmt;
 import com.github.javaparser.ast.stmt.WhileStmt;
-import tfm.graphs.CFG.ACFG;
-import tfm.graphs.PDG.APDG;
-import tfm.graphs.PDG.PPDG;
+import com.github.javaparser.ast.type.VoidType;
+import tfm.graphs.augmented.ACFG;
+import tfm.graphs.augmented.APDG;
+import tfm.graphs.augmented.PPDG;
 import tfm.nodes.GraphNode;
 import tfm.visitors.pdg.ControlDependencyBuilder;
 
@@ -15,6 +18,7 @@ public class HandCraftedGraphs {
     public static APDG problem1WithGotos() {
         // Generate the control flow of a graph
         ACFG cfg = new ACFG();
+        cfg.buildRootNode("ENTER Problem1", new MethodDeclaration(new NodeList<>(), new VoidType(), "Problem1"));
         GraphNode<?> wx = cfg.addNode("while (X)", new WhileStmt());
         GraphNode<?> ify = cfg.addNode("L: if (Y)", new IfStmt());
         GraphNode<?> ifz = cfg.addNode("if (Z)", new IfStmt());
@@ -27,7 +31,7 @@ public class HandCraftedGraphs {
 
         GraphNode<?> end = cfg.addNode("Exit", new EmptyStmt());
 
-        cfg.addControlFlowEdge(cfg.getRootNode(), wx);
+        cfg.addControlFlowEdge(cfg.getRootNode().get(), wx);
         cfg.addControlFlowEdge(wx, ify);
         cfg.addControlFlowEdge(wx, d);
         cfg.addControlFlowEdge(ify, ifz);
@@ -42,7 +46,7 @@ public class HandCraftedGraphs {
         cfg.addControlFlowEdge(g1, ify);
         cfg.addNonExecutableControlFlowEdge(g2, c);
         cfg.addControlFlowEdge(g2, ify);
-        cfg.addNonExecutableControlFlowEdge(cfg.getRootNode(), end);
+        cfg.addNonExecutableControlFlowEdge(cfg.getRootNode().get(), end);
 
         PPDG pdg = new PPDG(cfg);
         ControlDependencyBuilder gen = new ControlDependencyBuilder(pdg, cfg);
@@ -53,6 +57,7 @@ public class HandCraftedGraphs {
     public static APDG problem1ContinueWithGotos() {
         // Generate the control flow of a graph
         ACFG cfg = new ACFG();
+        cfg.buildRootNode("ENTER Problem1", new MethodDeclaration(new NodeList<>(), new VoidType(), "Problem1"));
         GraphNode<?> wx = cfg.addNode("while (X)", new WhileStmt());
         GraphNode<?> ify = cfg.addNode("L: if (Y)", new IfStmt());
         GraphNode<?> ifz = cfg.addNode("if (Z)", new IfStmt());
@@ -66,7 +71,7 @@ public class HandCraftedGraphs {
 
         GraphNode<?> end = cfg.addNode("Exit", new EmptyStmt());
 
-        cfg.addControlFlowEdge(cfg.getRootNode(), wx);
+        cfg.addControlFlowEdge(cfg.getRootNode().get(), wx);
         cfg.addControlFlowEdge(wx, ify);
         cfg.addControlFlowEdge(wx, d);
         cfg.addControlFlowEdge(ify, ifz);
@@ -83,7 +88,7 @@ public class HandCraftedGraphs {
         cfg.addControlFlowEdge(g2, ify);
         cfg.addNonExecutableControlFlowEdge(g3, g2);
         cfg.addControlFlowEdge(g3, ify);
-        cfg.addNonExecutableControlFlowEdge(cfg.getRootNode(), end);
+        cfg.addNonExecutableControlFlowEdge(cfg.getRootNode().get(), end);
 
         PPDG pdg = new PPDG(cfg);
         ControlDependencyBuilder gen = new ControlDependencyBuilder(pdg, cfg);
