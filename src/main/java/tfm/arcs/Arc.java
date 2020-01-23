@@ -12,10 +12,6 @@ import java.util.Map;
 import java.util.Objects;
 
 public abstract class Arc extends DefaultEdge {
-    public Arc() {
-
-    }
-
     /** @see tfm.arcs.cfg.ControlFlowArc */
     public final boolean isControlFlowArc() {
         return this instanceof ControlFlowArc;

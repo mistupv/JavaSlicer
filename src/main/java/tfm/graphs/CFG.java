@@ -44,9 +44,9 @@ public class CFG extends GraphWithRootNode<MethodDeclaration> {
         Set<GraphNode<?>> res = new HashSet<>();
 
         for (Arc arc : incomingEdgesOf(currentNode)) {
-            ControlFlowArc controlFlowArc = arc.asControlFlowArc();
-
-            GraphNode<?> from = this.getEdgeSource(controlFlowArc);
+            if (!arc.isExecutableControlFlowArc())
+                continue;
+            GraphNode<?> from = getEdgeSource(arc);
 
             if (!Objects.equals(startNode, from) && visited.contains(from.getId())) {
                 continue;

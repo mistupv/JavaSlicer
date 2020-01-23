@@ -1,7 +1,11 @@
 package tfm.arcs.cfg;
 
+import org.jgrapht.io.Attribute;
+import org.jgrapht.io.DefaultAttribute;
 import tfm.arcs.Arc;
 import tfm.graphs.augmented.ACFG;
+
+import java.util.Map;
 
 /**
  * An edge of the {@link tfm.graphs.CFG}, representing the direct
@@ -9,9 +13,6 @@ import tfm.graphs.augmented.ACFG;
  * is executed, one of the possible next instructions is the destination.
  */
 public class ControlFlowArc extends Arc {
-    public ControlFlowArc() {
-    }
-
     /**
      * Represents a non-executable control flow arc, used within the {@link ACFG ACFG}.
      * Initially it had the following meaning: connecting a statement with
@@ -20,8 +21,12 @@ public class ControlFlowArc extends Arc {
      * It is used to improve control dependence, and it should be skipped when
      * computing data dependence and other analyses.
      */
-    public final static class NonExecutable extends ControlFlowArc {
-        public NonExecutable() {
+    public static final class NonExecutable extends ControlFlowArc {
+        @Override
+        public Map<String, Attribute> getDotAttributes() {
+            Map<String, Attribute> map = super.getDotAttributes();
+            map.put("style", DefaultAttribute.createAttribute("dashed"));
+            return map;
         }
     }
 }

@@ -108,7 +108,7 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         hangingNodes.addAll(breakMap.remove(n.getLabel()));
         // Remove the label from the continue map; the list should have been emptied
         // in the corresponding loop.
-        if (continueMap.remove(n.getLabel()).isEmpty())
+        if (!continueMap.remove(n.getLabel()).isEmpty())
             throw new IllegalStateException("Labeled loop has not cleared its list of continue statements!");
     }
 

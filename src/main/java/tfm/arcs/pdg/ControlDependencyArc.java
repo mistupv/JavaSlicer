@@ -9,6 +9,4 @@ import tfm.arcs.Arc;
  * {@code b} if and only if {@code b} alters the number of times {@code a} is executed.
  */
 public class ControlDependencyArc extends Arc {
-    public ControlDependencyArc() {
-    }
 }

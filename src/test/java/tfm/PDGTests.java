@@ -82,6 +82,7 @@ public class PDGTests {
         CFG cfg = new CFG();
         cfg.build(root);
         PDG pdg = new PDG(cfg);
+        pdg.buildRootNode("ENTER " + methodName, root);
         ctrlDepBuilder = new ControlDependencyBuilder(pdg, cfg);
         ctrlDepBuilder.analyze();
 
@@ -89,11 +90,13 @@ public class PDGTests {
         ACFG acfg = new ACFG();
         acfg.build(root);
         APDG apdg = new APDG(acfg);
+        apdg.buildRootNode("ENTER " + methodName, root);
         ctrlDepBuilder = new ControlDependencyBuilder(apdg, acfg);
         ctrlDepBuilder.analyze();
 
         // Create PPDG
         PPDG ppdg = new PPDG(acfg);
+        ppdg.buildRootNode("ENTER " + methodName, root);
         ctrlDepBuilder = new ControlDependencyBuilder(ppdg, acfg);
         ctrlDepBuilder.analyze();
 
