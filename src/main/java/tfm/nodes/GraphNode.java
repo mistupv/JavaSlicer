@@ -3,6 +3,9 @@ package tfm.nodes;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.stmt.Statement;
 import org.jetbrains.annotations.NotNull;
+import tfm.graphs.cfg.CFG;
+import tfm.graphs.pdg.PDG;
+import tfm.graphs.sdg.SDG;
 import tfm.utils.Utils;
 import tfm.variables.VariableExtractor;
 
@@ -12,8 +15,8 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Represents a node in the various graphs ({@link tfm.graphs.CFG CFG},
- * {@link tfm.graphs.PDG PDG} and {@link tfm.graphs.SDG SDG}),
+ * Represents a node in the various graphs ({@link CFG CFG},
+ * {@link PDG PDG} and {@link SDG SDG}),
  * including its AST representation and the connections it has to other nodes
  * in the same graph. It can hold a string of characters that will be used
  * to represent it.

@@ -1,9 +1,12 @@
-package tfm.graphs;
+package tfm.graphs.pdg;
 
 import com.github.javaparser.ast.body.MethodDeclaration;
 import tfm.arcs.Arc;
 import tfm.arcs.pdg.ControlDependencyArc;
 import tfm.arcs.pdg.DataDependencyArc;
+import tfm.graphs.GraphWithRootNode;
+import tfm.graphs.Sliceable;
+import tfm.graphs.cfg.CFG;
 import tfm.nodes.GraphNode;
 import tfm.slicing.Slice;
 import tfm.slicing.SlicingCriterion;

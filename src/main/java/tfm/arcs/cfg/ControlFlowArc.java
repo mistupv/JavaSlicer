@@ -4,11 +4,12 @@ import org.jgrapht.io.Attribute;
 import org.jgrapht.io.DefaultAttribute;
 import tfm.arcs.Arc;
 import tfm.graphs.augmented.ACFG;
+import tfm.graphs.cfg.CFG;
 
 import java.util.Map;
 
 /**
- * An edge of the {@link tfm.graphs.CFG}, representing the direct
+ * An edge of the {@link CFG}, representing the direct
  * flow of control. It connects two instructions if, when the source
  * is executed, one of the possible next instructions is the destination.
  */

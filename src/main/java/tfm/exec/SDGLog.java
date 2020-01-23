@@ -1,6 +1,6 @@
 package tfm.exec;
 
-import tfm.graphs.SDG;
+import tfm.graphs.sdg.SDG;
 
 public class SDGLog extends GraphLog<SDG> {
     public SDGLog() {

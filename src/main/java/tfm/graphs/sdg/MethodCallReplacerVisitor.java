@@ -1,4 +1,4 @@
-package tfm.visitors.sdg;
+package tfm.graphs.sdg;
 
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
@@ -9,7 +9,7 @@ import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import tfm.graphs.PDG;
+import tfm.graphs.pdg.PDG;
 import tfm.nodes.GraphNode;
 import tfm.utils.Context;
 import tfm.utils.Logger;
@@ -19,7 +19,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-public class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
+class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
     private PDG pdg;
 

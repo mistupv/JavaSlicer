@@ -1,15 +1,13 @@
-package tfm.visitors.sdg;
+package tfm.graphs.sdg;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import tfm.graphbuilding.Graphs;
-import tfm.graphs.PDG;
-import tfm.graphs.SDG;
+import tfm.graphs.pdg.PDG;
 import tfm.utils.Context;
 
-public class NewSDGBuilder extends VoidVisitorAdapter<Context> {
+class NewSDGBuilder extends VoidVisitorAdapter<Context> {
 
     SDG sdg;
 
@@ -26,7 +24,8 @@ public class NewSDGBuilder extends VoidVisitorAdapter<Context> {
         context.setCurrentMethod(methodDeclaration);
 
         // Build PDG and add to SDGGraph
-        PDG pdg = Graphs.PDG.fromASTNode(methodDeclaration);
+        PDG pdg = new PDG();
+        pdg.build(methodDeclaration);
 
         sdg.addMethod(methodDeclaration, pdg);
     }

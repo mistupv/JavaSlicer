@@ -12,7 +12,7 @@ import tfm.graphs.augmented.ACFG;
 import tfm.graphs.augmented.APDG;
 import tfm.graphs.augmented.PPDG;
 import tfm.nodes.GraphNode;
-import tfm.visitors.pdg.ControlDependencyBuilder;
+import tfm.graphs.pdg.ControlDependencyBuilder;
 
 public class HandCraftedGraphs {
     public static APDG problem1WithGotos() {

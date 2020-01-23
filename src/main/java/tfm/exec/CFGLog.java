@@ -1,6 +1,6 @@
 package tfm.exec;
 
-import tfm.graphs.CFG;
+import tfm.graphs.cfg.CFG;
 
 public class CFGLog extends GraphLog<CFG> {
     public CFGLog() {

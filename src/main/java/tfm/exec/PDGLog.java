@@ -1,6 +1,6 @@
 package tfm.exec;
 
-import tfm.graphs.PDG;
+import tfm.graphs.pdg.PDG;
 import tfm.nodes.GraphNode;
 import tfm.utils.Logger;
 

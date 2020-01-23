@@ -1,4 +1,4 @@
-package tfm.graphs;
+package tfm.graphs.sdg;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
@@ -7,6 +7,7 @@ import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
+import tfm.graphs.pdg.PDG;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,7 +17,7 @@ import java.util.List;
  * Asumimos que procesamos 1 archivo con una o más clases donde el primer método de la primera clase es el main
  *
  */
-public class SDGBuilder extends VoidVisitorAdapter<Void> {
+class SDGBuilder extends VoidVisitorAdapter<Void> {
 
     SDG sdg;
     List<PDG> pdgs;

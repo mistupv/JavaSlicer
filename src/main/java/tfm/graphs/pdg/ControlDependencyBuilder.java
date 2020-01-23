@@ -1,8 +1,8 @@
-package tfm.visitors.pdg;
+package tfm.graphs.pdg;
 
 import tfm.arcs.Arc;
-import tfm.graphs.CFG;
-import tfm.graphs.PDG;
+import tfm.graphs.cfg.CFG;
+import tfm.graphs.pdg.PDG;
 import tfm.graphs.augmented.PPDG;
 import tfm.nodes.GraphNode;
 import tfm.nodes.NodeFactory;

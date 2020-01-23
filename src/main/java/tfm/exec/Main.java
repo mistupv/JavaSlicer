@@ -3,10 +3,10 @@ package tfm.exec;
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
-import tfm.graphs.CFG;
+import tfm.graphs.cfg.CFG;
 import tfm.graphs.Graph;
-import tfm.graphs.PDG;
-import tfm.graphs.SDG;
+import tfm.graphs.pdg.PDG;
+import tfm.graphs.sdg.SDG;
 import tfm.utils.Logger;
 import tfm.utils.Utils;
 

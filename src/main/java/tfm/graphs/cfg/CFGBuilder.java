@@ -1,4 +1,4 @@
-package tfm.graphs;
+package tfm.graphs.cfg;
 
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;

@@ -1,8 +1,8 @@
 package tfm.graphs.augmented;
 
 import tfm.arcs.cfg.ControlFlowArc;
-import tfm.graphs.CFG;
-import tfm.graphs.CFGBuilder;
+import tfm.graphs.cfg.CFG;
+import tfm.graphs.cfg.CFGBuilder;
 import tfm.nodes.GraphNode;
 
 public class ACFG extends CFG {

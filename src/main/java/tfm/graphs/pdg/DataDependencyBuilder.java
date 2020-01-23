@@ -1,16 +1,16 @@
-package tfm.visitors.pdg;
+package tfm.graphs.pdg;
 
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import tfm.graphs.CFG;
-import tfm.graphs.PDG;
+import tfm.graphs.cfg.CFG;
+import tfm.graphs.pdg.PDG;
 import tfm.nodes.GraphNode;
 import tfm.variables.VariableExtractor;
 
 import java.util.Optional;
 import java.util.Set;
 
-public class DataDependencyBuilder extends VoidVisitorAdapter<Void> {
+class DataDependencyBuilder extends VoidVisitorAdapter<Void> {
 
     private CFG cfg;
     private PDG pdg;

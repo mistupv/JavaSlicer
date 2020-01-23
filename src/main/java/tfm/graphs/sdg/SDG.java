@@ -1,10 +1,13 @@
-package tfm.graphs;
+package tfm.graphs.sdg;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.stmt.EmptyStmt;
+import tfm.graphs.Buildable;
+import tfm.graphs.Graph;
+import tfm.graphs.pdg.PDG;
 import tfm.nodes.GraphNode;
 import tfm.nodes.NodeFactory;
 import tfm.slicing.Slice;

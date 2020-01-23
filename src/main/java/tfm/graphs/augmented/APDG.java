@@ -1,6 +1,6 @@
 package tfm.graphs.augmented;
 
-import tfm.graphs.PDG;
+import tfm.graphs.pdg.PDG;
 
 public class APDG extends PDG {
     public APDG() {

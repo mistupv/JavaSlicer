@@ -1,8 +1,9 @@
-package tfm.graphs;
+package tfm.graphs.cfg;
 
 import com.github.javaparser.ast.body.MethodDeclaration;
 import tfm.arcs.Arc;
 import tfm.arcs.cfg.ControlFlowArc;
+import tfm.graphs.GraphWithRootNode;
 import tfm.nodes.GraphNode;
 import tfm.utils.NodeNotFoundException;
 

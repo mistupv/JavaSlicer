@@ -6,7 +6,7 @@ import com.github.javaparser.ast.expr.BooleanLiteralExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitor;
-import tfm.graphs.CFGBuilder;
+import tfm.graphs.cfg.CFGBuilder;
 import tfm.nodes.GraphNode;
 import tfm.utils.ASTUtils;
 

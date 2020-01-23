@@ -1,9 +1,8 @@
-package tfm.graphs;
+package tfm.graphs.pdg;
 
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.stmt.BlockStmt;
-import tfm.visitors.pdg.ControlDependencyBuilder;
-import tfm.visitors.pdg.DataDependencyBuilder;
+import tfm.graphs.cfg.CFG;
 
 /**
  * Populates a {@link PDG}, given a complete {@link CFG}, an empty {@link PDG} and an AST root node.

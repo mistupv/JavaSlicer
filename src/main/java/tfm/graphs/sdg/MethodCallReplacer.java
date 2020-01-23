@@ -1,8 +1,6 @@
-package tfm.visitors.sdg;
+package tfm.graphs.sdg;
 
-import tfm.graphs.SDG;
-
-public class MethodCallReplacer {
+class MethodCallReplacer {
 
     private SDG sdg;
 
