@@ -34,9 +34,9 @@ Find `Slice` class (`tfm/slicing`), set the program path and execute. The sliced
 
 ## Structure
 
-Graphs are built using a library called `graphlib`, located in `lib/graphlib.jar`. This library is old and has some issues I had to fix...
+Graphs are built using a library called `JGraphT`.
 
-The main class is the `Graph` class, which extends from `graphlib`'s `Graph` class. This class includes some behaviour fixes, and some general interest methods (like `toString`, `toGraphvizRepresentation`, etc.)
+The main class is the `Graph` class, which extends from `JGraphT`'s `DefaultDirectedGraph` class. This class includes some general interest methods (like `toString`, etc.)
 
 Every graph has a set of nodes and arrows. `GraphNode` and `Arc` classes are used to represent them respectively.
 
@@ -104,7 +104,7 @@ Forget about the `tfm/scopes` folder, it was an idea I had to discard and it has
 
 ### General
 
-- Switch to a (much) better graph library like [JGraphT](https://jgrapht.org/). It also supports graph visualization
+- Switch to a (much) better graph library like [JGraphT](https://jgrapht.org/). It also supports graph visualization (done).
 - Performance review
 - Make a test suite (test graph building, slicing, etc.)
 - Add support to more Java language features (lambdas, etc.)
@@ -114,28 +114,44 @@ Forget about the `tfm/scopes` folder, it was an idea I had to discard and it has
 ### Build a CFG from a program
 
 ```java
-public CFGGraph buildCFG(File programFile) {
-    JavaParser.getStaticConfiguration().setAttributeComments(false); // Always disable comments, just in case
-
-    Node astRoot = JavaParser.parse(programFile);
-
-    return Graphs.CFG.fromASTNode(astRoot); // Creates a new graph representing the program
+public class Example {
+    public CFG buildCFG(File programFile) {
+        // Always disable attribution of comments, just in case
+        JavaParser.getStaticConfiguration().setAttributeComments(false);
+        
+        Node astRoot = JavaParser.parse(programFile);
+        Optional<MethodDeclaration> optMethod = astRoot.findFirst(MethodDeclaration.class);
+        if (!optMethod.isPresent)
+            throw new RuntimeException("No method could be found");
+        
+        // Creates a new graph representing the program
+        CFG cfg = new CFG();
+        cfg.build(optMethod.get());
+        return cfg;
+    }
 }
 ```
 
 ### Get a slice of the PDG of a program
 
 ```java
-public PDGGraph getSlice(File program, SlicingCriterion slicingCriterion) {
-    JavaParser.getStaticConfiguration().setAttributeComments(false); // Always disable comments, just in case
-
-    Node astRoot = JavaParser.parse(programFile);
-
-    PDGGraph pdgGraph = Graphs.PDG.fromASTNode(astRoot);
-
-    return pdgGraph.slice(slicingCriterion);
+public class Example {
+    public PDGGraph getSlice(File program, SlicingCriterion slicingCriterion) {
+        // Always disable attribution of comments, just in case
+        JavaParser.getStaticConfiguration().setAttributeComments(false);
+        
+        Node astRoot = JavaParser.parse(programFile);
+        Optional<MethodDeclaration> optMethod = astRoot.findFirst(MethodDeclaration.class);
+        if (!optMethod.isPresent)
+            throw new RuntimeException("No method could be found");
+        
+        // Creates a new graph representing the program
+        PDG pdg = new PDG();
+        pdg.build(optMethod.get());
+        // Slice PDG
+        return pdg.slice(slicingCriterion);
+    }
 }
-
 ```
 
 ## Workflow
@@ -143,7 +159,7 @@ public PDGGraph getSlice(File program, SlicingCriterion slicingCriterion) {
 - Branches:
   - `master` (only for stable versions)
   - `develop` (main branch)
-  - `<issue number>`
+  - `<issue number>-name`
 
 1. Discover a new feature/fix
 2. Open an issue describing it and assign it

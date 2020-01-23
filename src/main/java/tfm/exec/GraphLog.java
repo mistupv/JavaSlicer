@@ -55,8 +55,11 @@ public abstract class GraphLog<G extends Graph> {
                 "*         GRAPHVIZ         *\n" +
                 "****************************"
         );
-        Logger.log(graph.toGraphvizRepresentation());
-        Logger.log();
+        try (StringWriter stringWriter = new StringWriter()) {
+            graph.getDOTExporter().exportGraph(graph, stringWriter);
+            stringWriter.append('\n');
+            Logger.log(stringWriter.toString());
+        }
     }
 
     public void generateImages() throws IOException {
@@ -72,18 +75,21 @@ public abstract class GraphLog<G extends Graph> {
         this.format = format;
         generated = true;
         File tmpDot = File.createTempFile("graph-source-", ".dot");
-        tmpDot.deleteOnExit();
+
+        // Graph -> DOT -> file
         try (Writer w = new FileWriter(tmpDot)) {
-            w.write(graph.toGraphvizRepresentation());
+            graph.getDOTExporter().exportGraph(graph, w);
         }
+        // Execute dot
         ProcessBuilder pb = new ProcessBuilder("dot",
             tmpDot.getAbsolutePath(), "-T" + format.getExt(),
             "-o", getImageFile().getAbsolutePath());
         try {
             int result = pb.start().waitFor();
-            if (result != 0) {
-                Logger.log("Image generation failed");
-            }
+            if (result == 0)
+                tmpDot.deleteOnExit();
+            else
+                Logger.log("Image generation failed, try running \"" + pb.toString() + "\" on your terminal.");
         } catch (InterruptedException e) {
             Logger.log("Image generation failed\n" + e.getMessage());
         }

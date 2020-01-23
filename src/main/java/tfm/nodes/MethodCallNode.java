@@ -1,12 +1,9 @@
 package tfm.nodes;
 
 import com.github.javaparser.ast.stmt.ExpressionStmt;
-import edg.graphlib.Arrow;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import tfm.arcs.data.ArcData;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
@@ -17,7 +14,7 @@ public class MethodCallNode extends GraphNode<ExpressionStmt> {
     private List<GraphNode> outParameters;
 
     public <N1 extends GraphNode<ExpressionStmt>> MethodCallNode(N1 node) {
-        super(node);
+        super(node.getId(), node.getInstruction(), node.getAstNode());
 
         this.inParameters = new ArrayList<>();
         this.outParameters = new ArrayList<>();
@@ -30,8 +27,8 @@ public class MethodCallNode extends GraphNode<ExpressionStmt> {
         this.outParameters = new ArrayList<>();
     }
 
-    public MethodCallNode(int id, String representation, @NonNull ExpressionStmt node, Collection<? extends Arrow<String, ArcData>> incomingArcs, Collection<? extends Arrow<String, ArcData>> outgoingArcs, Set<String> declaredVariables, Set<String> definedVariables, Set<String> usedVariables) {
-        super(id, representation, node, incomingArcs, outgoingArcs, declaredVariables, definedVariables, usedVariables);
+    public MethodCallNode(int id, String representation, @NonNull ExpressionStmt node, Set<String> declaredVariables, Set<String> definedVariables, Set<String> usedVariables) {
+        super(id, representation, node, declaredVariables, definedVariables, usedVariables);
 
         this.inParameters = new ArrayList<>();
         this.outParameters = new ArrayList<>();

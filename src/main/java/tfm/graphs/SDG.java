@@ -1,44 +1,33 @@
 package tfm.graphs;
 
-import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.stmt.EmptyStmt;
 import tfm.nodes.GraphNode;
+import tfm.nodes.NodeFactory;
 import tfm.slicing.SlicingCriterion;
 import tfm.utils.Context;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
-public class SDGGraph extends Graph {
+public class SDG extends Graph implements Sliceable<SDG> {
 
-    private Map<Context, PDGGraph> contextPDGGraphMap;
+    private Map<Context, PDG> contextPDGGraphMap;
 
-    public SDGGraph() {
+    public SDG() {
         this.contextPDGGraphMap = new HashMap<>();
     }
 
     @Override
-    public <ASTNode extends Node> GraphNode<ASTNode> addNode(String instruction, ASTNode node) {
-        GraphNode<ASTNode> sdgNode = new GraphNode<>(getNextVertexId(), instruction, node);
-        super.addVertex(sdgNode);
-
-        return sdgNode;
+    public SDG slice(SlicingCriterion slicingCriterion) {
+        throw new IllegalStateException("Not implemented (yet)");
     }
 
-    @Override
-    public String toGraphvizRepresentation() {
-        return contextPDGGraphMap.values().stream()
-                .map(PDGGraph::toGraphvizRepresentation).collect(Collectors.joining("\n"));
-    }
-
-    @Override
-    public Graph slice(SlicingCriterion slicingCriterion) {
-        return this;
-    }
-
-    public Map<Context, PDGGraph> getContextPDGGraphMap() {
+    public Map<Context, PDG> getContextPDGGraphMap() {
         return contextPDGGraphMap;
     }
 
@@ -53,18 +42,14 @@ public class SDGGraph extends Graph {
                 .collect(Collectors.toSet());
     }
 
-    public Collection<PDGGraph> getPDGs() {
+    public Collection<PDG> getPDGs() {
         return contextPDGGraphMap.values();
     }
 
     @Deprecated
-    public void addPDG(PDGGraph pdgGraph, MethodDeclaration methodDeclaration) {
-        if (this.rootVertex == null) {
-            this.setRootVertex(new GraphNode<>(getNextVertexId(), methodDeclaration.getNameAsString(), methodDeclaration));
-        }
-
+    public void addPDG(PDG pdg, MethodDeclaration methodDeclaration) {
         for (Parameter parameter : methodDeclaration.getParameters()) {
-            GraphNode<?> sdgNode = new GraphNode<>(
+            GraphNode<?> sdgNode = NodeFactory.graphNode(
                     getNextVertexId(),
                     String.format("%s = %s_in", parameter.getNameAsString(), parameter.getNameAsString()),
                     new EmptyStmt()
@@ -73,14 +58,12 @@ public class SDGGraph extends Graph {
             addVertex(sdgNode);
         }
 
-        for (GraphNode<?> node : pdgGraph.getNodes()) {
-            if (!this.verticies.contains(node)) {
-                GraphNode<?> sdgNode = new GraphNode<>(
+        for (GraphNode<?> node : pdg.vertexSet()) {
+            if (!this.containsVertex(node)) {
+                GraphNode<?> sdgNode = NodeFactory.computedGraphNode(
                         getNextVertexId(),
-                        node.getData(),
+                        node.getInstruction(),
                         node.getAstNode(),
-                        node.getIncomingArcs(),
-                        node.getOutgoingArcs(),
                         node.getDeclaredVariables(),
                         node.getDefinedVariables(),
                         node.getUsedVariables()
@@ -91,8 +74,8 @@ public class SDGGraph extends Graph {
         }
     }
 
-    public void addMethod(MethodDeclaration methodDeclaration, PDGGraph pdgGraph) {
-        GraphNode<MethodDeclaration> methodRootNode = new GraphNode<>(
+    public void addMethod(MethodDeclaration methodDeclaration, PDG pdg) {
+        GraphNode<MethodDeclaration> methodRootNode = NodeFactory.graphNode(
                 getNextVertexId(),
                 "ENTER " + methodDeclaration.getDeclarationAsString(false, false, true),
                 methodDeclaration

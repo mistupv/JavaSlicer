@@ -1,72 +1,79 @@
 package tfm.arcs;
 
-import tfm.arcs.data.ArcData;
+import org.jgrapht.graph.DefaultEdge;
+import org.jgrapht.io.Attribute;
+import tfm.arcs.cfg.ControlFlowArc;
+import tfm.arcs.pdg.ControlDependencyArc;
+import tfm.arcs.pdg.DataDependencyArc;
 import tfm.nodes.GraphNode;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
-public abstract class Arc<D extends ArcData> extends edg.graphlib.Arrow<String, D> {
+public abstract class Arc extends DefaultEdge {
+    public Arc() {
 
-    @SuppressWarnings("unchecked")
-    public Arc(GraphNode<?> from, GraphNode<?> to) {
-        super((edg.graphlib.Vertex<String, D>) from, (edg.graphlib.Vertex<String, D>) to);
     }
 
-    public abstract boolean isControlFlowArrow();
+    public final boolean isControlFlowArc() {
+        return this instanceof ControlFlowArc;
+    }
 
-    public abstract boolean isControlDependencyArrow();
+    public final ControlFlowArc asControlFlowArc() {
+        if (isControlFlowArc())
+            return (ControlFlowArc) this;
+        throw new UnsupportedOperationException("Not a ControlFlowArc");
+    }
 
-    public abstract boolean isDataDependencyArrow();
+    public final boolean isControlDependencyArc() {
+        return this instanceof ControlDependencyArc;
+    }
+
+    public final ControlDependencyArc asControlDependencyArc() {
+        if (isControlDependencyArc())
+            return (ControlDependencyArc) this;
+        throw new UnsupportedOperationException("Not a ControlDependencyArc");
+    }
+
+    public final boolean isDataDependencyArc() {
+        return this instanceof DataDependencyArc;
+    }
+
+    public final DataDependencyArc asDataDependencyArc() {
+        if (isDataDependencyArc())
+            return (DataDependencyArc) this;
+        throw new UnsupportedOperationException("Not a DataDependencyArc");
+    }
 
     @Override
     public String toString() {
-        return String.format("Arc{data: %s, %s -> %s}",
-                getData(),
-                getFrom(),
-                getTo()
-        );
+        return String.format("%s{%d -> %d}", getClass().getName(),
+                ((GraphNode<?>) getSource()).getId(), ((GraphNode<?>) getTarget()).getId());
     }
 
-    public String toGraphvizRepresentation() {
-        GraphNode from = (GraphNode) getFrom();
-        GraphNode to = (GraphNode) getTo();
-
-        return String.format("%s -> %s",
-                from.getId(),
-                to.getId()
-        );
+    public String getLabel() {
+        return "";
     }
 
-    public GraphNode<?> getFromNode() {
-        return (GraphNode<?>) super.getFrom();
-    }
-
-    public GraphNode<?> getToNode() {
-        return (GraphNode<?>) super.getTo();
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(getData()) + getFrom().hashCode() + getTo().hashCode();
+    public Map<String, Attribute> getDotAttributes() {
+        return new HashMap<>();
     }
 
     @Override
     public boolean equals(Object o) {
         if (this == o)
             return true;
-
-        if (!(o instanceof Arc))
+        if (o == null)
             return false;
+        if (!o.getClass().equals(this.getClass()))
+            return false;
+        return Objects.equals(getSource(), ((Arc) o).getSource()) &&
+                Objects.equals(getTarget(), ((Arc) o).getTarget());
+    }
 
-        Arc arc = (Arc) o;
-
-        GraphNode from = (GraphNode) arc.getFrom();
-        GraphNode from2 = (GraphNode) getFrom();
-        GraphNode to = (GraphNode) getTo();
-        GraphNode to2 = (GraphNode) arc.getTo();
-
-        return Objects.equals(arc.getData(), getData()) &&
-                Objects.equals(from.getId(), from2.getId()) &&
-                Objects.equals(to.getId(), to2.getId());
+    @Override
+    public int hashCode() {
+        return Objects.hash(getClass(), getSource(), getTarget());
     }
 }

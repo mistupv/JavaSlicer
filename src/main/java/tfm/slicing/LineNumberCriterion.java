@@ -1,9 +1,9 @@
 package tfm.slicing;
 
 import com.github.javaparser.ast.Node;
-import tfm.graphs.CFGGraph;
-import tfm.graphs.PDGGraph;
-import tfm.graphs.SDGGraph;
+import tfm.graphs.CFG;
+import tfm.graphs.PDG;
+import tfm.graphs.SDG;
 import tfm.nodes.GraphNode;
 import tfm.utils.Logger;
 
@@ -20,14 +20,14 @@ public class LineNumberCriterion extends SlicingCriterion {
     }
 
     @Override
-    public Optional<GraphNode<?>> findNode(CFGGraph graph) {
+    public Optional<GraphNode<?>> findNode(CFG graph) {
         return Optional.empty();
     }
 
     @Override
-    public Optional<GraphNode<?>> findNode(PDGGraph graph) {
+    public Optional<GraphNode<?>> findNode(PDG graph) {
         // find node by line number
-        return graph.getNodes().stream().filter(node -> {
+        return graph.vertexSet().stream().filter(node -> {
             Node astNode = node.getAstNode();
 
             if (!astNode.getBegin().isPresent() || !astNode.getEnd().isPresent())
@@ -43,7 +43,7 @@ public class LineNumberCriterion extends SlicingCriterion {
     }
 
     @Override
-    public Optional<GraphNode<?>> findNode(SDGGraph graph) {
+    public Optional<GraphNode<?>> findNode(SDG graph) {
         return Optional.empty();
     }
 

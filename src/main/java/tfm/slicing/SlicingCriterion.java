@@ -1,8 +1,8 @@
 package tfm.slicing;
 
-import tfm.graphs.CFGGraph;
-import tfm.graphs.PDGGraph;
-import tfm.graphs.SDGGraph;
+import tfm.graphs.CFG;
+import tfm.graphs.PDG;
+import tfm.graphs.SDG;
 import tfm.nodes.GraphNode;
 
 import java.util.Optional;
@@ -19,9 +19,9 @@ public abstract class SlicingCriterion {
         return variable;
     }
 
-    public abstract Optional<GraphNode<?>> findNode(CFGGraph graph);
-    public abstract Optional<GraphNode<?>> findNode(PDGGraph graph);
-    public abstract Optional<GraphNode<?>> findNode(SDGGraph graph);
+    public abstract Optional<GraphNode<?>> findNode(CFG graph);
+    public abstract Optional<GraphNode<?>> findNode(PDG graph);
+    public abstract Optional<GraphNode<?>> findNode(SDG graph);
 
     @Override
     public String toString() {

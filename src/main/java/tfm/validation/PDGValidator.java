@@ -7,13 +7,10 @@ import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
-import com.github.javaparser.ast.stmt.BlockStmt;
-import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.type.ArrayType;
 import com.github.javaparser.ast.type.VoidType;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import tfm.graphs.PDGGraph;
-import tfm.nodes.GraphNode;
+import tfm.graphs.PDG;
 import tfm.utils.Logger;
 import tfm.utils.Utils;
 import tfm.visitors.pdg.PDGBuilder;
@@ -21,7 +18,6 @@ import tfm.visitors.pdg.PDGBuilder;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
-import java.util.Comparator;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -63,38 +59,41 @@ public class PDGValidator {
     }
 
     public static boolean generateAndCheck(MethodDeclaration methodDeclaration) {
-        PDGGraph graph = new PDGGraph();
+        PDG graph = new PDG();
 
-        methodDeclaration.accept(new PDGBuilder(graph), graph.getRootNode());
+        methodDeclaration.accept(new PDGBuilder(graph), null);
 
         return check(methodDeclaration, graph);
     }
 
-    public static boolean check(MethodDeclaration methodDeclaration, PDGGraph graph) {
+    public static boolean check(MethodDeclaration methodDeclaration, PDG graph) {
         MethodDeclaration generatedMethod = generateMethod(methodDeclaration, graph);
 
         return ProgramComparator.areEqual(methodDeclaration, generatedMethod);
     }
 
-    public static MethodDeclaration generateMethod(MethodDeclaration info, PDGGraph graph) {
-        MethodDeclaration methodDeclaration = new MethodDeclaration();
-
-        methodDeclaration.setName(info.getNameAsString());
-        methodDeclaration.setModifiers(info.getModifiers());
-        methodDeclaration.setType(info.getType());
-        methodDeclaration.setParameters(info.getParameters());
-
-        BlockStmt methodBody = new BlockStmt();
-        methodDeclaration.setBody(methodBody);
-
-        graph.getNodesAtLevel(1).stream()
-                .sorted(Comparator.comparingInt(GraphNode::getId))
-                .forEach(node -> methodBody.addStatement((Statement) node.getAstNode()));
-
-        return methodDeclaration;
+    @Deprecated
+    public static MethodDeclaration generateMethod(MethodDeclaration info, PDG graph) {
+        // TODO: this does not work properly, replace or remove
+        throw new IllegalStateException("Deprecated method");
+//        MethodDeclaration methodDeclaration = new MethodDeclaration();
+//
+//        methodDeclaration.setName(info.getNameAsString());
+//        methodDeclaration.setModifiers(info.getModifiers());
+//        methodDeclaration.setType(info.getType());
+//        methodDeclaration.setParameters(info.getParameters());
+//
+//        BlockStmt methodBody = new BlockStmt();
+//        methodDeclaration.setBody(methodBody);
+//
+//        graph.getNodesAtLevel(1).stream()
+//                .sorted(Comparator.comparingInt(GraphNode::getId))
+//                .forEach(node -> methodBody.addStatement((Statement) node.getAstNode()));
+//
+//        return methodDeclaration;
     }
 
-    public static void printPDGProgram(String fileName, PDGGraph graph) throws FileNotFoundException {
+    public static void printPDGProgram(String fileName, PDG graph) throws FileNotFoundException {
         CompilationUnit generatedProgram = new CompilationUnit();
         ClassOrInterfaceDeclaration clazz = generatedProgram.addClass(fileName).setPublic(true);
 

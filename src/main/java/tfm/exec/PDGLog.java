@@ -1,6 +1,7 @@
 package tfm.exec;
 
-import tfm.graphs.PDGGraph;
+import com.github.javaparser.ast.Node;
+import tfm.graphs.PDG;
 import tfm.nodes.GraphNode;
 import tfm.utils.Logger;
 import tfm.visitors.pdg.PDGBuilder;
@@ -9,7 +10,7 @@ import java.io.IOException;
 import java.util.Comparator;
 import java.util.stream.Collectors;
 
-public class PDGLog extends GraphLog<PDGGraph> {
+public class PDGLog extends GraphLog<PDG> {
 
     private CFGLog cfgLog;
 
@@ -17,22 +18,22 @@ public class PDGLog extends GraphLog<PDGGraph> {
         this(null);
     }
 
-    public PDGLog(PDGGraph pdgGraph) {
-        super(pdgGraph);
+    public PDGLog(PDG pdg) {
+        super(pdg);
 
-        if (graph != null && graph.getCfgGraph() != null)
-            cfgLog = new CFGLog(graph.getCfgGraph());
+        if (graph != null && graph.getCfg() != null)
+            cfgLog = new CFGLog(graph.getCfg());
         else cfgLog = null;
     }
 
     @Override
-    public void visit(com.github.javaparser.ast.Node node) {
-        this.graph = new PDGGraph();
+    public void visit(Node node) {
+        this.graph = new PDG();
 
-        node.accept(new PDGBuilder(graph), this.graph.getRootNode());
+        node.accept(new PDGBuilder(graph), null);
 
         if (cfgLog == null) {
-            cfgLog = new CFGLog(graph.getCfgGraph());
+            cfgLog = new CFGLog(graph.getCfg());
         }
     }
 
@@ -41,7 +42,7 @@ public class PDGLog extends GraphLog<PDGGraph> {
         super.log();
 
         Logger.log("Nodes with variable info");
-        Logger.log(graph.getNodes().stream()
+        Logger.log(graph.vertexSet().stream()
                 .sorted(Comparator.comparingInt(GraphNode::getId))
                 .map(node ->
                         String.format("GraphNode { id: %s, declared: %s, defined: %s, used: %s }",

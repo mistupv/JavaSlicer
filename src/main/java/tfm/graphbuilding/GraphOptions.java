@@ -1,10 +1,10 @@
 package tfm.graphbuilding;
 
 import com.github.javaparser.ast.Node;
-import tfm.graphs.CFGGraph;
+import tfm.graphs.CFG;
 import tfm.graphs.Graph;
-import tfm.graphs.PDGGraph;
-import tfm.graphs.SDGGraph;
+import tfm.graphs.PDG;
+import tfm.graphs.SDG;
 import tfm.visitors.cfg.CFGBuilder;
 import tfm.visitors.pdg.PDGBuilder;
 import tfm.visitors.sdg.SDGBuilder;
@@ -23,41 +23,41 @@ public abstract class GraphOptions<G extends Graph> {
     protected abstract void buildGraphWithSpecificVisitor(G emptyGraph, Node node);
 }
 
-class CFGOptions extends GraphOptions<CFGGraph> {
+class CFGOptions extends GraphOptions<CFG> {
 
     @Override
-    public CFGGraph empty() {
-        return new CFGGraph();
+    public CFG empty() {
+        return new CFG();
     }
 
     @Override
-    protected void buildGraphWithSpecificVisitor(CFGGraph emptyGraph, Node node) {
+    protected void buildGraphWithSpecificVisitor(CFG emptyGraph, Node node) {
         node.accept(new CFGBuilder(emptyGraph), null);
     }
 }
 
-class PDGOptions extends GraphOptions<PDGGraph> {
+class PDGOptions extends GraphOptions<PDG> {
 
     @Override
-    public PDGGraph empty() {
-        return new PDGGraph();
+    public PDG empty() {
+        return new PDG();
     }
 
     @Override
-    protected void buildGraphWithSpecificVisitor(PDGGraph emptyGraph, Node node) {
-        node.accept(new PDGBuilder(emptyGraph), emptyGraph.getRootNode());
+    protected void buildGraphWithSpecificVisitor(PDG emptyGraph, Node node) {
+        node.accept(new PDGBuilder(emptyGraph), null);
     }
 }
 
-class SDGOptions extends GraphOptions<SDGGraph> {
+class SDGOptions extends GraphOptions<SDG> {
 
     @Override
-    public SDGGraph empty() {
-        return new SDGGraph();
+    public SDG empty() {
+        return new SDG();
     }
 
     @Override
-    protected void buildGraphWithSpecificVisitor(SDGGraph emptyGraph, Node node) {
+    protected void buildGraphWithSpecificVisitor(SDG emptyGraph, Node node) {
         node.accept(new SDGBuilder(emptyGraph), null);
     }
 }

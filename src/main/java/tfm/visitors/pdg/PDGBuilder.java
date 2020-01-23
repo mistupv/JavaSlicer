@@ -1,53 +1,47 @@
 package tfm.visitors.pdg;
 
-import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import tfm.graphs.CFGGraph;
-import tfm.graphs.PDGGraph;
-import tfm.nodes.GraphNode;
+import tfm.graphs.CFG;
+import tfm.graphs.PDG;
 import tfm.visitors.cfg.CFGBuilder;
 
-public class PDGBuilder extends VoidVisitorAdapter<GraphNode<?>> {
+public class PDGBuilder extends VoidVisitorAdapter<Void> {
 
-    private PDGGraph pdgGraph;
-    private CFGGraph cfgGraph;
+    private PDG pdg;
+    private CFG cfg;
 
-    public PDGBuilder(PDGGraph pdgGraph) {
-        this(pdgGraph, new CFGGraph() {
-            @Override
-            protected String getRootNodeData() {
-                return "Start";
-            }
-        });
+    public PDGBuilder(PDG pdg) {
+        this(pdg, new CFG());
     }
 
-    public PDGBuilder(PDGGraph pdgGraph, CFGGraph cfgGraph) {
-        this.pdgGraph = pdgGraph;
-        this.cfgGraph = cfgGraph;
+    public PDGBuilder(PDG pdg, CFG cfg) {
+        this.pdg = pdg;
+        this.cfg = cfg;
 
-        this.pdgGraph.setCfgGraph(cfgGraph);
+        this.pdg.setCfg(cfg);
     }
 
-    public void visit(MethodDeclaration methodDeclaration, GraphNode<?> parent) {
+    public void visit(MethodDeclaration methodDeclaration, Void empty) {
         if (!methodDeclaration.getBody().isPresent())
             return;
 
-        // Assign the method declaration to the root node of the PDG graph
-        this.pdgGraph.getRootNode().setAstNode(methodDeclaration);
+        this.pdg.buildRootNode("ENTER " + methodDeclaration.getNameAsString(), methodDeclaration);
+
+        assert this.pdg.getRootNode().isPresent();
+
+        // build CFG
+        methodDeclaration.accept(new CFGBuilder(cfg), null);
 
         BlockStmt methodBody = methodDeclaration.getBody().get();
 
-        // build CFG
-        methodBody.accept(new CFGBuilder(cfgGraph), null);
-
         // Build control dependency
-        ControlDependencyBuilder controlDependencyBuilder = new ControlDependencyBuilder(pdgGraph, cfgGraph);
-        methodBody.accept(controlDependencyBuilder, parent);
+        ControlDependencyBuilder controlDependencyBuilder = new ControlDependencyBuilder(pdg, cfg);
+        methodBody.accept(controlDependencyBuilder, pdg.getRootNode().get());
 
         // Build data dependency
-        DataDependencyBuilder dataDependencyBuilder = new DataDependencyBuilder(pdgGraph, cfgGraph);
+        DataDependencyBuilder dataDependencyBuilder = new DataDependencyBuilder(pdg, cfg);
         methodBody.accept(dataDependencyBuilder, null);
     }
 }
