@@ -5,6 +5,7 @@ import org.jgrapht.io.DefaultAttribute;
 import tfm.arcs.Arc;
 
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * An arc used in the {@link tfm.graphs.PDG} and {@link tfm.graphs.SDG},
@@ -32,6 +33,28 @@ public class DataDependencyArc extends Arc {
         map.put("style", DefaultAttribute.createAttribute("dashed"));
         map.put("color", DefaultAttribute.createAttribute("red"));
         return map;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+
+        if (!(o instanceof DataDependencyArc)) {
+            return false;
+        }
+
+        DataDependencyArc other = (DataDependencyArc) o;
+
+        return Objects.equals(variable, other.variable)
+                && Objects.equals(getSource(), other.getSource())
+                && Objects.equals(getTarget(), other.getTarget());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(variable, getSource(), getTarget());
     }
 }
 
