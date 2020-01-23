@@ -2,12 +2,14 @@ package tfm.nodes;
 
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.stmt.Statement;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.jetbrains.annotations.NotNull;
 import tfm.utils.Utils;
 import tfm.variables.VariableExtractor;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Objects;
+import java.util.Set;
 
 /**
  * Immutable class that represents an AST node inside a CFG, PDG or SDG.
@@ -42,7 +44,7 @@ public class GraphNode<N extends Node> {
     GraphNode(
                 int id,
                 String instruction,
-                @NonNull N astNode,
+                @NotNull N astNode,
                 Collection<String> declaredVariables,
                 Collection<String> definedVariables,
                 Collection<String> usedVariables
@@ -56,7 +58,7 @@ public class GraphNode<N extends Node> {
         this.usedVariables = new HashSet<>(usedVariables);
     }
 
-    private void extractVariables(@NonNull Statement statement) {
+    private void extractVariables(@NotNull Statement statement) {
         new VariableExtractor()
                 .setOnVariableDeclarationListener(this.declaredVariables::add)
                 .setOnVariableDefinitionListener(this.definedVariables::add)

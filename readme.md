@@ -131,9 +131,9 @@ public PDGGraph getSlice(File program, SlicingCriterion slicingCriterion) {
 
     Node astRoot = JavaParser.parse(programFile);
 
-    PDGGraph pdgGraph = Graphs.PDG.fromASTNode(astRoot);
+    PDGGraph pdg = Graphs.PDG.fromASTNode(astRoot);
 
-    return pdgGraph.slice(slicingCriterion);
+    return pdg.slice(slicingCriterion);
 }
 
 ```

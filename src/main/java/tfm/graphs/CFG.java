@@ -1,8 +1,6 @@
 package tfm.graphs;
 
 import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.stmt.EmptyStmt;
-import org.jgrapht.io.DOTExporter;
 import tfm.arcs.Arc;
 import tfm.arcs.cfg.ControlFlowArc;
 import tfm.nodes.GraphNode;
@@ -12,9 +10,9 @@ import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 
-public class CFGGraph extends GraphWithRootNode<MethodDeclaration> {
+public class CFG extends GraphWithRootNode<MethodDeclaration> {
 
-    public CFGGraph() {
+    public CFG() {
         super();
     }
 

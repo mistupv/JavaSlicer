@@ -2,7 +2,6 @@ package tfm.graphs;
 
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
-import org.jgrapht.io.DOTExporter;
 import tfm.arcs.Arc;
 import tfm.arcs.pdg.ControlDependencyArc;
 import tfm.arcs.pdg.DataDependencyArc;
@@ -13,19 +12,21 @@ import tfm.utils.Logger;
 import tfm.utils.NodeNotFoundException;
 import tfm.visitors.pdg.PDGBuilder;
 
-import java.util.*;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Set;
 
-public class PDGGraph extends GraphWithRootNode<MethodDeclaration> implements Sliceable<PDGGraph> {
+public class PDG extends GraphWithRootNode<MethodDeclaration> implements Sliceable<PDG> {
 
-    private CFGGraph cfgGraph;
+    private CFG cfg;
 
-    public PDGGraph() {
+    public PDG() {
         super();
     }
 
-    public PDGGraph(CFGGraph cfgGraph) {
+    public PDG(CFG cfg) {
         super();
-        this.cfgGraph = cfgGraph;
+        this.cfg = cfg;
     }
 
     public void addControlDependencyArc(GraphNode<?> from, GraphNode<?> to) {
@@ -36,12 +37,12 @@ public class PDGGraph extends GraphWithRootNode<MethodDeclaration> implements Sl
         this.addEdge(from, to, new DataDependencyArc(variable));
     }
 
-    public void setCfgGraph(CFGGraph cfgGraph) {
-        this.cfgGraph = cfgGraph;
+    public void setCfg(CFG cfg) {
+        this.cfg = cfg;
     }
 
     @Override
-    public PDGGraph slice(SlicingCriterion slicingCriterion) {
+    public PDG slice(SlicingCriterion slicingCriterion) {
         Optional<GraphNode<?>> optionalGraphNode = slicingCriterion.findNode(this);
 
         if (!optionalGraphNode.isPresent()) {
@@ -53,7 +54,7 @@ public class PDGGraph extends GraphWithRootNode<MethodDeclaration> implements Sl
         // Simply get slice nodes from GraphNode
         Set<Integer> sliceNodes = getSliceNodes(new HashSet<>(), node);
 
-        PDGGraph sliceGraph = new PDGGraph();
+        PDG sliceGraph = new PDG();
 
         Node astCopy = ASTUtils.cloneAST(node.getAstNode());
 
@@ -86,7 +87,7 @@ public class PDGGraph extends GraphWithRootNode<MethodDeclaration> implements Sl
         return visited;
     }
 
-    public CFGGraph getCfgGraph() {
-        return cfgGraph;
+    public CFG getCfg() {
+        return cfg;
     }
 }

@@ -2,20 +2,20 @@ package tfm.visitors.pdg;
 
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import tfm.graphs.CFGGraph;
-import tfm.graphs.PDGGraph;
+import tfm.graphs.CFG;
+import tfm.graphs.PDG;
 import tfm.nodes.GraphNode;
 
 import java.util.stream.Collectors;
 
 public class ControlDependencyBuilder extends VoidVisitorAdapter<GraphNode<?>> {
 
-    private CFGGraph cfgGraph;
-    private PDGGraph pdgGraph;
+    private CFG cfg;
+    private PDG pdg;
 
-    public ControlDependencyBuilder(PDGGraph pdgGraph, CFGGraph cfgGraph) {
-        this.pdgGraph = pdgGraph;
-        this.cfgGraph = cfgGraph;
+    public ControlDependencyBuilder(PDG pdg, CFG cfg) {
+        this.pdg = pdg;
+        this.cfg = cfg;
     }
 
     @Override
@@ -54,12 +54,12 @@ public class ControlDependencyBuilder extends VoidVisitorAdapter<GraphNode<?>> {
                 .orElse("true");
 
 
-        GraphNode<?> forNode = pdgGraph.addNode(
+        GraphNode<?> forNode = pdg.addNode(
                 String.format("for (%s;%s;%s)", initialization, compare, update),
                 forStmt
         );
 
-        pdgGraph.addControlDependencyArc(parent, forNode);
+        pdg.addControlDependencyArc(parent, forNode);
 
         forStmt.getBody().accept(this, forNode);
     }
@@ -86,9 +86,9 @@ public class ControlDependencyBuilder extends VoidVisitorAdapter<GraphNode<?>> {
     }
 
     private GraphNode<?> addNodeAndControlDependency(Statement statement, GraphNode<?> parent) {
-        GraphNode<?> cfgNode = cfgGraph.findNodeByASTNode(statement).get();
-        GraphNode<?> node = pdgGraph.addNode(cfgNode.getInstruction(), cfgNode.getAstNode());
-        pdgGraph.addControlDependencyArc(parent, node);
+        GraphNode<?> cfgNode = cfg.findNodeByASTNode(statement).get();
+        GraphNode<?> node = pdg.addNode(cfgNode.getInstruction(), cfgNode.getAstNode());
+        pdg.addControlDependencyArc(parent, node);
 
         return node;
     }

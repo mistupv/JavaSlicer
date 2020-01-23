@@ -5,7 +5,7 @@ import com.github.javaparser.ast.expr.BooleanLiteralExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import tfm.graphs.CFGGraph;
+import tfm.graphs.CFG;
 import tfm.nodes.GraphNode;
 import tfm.utils.ASTUtils;
 
@@ -13,12 +13,12 @@ import java.util.*;
 
 public class CFGBuilder extends VoidVisitorAdapter<Void> {
 
-    private CFGGraph graph;
+    private CFG graph;
 
     private Queue<GraphNode<?>> lastParentNodes;
     private List<GraphNode<?>> bodyBreaks;
 
-    public CFGBuilder(CFGGraph graph) {
+    public CFGBuilder(CFG graph) {
         this.graph = graph;
         this.lastParentNodes = Collections.asLifoQueue(new ArrayDeque<>());
 

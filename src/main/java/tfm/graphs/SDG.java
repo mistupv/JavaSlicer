@@ -3,8 +3,6 @@ package tfm.graphs;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.stmt.EmptyStmt;
-import org.jgrapht.io.DOTExporter;
-import tfm.arcs.Arc;
 import tfm.nodes.GraphNode;
 import tfm.nodes.NodeFactory;
 import tfm.slicing.SlicingCriterion;
@@ -16,20 +14,20 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class SDGGraph extends Graph implements Sliceable<SDGGraph> {
+public class SDG extends Graph implements Sliceable<SDG> {
 
-    private Map<Context, PDGGraph> contextPDGGraphMap;
+    private Map<Context, PDG> contextPDGGraphMap;
 
-    public SDGGraph() {
+    public SDG() {
         this.contextPDGGraphMap = new HashMap<>();
     }
 
     @Override
-    public SDGGraph slice(SlicingCriterion slicingCriterion) {
+    public SDG slice(SlicingCriterion slicingCriterion) {
         throw new IllegalStateException("Not implemented (yet)");
     }
 
-    public Map<Context, PDGGraph> getContextPDGGraphMap() {
+    public Map<Context, PDG> getContextPDGGraphMap() {
         return contextPDGGraphMap;
     }
 
@@ -44,12 +42,12 @@ public class SDGGraph extends Graph implements Sliceable<SDGGraph> {
                 .collect(Collectors.toSet());
     }
 
-    public Collection<PDGGraph> getPDGs() {
+    public Collection<PDG> getPDGs() {
         return contextPDGGraphMap.values();
     }
 
     @Deprecated
-    public void addPDG(PDGGraph pdgGraph, MethodDeclaration methodDeclaration) {
+    public void addPDG(PDG pdg, MethodDeclaration methodDeclaration) {
         for (Parameter parameter : methodDeclaration.getParameters()) {
             GraphNode<?> sdgNode = NodeFactory.graphNode(
                     getNextVertexId(),
@@ -60,7 +58,7 @@ public class SDGGraph extends Graph implements Sliceable<SDGGraph> {
             addVertex(sdgNode);
         }
 
-        for (GraphNode<?> node : pdgGraph.vertexSet()) {
+        for (GraphNode<?> node : pdg.vertexSet()) {
             if (!this.containsVertex(node)) {
                 GraphNode<?> sdgNode = NodeFactory.computedGraphNode(
                         getNextVertexId(),
@@ -76,7 +74,7 @@ public class SDGGraph extends Graph implements Sliceable<SDGGraph> {
         }
     }
 
-    public void addMethod(MethodDeclaration methodDeclaration, PDGGraph pdgGraph) {
+    public void addMethod(MethodDeclaration methodDeclaration, PDG pdg) {
         GraphNode<MethodDeclaration> methodRootNode = NodeFactory.graphNode(
                 getNextVertexId(),
                 "ENTER " + methodDeclaration.getDeclarationAsString(false, false, true),

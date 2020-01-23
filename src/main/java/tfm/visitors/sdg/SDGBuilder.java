@@ -11,8 +11,8 @@ import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import tfm.graphs.PDGGraph;
-import tfm.graphs.SDGGraph;
+import tfm.graphs.PDG;
+import tfm.graphs.SDG;
 import tfm.nodes.GraphNode;
 import tfm.visitors.pdg.PDGBuilder;
 
@@ -28,15 +28,15 @@ import java.util.Optional;
  */
 public class SDGBuilder extends VoidVisitorAdapter<Void> {
 
-    SDGGraph sdgGraph;
-    List<PDGGraph> pdgGraphs;
+    SDG sdg;
+    List<PDG> pdgs;
 
     private ClassOrInterfaceDeclaration currentClass;
     private CompilationUnit currentCompilationUnit;
 
-    public SDGBuilder(SDGGraph sdgGraph) {
-        this.sdgGraph = sdgGraph;
-        this.pdgGraphs = new ArrayList<>();
+    public SDGBuilder(SDG sdg) {
+        this.sdg = sdg;
+        this.pdgs = new ArrayList<>();
     }
 
     @Override
@@ -45,15 +45,15 @@ public class SDGBuilder extends VoidVisitorAdapter<Void> {
             return;
 
 
-        if (sdgGraph.isEmpty()) {
-            sdgGraph.addNode("ENTER " + methodDeclaration.getNameAsString(), methodDeclaration);
+        if (sdg.isEmpty()) {
+            sdg.addNode("ENTER " + methodDeclaration.getNameAsString(), methodDeclaration);
         } else {
 //            sdgGraph.addMethod(methodDeclaration);
         }
 
-        PDGGraph pdgGraph = new PDGGraph();
+        PDG pdg = new PDG();
 
-        PDGBuilder PDGBuilder = new PDGBuilder(pdgGraph) {
+        PDGBuilder PDGBuilder = new PDGBuilder(pdg) {
             @Override
             public void visit(MethodCallExpr methodCallExpr, Void empty) {
                 if (methodCallExpr.getScope().isPresent()) {
@@ -65,7 +65,7 @@ public class SDGBuilder extends VoidVisitorAdapter<Void> {
                     if (!Objects.equals(scopeName, currentClassName)) {
 
                         // Check if 'scopeName' is a variable
-                        List<GraphNode<?>> declarations = sdgGraph.findDeclarationsOfVariable(scopeName);
+                        List<GraphNode<?>> declarations = sdg.findDeclarationsOfVariable(scopeName);
 
                         if (declarations.isEmpty()) {
                             // It is a static method call of another class. We don't do anything
@@ -114,9 +114,9 @@ public class SDGBuilder extends VoidVisitorAdapter<Void> {
         PDGBuilder.visit(methodDeclaration, null);
 
 
-        sdgGraph.addNode(methodDeclaration.getNameAsString(), methodDeclaration);
+        sdg.addNode(methodDeclaration.getNameAsString(), methodDeclaration);
 
-        pdgGraph.vertexSet().stream().skip(1).forEach(pdgNode -> {
+        pdg.vertexSet().stream().skip(1).forEach(pdgNode -> {
             Statement statement = (Statement) pdgNode.getAstNode();
 
             if (statement.isExpressionStmt()) {
@@ -134,11 +134,11 @@ public class SDGBuilder extends VoidVisitorAdapter<Void> {
 
 
 
-        sdgGraph.addPDG(pdgGraph, methodDeclaration);
+        sdg.addPDG(pdg, methodDeclaration);
 
         methodDeclaration.accept(this, ignored);
 
-        pdgGraphs.add(pdgGraph);
+        pdgs.add(pdg);
     }
 
     @Override

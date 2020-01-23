@@ -1,8 +1,6 @@
 package tfm.nodes;
 
 import com.github.javaparser.ast.Node;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import tfm.nodes.GraphNode;
 
 import java.util.Collection;
 import java.util.Objects;
