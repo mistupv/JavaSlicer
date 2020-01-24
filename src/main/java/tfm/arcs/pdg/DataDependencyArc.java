@@ -39,24 +39,12 @@ public class DataDependencyArc extends Arc {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-
-        if (!(o instanceof DataDependencyArc)) {
-            return false;
-        }
-
-        DataDependencyArc other = (DataDependencyArc) o;
-
-        return Objects.equals(variable, other.variable)
-                && Objects.equals(getSource(), other.getSource())
-                && Objects.equals(getTarget(), other.getTarget());
+        return super.equals(o) && Objects.equals(variable, ((DataDependencyArc) o).variable);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(variable, getSource(), getTarget());
+        return Objects.hash(variable, super.hashCode());
     }
 }
 
