@@ -1,4 +1,4 @@
-package tfm;
+package tfm.graphs.pdg;
 
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.MethodDeclaration;
@@ -12,7 +12,6 @@ import tfm.graphs.augmented.ACFG;
 import tfm.graphs.augmented.APDG;
 import tfm.graphs.augmented.PPDG;
 import tfm.nodes.GraphNode;
-import tfm.graphs.pdg.ControlDependencyBuilder;
 
 public class HandCraftedGraphs {
     public static APDG problem1WithGotos() {

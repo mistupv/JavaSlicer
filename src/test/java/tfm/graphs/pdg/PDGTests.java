@@ -1,4 +1,4 @@
-package tfm;
+package tfm.graphs.pdg;
 
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.Modifier;
@@ -11,17 +11,15 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import tfm.exec.GraphLog;
 import tfm.exec.PDGLog;
-import tfm.graphs.cfg.CFG;
-import tfm.graphs.pdg.PDG;
 import tfm.graphs.augmented.ACFG;
 import tfm.graphs.augmented.APDG;
 import tfm.graphs.augmented.PPDG;
+import tfm.graphs.cfg.CFG;
 import tfm.nodes.GraphNode;
 import tfm.slicing.GraphNodeCriterion;
 import tfm.slicing.Slice;
 import tfm.slicing.SlicingCriterion;
 import tfm.utils.Logger;
-import tfm.graphs.pdg.ControlDependencyBuilder;
 
 import java.io.File;
 import java.io.IOException;
@@ -40,19 +38,19 @@ public class PDGTests {
     private boolean error = false;
 
     @ParameterizedTest(name = "[{index}] {0} ({1})")
-    @MethodSource("tfm.FileFinder#findAllMethodDeclarations")
+    @MethodSource("tfm.utils.FileFinder#findAllMethodDeclarations")
     public void ppdgTest(File file, String methodName, MethodDeclaration root) throws IOException {
         runPdg(file, methodName, root, new PPDG());
     }
 
     @ParameterizedTest(name = "[{index}] {0} ({1})")
-    @MethodSource("tfm.FileFinder#findAllMethodDeclarations")
+    @MethodSource("tfm.utils.FileFinder#findAllMethodDeclarations")
     public void apdgTest(File file, String methodName, MethodDeclaration root) throws IOException {
         runPdg(file, methodName, root, new APDG());
     }
 
     @ParameterizedTest(name = "[{index}] {0} ({1})")
-    @MethodSource("tfm.FileFinder#findAllMethodDeclarations")
+    @MethodSource("tfm.utils.FileFinder#findAllMethodDeclarations")
     public void pdgTest(File file, String methodName, MethodDeclaration root) throws IOException {
         runPdg(file, methodName, root, new PDG());
     }
@@ -70,8 +68,8 @@ public class PDGTests {
     }
 
     @ParameterizedTest(name = "[{index}] {0} ({1})")
-    @MethodSource("tfm.FileFinder#findAllMethodDeclarations")
-    public void pdgCompare(File file, String methodName, MethodDeclaration root) throws IOException {
+    @MethodSource("tfm.utils.FileFinder#findAllMethodDeclarations")
+    public void pdgCompare(File file, String methodName, MethodDeclaration root) {
         ControlDependencyBuilder ctrlDepBuilder;
 
         if (containsUnsupportedStatements(root)) {

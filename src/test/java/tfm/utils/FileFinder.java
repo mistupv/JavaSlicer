@@ -1,4 +1,4 @@
-package tfm;
+package tfm.utils;
 
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.body.MethodDeclaration;

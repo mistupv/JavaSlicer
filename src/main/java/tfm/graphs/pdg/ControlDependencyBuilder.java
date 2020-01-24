@@ -1,9 +1,8 @@
 package tfm.graphs.pdg;
 
 import tfm.arcs.Arc;
-import tfm.graphs.cfg.CFG;
-import tfm.graphs.pdg.PDG;
 import tfm.graphs.augmented.PPDG;
+import tfm.graphs.cfg.CFG;
 import tfm.nodes.GraphNode;
 import tfm.nodes.NodeFactory;
 
@@ -29,7 +28,7 @@ import java.util.stream.Collectors;
  * <b>Usage:</b> pass an empty {@link PDG} and a filled {@link CFG} and then run {@link #analyze()}.
  * This builder should only be used once, and then discarded.
  */
-public class ControlDependencyBuilder {
+class ControlDependencyBuilder {
     private final PDG pdg;
     private final CFG cfg;
 
