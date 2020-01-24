@@ -7,7 +7,7 @@ import java.util.Set;
 
 public class Utils {
 
-    public static final String PROGRAMS_FOLDER = "src/main/java/tfm/programs/";
+    public static final String PROGRAMS_FOLDER = "src/test/res/programs/";
 
     public static <E> List<E> emptyList() {
         return new ArrayList<>(0);
