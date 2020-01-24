@@ -42,7 +42,8 @@ public class PDGBuilder {
         BlockStmt methodBody = methodDeclaration.getBody().get();
 
         // build CFG
-        cfg.build(methodDeclaration);
+        if (!cfg.isBuilt())
+            cfg.build(methodDeclaration);
 
         // Build control dependency
         ControlDependencyBuilder controlDependencyBuilder = new ControlDependencyBuilder(pdg, cfg);
