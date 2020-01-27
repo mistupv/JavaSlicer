@@ -1,13 +1,14 @@
 package tfm.graphs;
 
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.body.MethodDeclaration;
 import tfm.nodes.GraphNode;
 import tfm.nodes.NodeFactory;
 
 import java.util.Objects;
 import java.util.Optional;
 
-public abstract class GraphWithRootNode<ASTRootNode extends Node> extends Graph {
+public abstract class GraphWithRootNode<ASTRootNode extends Node> extends Graph implements Buildable<MethodDeclaration> {
 
     protected final int ROOT_NODE_ID = 0;
 

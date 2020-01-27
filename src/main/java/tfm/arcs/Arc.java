@@ -12,10 +12,7 @@ import java.util.Map;
 import java.util.Objects;
 
 public abstract class Arc extends DefaultEdge {
-    public Arc() {
-
-    }
-
+    /** @see tfm.arcs.cfg.ControlFlowArc */
     public final boolean isControlFlowArc() {
         return this instanceof ControlFlowArc;
     }
@@ -26,6 +23,13 @@ public abstract class Arc extends DefaultEdge {
         throw new UnsupportedOperationException("Not a ControlFlowArc");
     }
 
+    /** @see tfm.arcs.cfg.ControlFlowArc.NonExecutable */
+    public final boolean isExecutableControlFlowArc() {
+        return this instanceof ControlFlowArc &&
+                !(this instanceof ControlFlowArc.NonExecutable);
+    }
+
+    /** @see tfm.arcs.pdg.ControlDependencyArc */
     public final boolean isControlDependencyArc() {
         return this instanceof ControlDependencyArc;
     }
@@ -36,6 +40,7 @@ public abstract class Arc extends DefaultEdge {
         throw new UnsupportedOperationException("Not a ControlDependencyArc");
     }
 
+    /** @see tfm.arcs.pdg.DataDependencyArc */
     public final boolean isDataDependencyArc() {
         return this instanceof DataDependencyArc;
     }

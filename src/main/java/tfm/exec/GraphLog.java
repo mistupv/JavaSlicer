@@ -1,6 +1,5 @@
 package tfm.exec;
 
-import com.github.javaparser.ast.Node;
 import tfm.graphs.Graph;
 import tfm.utils.FileUtil;
 import tfm.utils.Logger;
@@ -40,9 +39,6 @@ public abstract class GraphLog<G extends Graph> {
         this.graph = graph;
     }
 
-    public abstract void visit(Node node);
-
-
     public void log() throws IOException {
         Logger.log(
                 "****************************\n" +
@@ -71,7 +67,7 @@ public abstract class GraphLog<G extends Graph> {
     }
 
     public void generateImages(String imageName, Format format) throws IOException {
-        this.imageName = imageName;
+        this.imageName = imageName + "-" + graph.getClass().getName();
         this.format = format;
         generated = true;
         File tmpDot = File.createTempFile("graph-source-", ".dot");

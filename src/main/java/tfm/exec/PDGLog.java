@@ -1,17 +1,14 @@
 package tfm.exec;
 
-import com.github.javaparser.ast.Node;
-import tfm.graphs.PDG;
+import tfm.graphs.pdg.PDG;
 import tfm.nodes.GraphNode;
 import tfm.utils.Logger;
-import tfm.visitors.pdg.PDGBuilder;
 
 import java.io.IOException;
 import java.util.Comparator;
 import java.util.stream.Collectors;
 
 public class PDGLog extends GraphLog<PDG> {
-
     private CFGLog cfgLog;
 
     public PDGLog() {
@@ -24,17 +21,6 @@ public class PDGLog extends GraphLog<PDG> {
         if (graph != null && graph.getCfg() != null)
             cfgLog = new CFGLog(graph.getCfg());
         else cfgLog = null;
-    }
-
-    @Override
-    public void visit(Node node) {
-        this.graph = new PDG();
-
-        node.accept(new PDGBuilder(graph), null);
-
-        if (cfgLog == null) {
-            cfgLog = new CFGLog(graph.getCfg());
-        }
     }
 
     @Override
@@ -56,9 +42,9 @@ public class PDGLog extends GraphLog<PDG> {
 
     @Override
     public void generateImages(String imageName, Format format) throws IOException {
-        super.generateImages(imageName + "-pdg", format);
+        super.generateImages(imageName, format);
         if (cfgLog != null)
-            cfgLog.generateImages(imageName + "-cfg", format);
+            cfgLog.generateImages(imageName, format);
     }
 
     @Override
