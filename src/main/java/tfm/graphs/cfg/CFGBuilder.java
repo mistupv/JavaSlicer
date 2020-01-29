@@ -275,6 +275,7 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         hangingNodes.add(graph.getRootNode().get());
         methodDeclaration.getBody().get().accept(this, arg);
         returnList.stream().filter(node -> !hangingNodes.contains(node)).forEach(hangingNodes::add);
-        connectTo(new EmptyStmt(), "Exit");
+        GraphNode<EmptyStmt> exitNode = connectTo(new EmptyStmt(), "Exit");
+        graph.setExitNode(exitNode);
     }
 }

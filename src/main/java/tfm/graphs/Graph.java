@@ -87,8 +87,7 @@ public abstract class Graph extends DefaultDirectedGraph<GraphNode<?>, Arc> {
 
     @Override
     public String toString() {
-        return vertexSet().stream()
-                .sorted(Comparator.comparingInt(GraphNode::getId))
+        return vertexSet().stream().sorted()
                 .map(GraphNode::toString)
                 .collect(Collectors.joining(System.lineSeparator()));
     }
