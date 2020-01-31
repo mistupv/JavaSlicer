@@ -5,6 +5,7 @@ import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import tfm.graphs.cfg.CFG;
 import tfm.graphs.Graph;
+import tfm.graphs.augmented.APDG;
 import tfm.graphs.pdg.PDG;
 import tfm.graphs.sdg.SDG;
 import tfm.utils.Logger;
@@ -17,8 +18,8 @@ import java.util.Optional;
 
 public class Main {
 
-    public static final String PROGRAM = Utils.PROGRAMS_FOLDER + "cfg/Eval_4.java";
-    public static final String GRAPH = GraphLog.SDG;
+    public static final String PROGRAM = "/Users/serperu/Desktop/LCTES2020/problem1/TestBreak.java";
+    public static final String GRAPH = GraphLog.PDG;
     public static final String METHOD = "main";
 
     public static void main(String[] args) throws IOException {
@@ -61,7 +62,7 @@ public class Main {
                 cfg.build(method);
                 return cfg;
             case GraphLog.PDG:
-                PDG pdg = new PDG();
+                PDG pdg = new APDG();
                 pdg.build(method);
                 return pdg;
             case GraphLog.SDG:

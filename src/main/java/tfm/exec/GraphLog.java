@@ -67,7 +67,7 @@ public abstract class GraphLog<G extends Graph> {
     }
 
     public void generateImages(String imageName, Format format) throws IOException {
-        this.imageName = imageName + "-" + graph.getClass().getName();
+        this.imageName = imageName + "-" + graph.getClass().getSimpleName().toLowerCase();
         this.format = format;
         generated = true;
         File tmpDot = File.createTempFile("graph-source-", ".dot");
@@ -77,9 +77,10 @@ public abstract class GraphLog<G extends Graph> {
             graph.getDOTExporter().exportGraph(graph, w);
         }
         // Execute dot
-        ProcessBuilder pb = new ProcessBuilder("dot",
+        ProcessBuilder pb = new ProcessBuilder("/usr/local/bin/dot",
             tmpDot.getAbsolutePath(), "-T" + format.getExt(),
             "-o", getImageFile().getAbsolutePath());
+        getImageFile().getParentFile().mkdirs();
         try {
             int result = pb.start().waitFor();
             if (result == 0)

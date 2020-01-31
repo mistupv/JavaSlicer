@@ -12,7 +12,7 @@ import java.util.Collections;
 import java.util.List;
 
 public class FileFinder {
-    private static final String TEST_FILES = "./src/test/res/";
+    private static final String TEST_FILES = "/Users/serperu/Desktop/LCTES2020/problem1/";
     private static final String DOT_JAVA = ".java";
 
     public static Collection<Arguments> findFiles(File directory, String suffix) throws FileNotFoundException {

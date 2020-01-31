@@ -69,7 +69,7 @@ public class PDGTests {
 
     @ParameterizedTest(name = "[{index}] {0} ({1})")
     @MethodSource("tfm.utils.FileFinder#findAllMethodDeclarations")
-    public void pdgCompare(File file, String methodName, MethodDeclaration root) {
+    public void pdgCompare(File file, String methodName, MethodDeclaration root) throws IOException {
         ControlDependencyBuilder ctrlDepBuilder;
 
         if (containsUnsupportedStatements(root)) {
