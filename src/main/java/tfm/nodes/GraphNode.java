@@ -6,6 +6,7 @@ import org.jetbrains.annotations.NotNull;
 import tfm.graphs.cfg.CFG;
 import tfm.graphs.pdg.PDG;
 import tfm.graphs.sdg.SDG;
+import tfm.utils.ASTUtils;
 import tfm.utils.Utils;
 import tfm.variables.VariableExtractor;
 
@@ -115,6 +116,10 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
         return Objects.equals(getId(), other.getId())
                 && Objects.equals(getInstruction(), other.getInstruction())
                 && Objects.equals(astNode, other.astNode);
+    }
+
+    public boolean equalsWithASTNodeRange(Object o) {
+        return equals(o) && ASTUtils.equalsWithRange(((GraphNode<?>) o).astNode, astNode);
     }
 
     @Override

@@ -77,4 +77,9 @@ public class ASTUtils {
                 || node instanceof TryStmt
                 || node instanceof CatchClause;
     }
+
+    public static boolean equalsWithRange(Node n1, Node n2) {
+        return Objects.equals(n1.getRange(), n2.getRange())
+                && Objects.equals(n1, n2);
+    }
 }

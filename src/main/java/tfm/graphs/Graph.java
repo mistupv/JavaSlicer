@@ -1,7 +1,7 @@
 package tfm.graphs;
 
 import com.github.javaparser.ast.Node;
-import org.jgrapht.graph.DefaultDirectedGraph;
+import org.jgrapht.graph.DirectedPseudograph;
 import org.jgrapht.io.DOTExporter;
 import tfm.arcs.Arc;
 import tfm.nodes.GraphNode;
@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 /**
  *
  * */
-public abstract class Graph extends DefaultDirectedGraph<GraphNode<?>, Arc> {
+public abstract class Graph extends DirectedPseudograph<GraphNode<?>, Arc> {
 
     protected static final int DEFAULT_VERTEX_START_ID = 0;
 
