@@ -14,6 +14,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.BiFunction;
 
 /**
  * Represents a node in the various graphs ({@link CFG CFG},
@@ -45,9 +46,7 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
                 Utils.emptySet()
         );
 
-        if (astNode instanceof Statement) {
-            extractVariables((Statement) astNode);
-        }
+        extractVariables(astNode);
     }
 
     GraphNode(
@@ -67,12 +66,12 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
         this.usedVariables = new HashSet<>(usedVariables);
     }
 
-    private void extractVariables(@NotNull Statement statement) {
+    private void extractVariables(@NotNull Node node) {
         new VariableExtractor()
                 .setOnVariableDeclarationListener(this.declaredVariables::add)
                 .setOnVariableDefinitionListener(this.definedVariables::add)
                 .setOnVariableUseListener(this.usedVariables::add)
-                .visit(statement);
+                .visit(node);
     }
 
     public int getId() {
@@ -116,10 +115,6 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
         return Objects.equals(getId(), other.getId())
                 && Objects.equals(getInstruction(), other.getInstruction())
                 && Objects.equals(astNode, other.astNode);
-    }
-
-    public boolean equalsWithASTNodeRange(Object o) {
-        return equals(o) && ASTUtils.equalsWithRange(((GraphNode<?>) o).astNode, astNode);
     }
 
     @Override

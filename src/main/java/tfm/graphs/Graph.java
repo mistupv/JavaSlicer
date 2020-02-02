@@ -6,6 +6,7 @@ import org.jgrapht.io.DOTExporter;
 import tfm.arcs.Arc;
 import tfm.nodes.GraphNode;
 import tfm.nodes.NodeFactory;
+import tfm.utils.ASTUtils;
 
 import java.util.*;
 import java.util.function.Consumer;
@@ -74,7 +75,7 @@ public abstract class Graph extends DirectedPseudograph<GraphNode<?>, Arc> {
     @SuppressWarnings("unchecked")
     public <ASTNode extends Node> Optional<GraphNode<ASTNode>> findNodeByASTNode(ASTNode astNode) {
         return vertexSet().stream()
-                .filter(node -> Objects.equals(node.getAstNode(), astNode))
+                .filter(node -> ASTUtils.equalsWithRangeInCU(node.getAstNode(), astNode))
                 .findFirst()
                 .map(node -> (GraphNode<ASTNode>) node);
     }
