@@ -11,6 +11,11 @@ public class ACFG extends CFG {
     }
 
     @Override
+    protected void setExitNode(GraphNode<?> exitNode) {
+        super.setExitNode(exitNode);
+    }
+
+    @Override
     protected CFGBuilder newCFGBuilder() {
         return new ACFGBuilder(this);
     }

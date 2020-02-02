@@ -243,6 +243,7 @@ public class ACFGBuilder extends CFGBuilder {
         methodDeclaration.getBody().get().accept(this, arg);
         returnList.stream().filter(node -> !hangingNodes.contains(node)).forEach(hangingNodes::add);
         nonExecHangingNodes.add(graph.getRootNode().get());
-        connectTo(new EmptyStmt(), "Exit");
+        GraphNode<EmptyStmt> exitNode = connectTo(new EmptyStmt(), "Exit");
+        ((ACFG) graph).setExitNode(exitNode);
     }
 }

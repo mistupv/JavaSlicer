@@ -3,6 +3,7 @@ package tfm.graphs.pdg;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import tfm.graphs.cfg.CFG;
+import tfm.nodes.GraphNode;
 
 /**
  * Populates a {@link PDG}, given a complete {@link CFG}, an empty {@link PDG} and an AST root node.
@@ -44,6 +45,11 @@ public class PDGBuilder {
         // build CFG
         if (!cfg.isBuilt())
             cfg.build(methodDeclaration);
+
+        // Copy nodes from CFG to PDG
+        for (GraphNode<?> node : cfg.vertexSet())
+            if (!node.equals(cfg.getExitNode()))
+                pdg.addVertex(node);
 
         // Build control dependency
         ControlDependencyBuilder controlDependencyBuilder = new ControlDependencyBuilder(pdg, cfg);
