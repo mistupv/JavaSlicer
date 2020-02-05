@@ -31,8 +31,9 @@ public class PDGLog extends GraphLog<PDG> {
         Logger.log(graph.vertexSet().stream()
                 .sorted(Comparator.comparingInt(GraphNode::getId))
                 .map(node ->
-                        String.format("GraphNode { id: %s, declared: %s, defined: %s, used: %s }",
+                        String.format("GraphNode { id: %s, instruction: %s, declared: %s, defined: %s, used: %s }",
                                 node.getId(),
+                                node.getInstruction(),
                                 node.getDeclaredVariables(),
                                 node.getDefinedVariables(),
                                 node.getUsedVariables())

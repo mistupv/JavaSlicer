@@ -1,14 +1,10 @@
 package tfm.graphs.pdg;
 
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.graphs.cfg.CFG;
-import tfm.graphs.pdg.PDG;
 import tfm.nodes.GraphNode;
-import tfm.variables.VariableExtractor;
-
-import java.util.Optional;
-import java.util.Set;
 
 class DataDependencyBuilder extends VoidVisitorAdapter<Void> {
 
@@ -43,17 +39,13 @@ class DataDependencyBuilder extends VoidVisitorAdapter<Void> {
 
     @Override
     public void visit(ForStmt forStmt, Void ignored) {
-        GraphNode<ForStmt> forNode = pdg.findNodeByASTNode(forStmt).get();
-
-        forStmt.getInitialization().stream()
-                .map(ExpressionStmt::new)
-                .forEach(expressionStmt -> buildDataDependency(forNode, expressionStmt));
+        forStmt.getInitialization()
+                .forEach(this::buildDataDependency);
 
         buildDataDependency(forStmt); // Only for comparison
 
-        forStmt.getUpdate().stream()
-                .map(ExpressionStmt::new)
-                .forEach(expressionStmt -> buildDataDependency(forNode, expressionStmt));
+        forStmt.getUpdate()
+                .forEach(this::buildDataDependency);
 
         forStmt.getBody().accept(this, null);
     }
@@ -79,51 +71,14 @@ class DataDependencyBuilder extends VoidVisitorAdapter<Void> {
         switchEntryStmt.getStatements().accept(this, null);
     }
 
-    private void buildDataDependency(Statement statement) {
-        buildDataDependency(pdg.findNodeByASTNode(statement).get());
+    private void buildDataDependency(Node node) {
+        buildDataDependency(pdg.findNodeByASTNode(node).get());
     }
 
     private void buildDataDependency(GraphNode<?> node) {
-        new VariableExtractor()
-                .setOnVariableUseListener(variable -> {
-                    node.addUsedVariable(variable);
-
-                    Optional<? extends GraphNode<?>> nodeOptional = cfg.findNodeByASTNode(node.getAstNode());
-
-                    if (!nodeOptional.isPresent()) {
-                        return;
-                    }
-
-                    GraphNode<?> cfgNode = nodeOptional.get();
-
-                    Set<GraphNode<?>> lastDefinitions = cfg.findLastDefinitionsFrom(cfgNode, variable);
-
-                    for (GraphNode<?> definitionNode : lastDefinitions) {
-                        pdg.findNodeByASTNode(definitionNode.getAstNode())
-                                .ifPresent(pdgNode -> pdg.addDataDependencyArc(pdgNode, node, variable));
-                    }
-                })
-                .setOnVariableDefinitionListener(node::addDefinedVariable)
-                .setOnVariableDeclarationListener(node::addDeclaredVariable)
-                .visit(node.getAstNode());
-    }
-
-    // For statement special case
-    private void buildDataDependency(GraphNode<?> forNode, Statement statement) {
-        new VariableExtractor()
-                .setOnVariableUseListener(variable -> {
-                    forNode.addUsedVariable(variable);
-
-                    Optional<? extends GraphNode<?>> nodeOptional = cfg.findNodeByASTNode(statement);
-
-                    if (!nodeOptional.isPresent()) {
-                        return;
-                    }
-
-                    pdg.addDataDependencyArc(forNode, forNode, variable);
-                })
-                .setOnVariableDefinitionListener(forNode::addDefinedVariable)
-                .setOnVariableDeclarationListener(forNode::addDeclaredVariable)
-                .visit(statement);
+        for (String usedVariable : node.getUsedVariables()) {
+            cfg.findLastDefinitionsFrom(node, usedVariable)
+                    .forEach(definitionNode -> pdg.addDataDependencyArc(definitionNode, node, usedVariable));
+        }
     }
 }

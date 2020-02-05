@@ -54,10 +54,6 @@ public class VariableExtractor {
         node.accept(this.visitor, VariableAction.Actions.USE);
     }
 
-    public void visit(@NonNull Expression expression) {
-        expression.accept(this.visitor, VariableAction.Actions.USE);
-    }
-
     @FunctionalInterface
     public interface OnVariableDeclarationListener {
         void onVariableDeclaration(String variable);

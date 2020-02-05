@@ -6,6 +6,7 @@ import org.jetbrains.annotations.NotNull;
 import tfm.graphs.cfg.CFG;
 import tfm.graphs.pdg.PDG;
 import tfm.graphs.sdg.SDG;
+import tfm.utils.ASTUtils;
 import tfm.utils.Utils;
 import tfm.variables.VariableExtractor;
 
@@ -44,9 +45,7 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
                 Utils.emptySet()
         );
 
-        if (astNode instanceof Statement) {
-            extractVariables((Statement) astNode);
-        }
+        extractVariables(astNode);
     }
 
     GraphNode(
@@ -66,12 +65,12 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
         this.usedVariables = new HashSet<>(usedVariables);
     }
 
-    private void extractVariables(@NotNull Statement statement) {
+    private void extractVariables(@NotNull Node node) {
         new VariableExtractor()
                 .setOnVariableDeclarationListener(this.declaredVariables::add)
                 .setOnVariableDefinitionListener(this.definedVariables::add)
                 .setOnVariableUseListener(this.usedVariables::add)
-                .visit(statement);
+                .visit(node);
     }
 
     public int getId() {
