@@ -1,9 +1,7 @@
 package tfm.nodes;
 
 import com.github.javaparser.ast.stmt.ExpressionStmt;
-import edg.graphlib.Arrow;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import tfm.arcs.data.ArcData;
 
 import java.util.Set;
 

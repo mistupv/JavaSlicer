@@ -1,17 +1,13 @@
 package tfm.exec;
 
-import com.github.javaparser.ast.Node;
-import tfm.graphs.SDGGraph;
-import tfm.visitors.sdg.SDGBuilder;
+import tfm.graphs.sdg.SDG;
 
-import java.io.IOException;
+public class SDGLog extends GraphLog<SDG> {
+    public SDGLog() {
+        super();
+    }
 
-public class SDGLog extends GraphLog<SDGGraph> {
-
-    @Override
-    public void visit(Node node) {
-        this.graph = new SDGGraph();
-        SDGBuilder sdgBuilder = new SDGBuilder(this.graph);
-        node.accept(sdgBuilder, null);
+    public SDGLog(SDG graph) {
+        super(graph);
     }
 }

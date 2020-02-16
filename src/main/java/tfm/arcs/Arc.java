@@ -8,38 +8,48 @@ import tfm.arcs.pdg.DataDependencyArc;
 import tfm.arcs.sdg.CallArc;
 import tfm.nodes.GraphNode;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
-public abstract class Arc<D extends ArcData> extends edg.graphlib.Arrow<String, D> {
-
-    @SuppressWarnings("unchecked")
-    public Arc(GraphNode<?> from, GraphNode<?> to) {
-        super((edg.graphlib.Vertex<String, D>) from, (edg.graphlib.Vertex<String, D>) to);
+public abstract class Arc extends DefaultEdge {
+    /** @see tfm.arcs.cfg.ControlFlowArc */
+    public final boolean isControlFlowArc() {
+        return this instanceof ControlFlowArc;
     }
 
-    public abstract boolean isControlFlowArrow();
-
-    public abstract boolean isControlDependencyArrow();
-
-    public abstract boolean isDataDependencyArrow();
-
-    @Override
-    public String toString() {
-        return String.format("Arc{data: %s, %s -> %s}",
-                getData(),
-                getFrom(),
-                getTo()
-        );
+    public final ControlFlowArc asControlFlowArc() {
+        if (isControlFlowArc())
+            return (ControlFlowArc) this;
+        throw new UnsupportedOperationException("Not a ControlFlowArc");
     }
 
-    public String toGraphvizRepresentation() {
-        GraphNode from = (GraphNode) getFrom();
-        GraphNode to = (GraphNode) getTo();
+    /** @see tfm.arcs.cfg.ControlFlowArc.NonExecutable */
+    public final boolean isExecutableControlFlowArc() {
+        return this instanceof ControlFlowArc &&
+                !(this instanceof ControlFlowArc.NonExecutable);
+    }
 
-        return String.format("%s -> %s",
-                from.getId(),
-                to.getId()
-        );
+    /** @see tfm.arcs.pdg.ControlDependencyArc */
+    public final boolean isControlDependencyArc() {
+        return this instanceof ControlDependencyArc;
+    }
+
+    public final ControlDependencyArc asControlDependencyArc() {
+        if (isControlDependencyArc())
+            return (ControlDependencyArc) this;
+        throw new UnsupportedOperationException("Not a ControlDependencyArc");
+    }
+
+    /** @see tfm.arcs.pdg.DataDependencyArc */
+    public final boolean isDataDependencyArc() {
+        return this instanceof DataDependencyArc;
+    }
+
+    public final DataDependencyArc asDataDependencyArc() {
+        if (isDataDependencyArc())
+            return (DataDependencyArc) this;
+        throw new UnsupportedOperationException("Not a DataDependencyArc");
     }
 
     /** @see CallArc */
@@ -59,32 +69,28 @@ public abstract class Arc<D extends ArcData> extends edg.graphlib.Arrow<String, 
                 ((GraphNode<?>) getSource()).getId(), ((GraphNode<?>) getTarget()).getId());
     }
 
-    public GraphNode<?> getToNode() {
-        return (GraphNode<?>) super.getTo();
+    public String getLabel() {
+        return "";
     }
 
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(getData()) + getFrom().hashCode() + getTo().hashCode();
+    public Map<String, Attribute> getDotAttributes() {
+        return new HashMap<>();
     }
 
     @Override
     public boolean equals(Object o) {
         if (this == o)
             return true;
-
-        if (!(o instanceof Arc))
+        if (o == null)
             return false;
+        if (!o.getClass().equals(this.getClass()))
+            return false;
+        return Objects.equals(getSource(), ((Arc) o).getSource()) &&
+                Objects.equals(getTarget(), ((Arc) o).getTarget());
+    }
 
-        Arc arc = (Arc) o;
-
-        GraphNode from = (GraphNode) arc.getFrom();
-        GraphNode from2 = (GraphNode) getFrom();
-        GraphNode to = (GraphNode) getTo();
-        GraphNode to2 = (GraphNode) arc.getTo();
-
-        return Objects.equals(arc.getData(), getData()) &&
-                Objects.equals(from.getId(), from2.getId()) &&
-                Objects.equals(to.getId(), to2.getId());
+    @Override
+    public int hashCode() {
+        return Objects.hash(getClass(), getSource(), getTarget());
     }
 }

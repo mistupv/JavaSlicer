@@ -1,40 +1,26 @@
 package tfm.exec;
 
-import guru.nidi.graphviz.engine.Format;
-import tfm.graphs.PDGGraph;
+import tfm.graphs.pdg.PDG;
 import tfm.nodes.GraphNode;
 import tfm.utils.Logger;
-import tfm.visitors.pdg.PDGBuilder;
 
 import java.io.IOException;
 import java.util.Comparator;
 import java.util.stream.Collectors;
 
-public class PDGLog extends GraphLog<PDGGraph> {
-
+public class PDGLog extends GraphLog<PDG> {
     private CFGLog cfgLog;
 
     public PDGLog() {
         this(null);
     }
 
-    public PDGLog(PDGGraph pdgGraph) {
-        super(pdgGraph);
+    public PDGLog(PDG pdg) {
+        super(pdg);
 
-        if (graph != null && graph.getCfgGraph() != null)
-            cfgLog = new CFGLog(graph.getCfgGraph());
+        if (graph != null && graph.getCfg() != null)
+            cfgLog = new CFGLog(graph.getCfg());
         else cfgLog = null;
-    }
-
-    @Override
-    public void visit(com.github.javaparser.ast.Node node) {
-        this.graph = new PDGGraph();
-
-        node.accept(new PDGBuilder(graph), this.graph.getRootNode());
-
-        if (cfgLog == null) {
-            cfgLog = new CFGLog(graph.getCfgGraph());
-        }
     }
 
     @Override
@@ -42,11 +28,12 @@ public class PDGLog extends GraphLog<PDGGraph> {
         super.log();
 
         Logger.log("Nodes with variable info");
-        Logger.log(graph.getNodes().stream()
+        Logger.log(graph.vertexSet().stream()
                 .sorted(Comparator.comparingInt(GraphNode::getId))
                 .map(node ->
-                        String.format("GraphNode { id: %s, declared: %s, defined: %s, used: %s }",
+                        String.format("GraphNode { id: %s, instruction: %s, declared: %s, defined: %s, used: %s }",
                                 node.getId(),
+                                node.getInstruction(),
                                 node.getDeclaredVariables(),
                                 node.getDefinedVariables(),
                                 node.getUsedVariables())
@@ -56,9 +43,9 @@ public class PDGLog extends GraphLog<PDGGraph> {
 
     @Override
     public void generateImages(String imageName, Format format) throws IOException {
-        super.generateImages(imageName + "-pdg", format);
+        super.generateImages(imageName, format);
         if (cfgLog != null)
-            cfgLog.generateImages(imageName + "-cfg", format);
+            cfgLog.generateImages(imageName, format);
     }
 
     @Override

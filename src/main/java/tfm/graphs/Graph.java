@@ -1,159 +1,212 @@
 package tfm.graphs;
 
 import com.github.javaparser.ast.Node;
-import edg.graphlib.Arrow;
-import edg.graphlib.Vertex;
+import org.jgrapht.graph.DirectedPseudograph;
+import org.jgrapht.io.DOTExporter;
 import tfm.arcs.Arc;
-import tfm.arcs.data.ArcData;
 import tfm.nodes.GraphNode;
-import tfm.slicing.SlicingCriterion;
+import tfm.nodes.NodeFactory;
+import tfm.utils.ASTUtils;
 
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
- * A graphlib Graph without cost and data in arcs
+ *
  * */
-public abstract class Graph extends edg.graphlib.Graph<String, ArcData> {
+public abstract class Graph extends DirectedPseudograph<GraphNode<?>, Arc> {
 
-    private int nextVertexId = 0;
+    protected static final int DEFAULT_VERTEX_START_ID = 0;
 
-//    public final static class NodeId {
-//        private static int nextVertexId = 0;
-//
-//        private int id;
-//
-//        private NodeId(int id) {
-//            this.id = id;
-//        }
-//
-//        static synchronized NodeId getVertexId() {
-//            return new NodeId(nextVertexId++);
-//        }
-//
-//        public int getId() {
-//            return id;
-//        }
-//
-//        @Override
-//        public String toString() {
-//            return String.valueOf(id);
-//        }
-//    }
+    private int nextVertexId;
 
     public Graph() {
-        super();
+        this(DEFAULT_VERTEX_START_ID);
+    }
+
+    protected Graph(int vertexStartId) {
+        super(null, null, false);
+        this.nextVertexId = vertexStartId;
+    }
+
+    private <ASTNode extends Node> GraphNode<ASTNode> addNode(GraphNode<ASTNode> node) {
+        this.addVertex(node);
+
+        return node;
+    }
+
+    private <ASTNode extends Node> GraphNode<ASTNode> addNode(int id, String instruction, ASTNode node) {
+        GraphNode<ASTNode> newNode = NodeFactory.graphNode(id, instruction, node);
+
+        return this.addNode(newNode);
+    }
+
+    public <ASTNode extends Node> GraphNode<ASTNode> addNode(String instruction, ASTNode node) {
+        return this.addNode(getNextVertexId(), instruction, node);
     }
 
     /**
-      Library fix: if a node had an edge to itself resulted in 2 outgoing nodes instead of 1 outgoing and 1 incoming
+     * Adds the given node to the graph.
+     *
+     * One must be careful with this method, as the given node will have
+     * an id corresponding to the graph in which it was created, and may not fit
+     * in the current graph.
+     *
+     * @param node the node to add to the graph
+     * @param copyId whether to copy the node id or generate a new one
+     * @return the node instance added to the graph
      */
-    @Override
-    public boolean addEdge(Arrow<String, ArcData> arrow) {
-        Vertex<String, ArcData> from = arrow.getFrom();
-        Vertex<String, ArcData> to = arrow.getTo();
-        int cost = arrow.getCost();
-        ArcData data = arrow.getData();
+    public <ASTNode extends Node> GraphNode<ASTNode> addNode(GraphNode<ASTNode> node, boolean copyId) {
+        GraphNode<ASTNode> copy = NodeFactory.computedGraphNode(
+                copyId ? node.getId() : getNextVertexId(),
+                node.getInstruction(),
+                node.getAstNode(),
+                node.getDeclaredVariables(),
+                node.getDefinedVariables(),
+                node.getUsedVariables()
+        );
 
-        if (!verticies.contains(from))
-            throw new IllegalArgumentException(String.format("from (%s) is not in graph", from));
-        if (!verticies.contains(to))
-            throw new IllegalArgumentException(String.format("to (%s) is not in graph", to));
+        this.addVertex(copy);
 
-        List<Arrow<String, ArcData>> es2 = from.findEdges(to);
-
-        for (Arrow<String, ArcData> e2 : es2) {
-            if (e2 != null && cost == e2.getCost() &&
-                    ((data == null && e2.getData() == null) ||
-                            (data != null && data.equals(e2.getData()))))
-                return false;
-        }
-
-        // FIX
-        if (Objects.equals(from, to)) {
-            from.getOutgoingArrows().add(arrow);
-            from.getIncomingArrows().add(arrow);
-        } else {
-            from.addEdge(arrow);
-            to.addEdge(arrow);
-        }
-        edges.add(arrow);
-        return true;
+        return copy;
     }
-
-    @SuppressWarnings("unchecked")
-    public <ASTNode extends Node> GraphNode<ASTNode> getRootNode() {
-        return (GraphNode<ASTNode>) super.getRootVertex();
-    }
-
-    public abstract <ASTNode extends Node> GraphNode<ASTNode> addNode(String instruction, ASTNode node);
 
     @SuppressWarnings("unchecked")
     public <ASTNode extends Node> Optional<GraphNode<ASTNode>> findNodeByASTNode(ASTNode astNode) {
-        return getNodes().stream()
-                .filter(node -> Objects.equals(node.getAstNode(), astNode))
+        return vertexSet().stream()
+                .filter(node -> ASTUtils.equalsWithRangeInCU(node.getAstNode(), astNode))
                 .findFirst()
                 .map(node -> (GraphNode<ASTNode>) node);
     }
 
     public Optional<GraphNode<?>> findNodeById(int id) {
-        return getNodes().stream()
+        return vertexSet().stream()
                 .filter(node -> Objects.equals(node.getId(), id))
                 .findFirst();
     }
 
-    @SuppressWarnings("unchecked")
-    public Set<GraphNode<?>> getNodes() {
-        return getVerticies().stream()
-                .map(vertex -> (GraphNode<?>) vertex)
-                .collect(Collectors.toSet());
-    }
-
-    public Set<Arc<ArcData>> getArcs() {
-        return getArrows().stream()
-                .map(arrow -> (Arc<ArcData>) arrow)
-                .collect(Collectors.toSet());
-    }
-
+    @Override
     public String toString() {
-        return getNodes().stream()
-                .sorted(Comparator.comparingInt(GraphNode::getId))
+        return vertexSet().stream().sorted()
                 .map(GraphNode::toString)
                 .collect(Collectors.joining(System.lineSeparator()));
     }
-
-    public abstract String toGraphvizRepresentation();
 
     protected synchronized int getNextVertexId() {
         return nextVertexId++;
     }
 
-    public boolean contains(GraphNode<?> graphNode) {
-        return getNodes().stream()
-                .anyMatch(node -> Objects.equals(node, graphNode));
-    }
-
-    public abstract Graph slice(SlicingCriterion slicingCriterion);
-
-    /**
-     * Deprecated for incorrect behaviour. Use removeNode instead
-     */
-    @Override
-    @Deprecated
-    public boolean removeVertex(Vertex<String, ArcData> vertex) {
-        throw new UnsupportedOperationException("Deprecated method. Use removeNode instead");
-    }
-
-    public void removeNode(GraphNode<?> node) {
-        verticies.remove(node);
-
-        edges.removeAll(node.getOutgoingArcs());
-        edges.removeAll(node.getIncomingArcs());
-    }
-
     public List<GraphNode<?>> findDeclarationsOfVariable(String variable) {
-        return getNodes().stream()
+        return vertexSet().stream()
                 .filter(node -> node.getDeclaredVariables().contains(variable))
                 .collect(Collectors.toList());
+    }
+
+    public boolean isEmpty() {
+        return this.vertexSet().isEmpty();
+    }
+
+    public DOTExporter<GraphNode<?>, Arc> getDOTExporter() {
+        return new DOTExporter<>(
+                graphNode -> String.valueOf(graphNode.getId()),
+                GraphNode::getInstruction,
+                Arc::getLabel,
+                null,
+                Arc::getDotAttributes);
+    }
+
+    /**
+     * Modifies a current node in the graph by the changes done in the MutableGraphNode instance
+     * inside the function passed as parameter
+     *
+     * @param id the id of the node to be modified
+     * @param modifyFn a consumer which takes a MutableGraphNode as parameter
+     */
+    public <ASTNode extends Node> void modifyNode(int id, Consumer<MutableGraphNode<ASTNode>> modifyFn) {
+        this.findNodeById(id).ifPresent(node -> {
+            Set<Arc> incomingArcs = new HashSet<>(incomingEdgesOf(node));
+            Set<Arc> outgoingArcs = new HashSet<>(outgoingEdgesOf(node));
+
+            this.removeVertex(node);
+
+            MutableGraphNode<ASTNode> modifiedNode = new MutableGraphNode<>((GraphNode<ASTNode>) node);
+
+            modifyFn.accept(modifiedNode);
+
+            GraphNode<ASTNode> newNode = modifiedNode.toGraphNode();
+
+            this.addVertex(newNode);
+
+            for (Arc incomingArc : incomingArcs) {
+                GraphNode<?> from = getEdgeSource(incomingArc);
+                this.addEdge(from, newNode, incomingArc);
+            }
+
+            for (Arc outgoingArc : outgoingArcs) {
+                GraphNode<?> to = getEdgeTarget(outgoingArc);
+                this.addEdge(newNode, to, outgoingArc);
+            }
+        });
+    }
+
+    public static class MutableGraphNode<ASTNode extends Node> {
+        private int id;
+        private String instruction;
+        private ASTNode astNode;
+        private Set<String> declaredVariables;
+        private Set<String> definedVariables;
+        private Set<String> usedVariables;
+
+        private boolean mustCompute;
+
+        MutableGraphNode(GraphNode<ASTNode> node) {
+            this.id = node.getId();
+            this.instruction = node.getInstruction();
+            this.astNode = node.getAstNode();
+            this.declaredVariables = node.getDeclaredVariables();
+            this.definedVariables = node.getDefinedVariables();
+            this.usedVariables = node.getUsedVariables();
+        }
+
+        GraphNode<ASTNode> toGraphNode() {
+            return mustCompute
+                    ? NodeFactory.graphNode(id, instruction, astNode)
+                    : NodeFactory.computedGraphNode(
+                        id,
+                        instruction,
+                        astNode,
+                        declaredVariables,
+                        definedVariables,
+                        usedVariables
+                    );
+        }
+
+        public int getId() {
+            return id;
+        }
+
+        public void setId(int id) {
+            this.id = id;
+        }
+
+        public String getInstruction() {
+            return instruction;
+        }
+
+        public void setInstruction(String instruction) {
+            this.instruction = instruction;
+        }
+
+        public ASTNode getAstNode() {
+            return astNode;
+        }
+
+        public void setAstNode(ASTNode astNode) {
+            this.astNode = astNode;
+
+            // If the AST node changes, we need to compute all variables for it
+            mustCompute = true;
+        }
     }
 }

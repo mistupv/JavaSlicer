@@ -1,35 +1,14 @@
 package tfm.arcs.pdg;
 
 import tfm.arcs.Arc;
-import tfm.arcs.data.ArcData;
-import tfm.nodes.GraphNode;
+import tfm.graphs.pdg.PDG;
+import tfm.graphs.sdg.SDG;
 
-public class ControlDependencyArc extends Arc<ArcData> {
-
-    public ControlDependencyArc(GraphNode from, GraphNode to) {
-        super(from, to);
-    }
-
-    @Override
-    public boolean isControlFlowArrow() {
-        return false;
-    }
-
-    @Override
-    public boolean isControlDependencyArrow() {
-        return true;
-    }
-
-    @Override
-    public boolean isDataDependencyArrow() {
-        return false;
-    }
-
-    @Override
-    public String toString() {
-        return String.format("ControlDependencyArc{%s -> %s}",
-                ((GraphNode) getFrom()).getId(),
-                ((GraphNode) getTo()).getId()
-        );
-    }
+/**
+ * An arc used in the {@link PDG} and {@link SDG}
+ * used to represent control dependence between two nodes. The traditional definition of
+ * control dependence is: a node {@code a} is <it>control dependent</it> on node
+ * {@code b} if and only if {@code b} alters the number of times {@code a} is executed.
+ */
+public class ControlDependencyArc extends Arc {
 }

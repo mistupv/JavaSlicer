@@ -1,54 +1,50 @@
 package tfm.arcs.pdg;
 
+import org.jgrapht.io.Attribute;
+import org.jgrapht.io.DefaultAttribute;
 import tfm.arcs.Arc;
-import tfm.arcs.data.VariableArcData;
-import tfm.nodes.GraphNode;
+import tfm.graphs.pdg.PDG;
+import tfm.graphs.sdg.SDG;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
-public class DataDependencyArc extends Arc<VariableArcData> {
+/**
+ * An arc used in the {@link PDG} and {@link SDG},
+ * representing the declaration of some data linked to its usage (of that value).
+ * There is data dependency between two nodes if and only if (1) the source <it>may</it>
+ * declare a variable, (2) the destination <it>may</it> use it, and (3) there is a
+ * path between the nodes where the variable is not redefined.
+ */
+public class DataDependencyArc extends Arc {
+    private final String variable;
 
-    public DataDependencyArc(GraphNode from, GraphNode to, String variable, String... variables) {
-        super(from, to);
-
-        List<String> variablesList = new ArrayList<>(variables.length + 1);
-
-        variablesList.add(variable);
-        variablesList.addAll(Arrays.asList(variables));
-
-        VariableArcData variableArcData = new VariableArcData(variablesList);
-
-        setData(variableArcData);
+    public DataDependencyArc(String variable) {
+        super();
+        this.variable = variable;
     }
 
     @Override
-    public boolean isControlFlowArrow() {
-        return false;
+    public String getLabel() {
+        return variable;
     }
 
     @Override
-    public boolean isControlDependencyArrow() {
-        return false;
+    public Map<String, Attribute> getDotAttributes() {
+        Map<String, Attribute> map = super.getDotAttributes();
+        map.put("style", DefaultAttribute.createAttribute("dashed"));
+        map.put("color", DefaultAttribute.createAttribute("red"));
+        return map;
     }
 
     @Override
-    public boolean isDataDependencyArrow() {
-        return true;
+    public boolean equals(Object o) {
+        return super.equals(o) && Objects.equals(variable, ((DataDependencyArc) o).variable);
     }
 
     @Override
-    public String toString() {
-        return String.format("DataDependencyArc{%s, %s -> %s}",
-                getData(),
-                getFromNode().getId(),
-                getToNode().getId());
-    }
-
-    @Override
-    public String toGraphvizRepresentation() {
-        return String.format("%s [style=dashed, color=red, label=\"%s\"];", super.toGraphvizRepresentation(), getData().toString());
+    public int hashCode() {
+        return Objects.hash(variable, super.hashCode());
     }
 }
 

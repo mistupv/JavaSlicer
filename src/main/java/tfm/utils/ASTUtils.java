@@ -1,11 +1,10 @@
 package tfm.utils;
 
-import com.github.javaparser.Position;
+import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
-import com.github.javaparser.ast.stmt.BlockStmt;
-import com.github.javaparser.ast.stmt.EmptyStmt;
-import com.github.javaparser.ast.stmt.Statement;
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import com.github.javaparser.ast.stmt.*;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -58,5 +57,45 @@ public class ASTUtils {
         Node parent = optionalParent.get();
 
         return Objects.equals(parent, upper) || isContained(upper, parent);
+    }
+
+    public static boolean switchHasDefaultCase(SwitchStmt stmt) {
+        return switchGetDefaultCase(stmt) != null;
+    }
+
+    public static SwitchEntryStmt switchGetDefaultCase(SwitchStmt stmt) {
+        for (SwitchEntryStmt entry : stmt.getEntries())
+            if (!entry.getLabel().isPresent())
+                return entry;
+        return null;
+    }
+
+    public static boolean isPseudoPredicate(Node node) {
+        return node instanceof BreakStmt
+                || node instanceof ContinueStmt
+                || node instanceof ReturnStmt
+                || node instanceof ThrowStmt
+                || node instanceof SwitchEntryStmt
+                || node instanceof TryStmt
+                || node instanceof CatchClause;
+    }
+
+    public static boolean equalsWithRange(Node n1, Node n2) {
+        return Objects.equals(n1.getRange(), n2.getRange()) && Objects.equals(n1, n2);
+    }
+
+    public static boolean equalsWithRangeInCU(Node n1, Node n2) {
+        // Find the compilation unit of each node
+        Optional<CompilationUnit> optionalCompilationUnit1 = n1.findCompilationUnit();
+        Optional<CompilationUnit> optionalCompilationUnit2 = n2.findCompilationUnit();
+
+        // If they are inside the same compilation unit, compare with range
+        if (optionalCompilationUnit1.isPresent() && optionalCompilationUnit2.isPresent()) {
+            return Objects.equals(optionalCompilationUnit1.get(), optionalCompilationUnit2.get())
+                    && equalsWithRange(n1, n2);
+        }
+
+        // If not, just compare with range
+        return equalsWithRange(n1, n2);
     }
 }
