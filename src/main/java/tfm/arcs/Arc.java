@@ -1,6 +1,11 @@
 package tfm.arcs;
 
-import tfm.arcs.data.ArcData;
+import org.jgrapht.graph.DefaultEdge;
+import org.jgrapht.io.Attribute;
+import tfm.arcs.cfg.ControlFlowArc;
+import tfm.arcs.pdg.ControlDependencyArc;
+import tfm.arcs.pdg.DataDependencyArc;
+import tfm.arcs.sdg.CallArc;
 import tfm.nodes.GraphNode;
 
 import java.util.Objects;
@@ -37,8 +42,21 @@ public abstract class Arc<D extends ArcData> extends edg.graphlib.Arrow<String, 
         );
     }
 
-    public GraphNode<?> getFromNode() {
-        return (GraphNode<?>) super.getFrom();
+    /** @see CallArc */
+    public final boolean isCallArc() {
+        return this instanceof CallArc;
+    }
+
+    public final CallArc asCallArc() {
+        if (isCallArc())
+            return (CallArc) this;
+        throw new UnsupportedOperationException("Not a CallArc");
+    }
+
+    @Override
+    public String toString() {
+        return String.format("%s{%d -> %d}", getClass().getName(),
+                ((GraphNode<?>) getSource()).getId(), ((GraphNode<?>) getTarget()).getId());
     }
 
     public GraphNode<?> getToNode() {

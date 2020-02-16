@@ -2,6 +2,7 @@ package tfm.exec;
 
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import tfm.utils.Logger;
 import tfm.utils.Utils;
@@ -63,8 +64,9 @@ public class Main {
                 graphLog = new PDGLog();
                 break;
             case GraphLog.SDG:
-                graphLog = new SDGLog();
-                break;
+                SDG sdg = new SDG();
+                sdg.build(new NodeList<>(method.findCompilationUnit().get()));
+                return sdg;
             default:
                 Logger.log("Unkown graph type");
                 System.exit(1);

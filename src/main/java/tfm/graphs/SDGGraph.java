@@ -2,21 +2,28 @@ package tfm.graphs;
 
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.body.Parameter;
-import com.github.javaparser.ast.stmt.EmptyStmt;
-import tfm.nodes.GraphNode;
+import tfm.arcs.pdg.ControlDependencyArc;
+import tfm.arcs.pdg.DataDependencyArc;
+import tfm.arcs.sdg.CallArc;
+import tfm.arcs.sdg.ParameterInOutArc;
+import tfm.graphs.Buildable;
+import tfm.graphs.Graph;
+import tfm.nodes.*;
+import tfm.slicing.Slice;
+import tfm.slicing.Sliceable;
 import tfm.slicing.SlicingCriterion;
 import tfm.utils.Context;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class SDGGraph extends Graph {
+public class SDG extends Graph implements Sliceable, Buildable<NodeList<CompilationUnit>> {
+    private boolean built = false;
 
-    private Map<Context, PDGGraph> contextPDGGraphMap;
+    private Map<Context, Integer> contextToRootNodeId;
 
-    public SDGGraph() {
-        this.contextPDGGraphMap = new HashMap<>();
+    public SDG() {
+        this.contextToRootNodeId = new HashMap<>();
     }
 
     @Override
@@ -28,9 +35,8 @@ public class SDGGraph extends Graph {
     }
 
     @Override
-    public String toGraphvizRepresentation() {
-        return contextPDGGraphMap.values().stream()
-                .map(PDGGraph::toGraphvizRepresentation).collect(Collectors.joining("\n"));
+    public void build(NodeList<CompilationUnit> nodeList) {
+        nodeList.accept(new SDGBuilder(this), new Context());
     }
 
     @Override
@@ -38,66 +44,29 @@ public class SDGGraph extends Graph {
         return this;
     }
 
-    public Map<Context, PDGGraph> getContextPDGGraphMap() {
-        return contextPDGGraphMap;
-    }
-
     public Set<Context> getContexts() {
-        return contextPDGGraphMap.keySet();
+        return contextToRootNodeId.keySet();
     }
 
-    public Set<MethodDeclaration> getMethods() {
-        return getContexts().stream()
-                .filter(context -> context.getCurrentMethod().isPresent())
-                .map(context -> context.getCurrentMethod().get())
-                .collect(Collectors.toSet());
+    public Optional<GraphNode<?>> getRootNode(Context context) {
+        Integer id = this.contextToRootNodeId.get(context);
+
+        return id != null ? findNodeById(id) : Optional.empty();
     }
 
-    public Collection<PDGGraph> getPDGs() {
-        return contextPDGGraphMap.values();
+    public void addControlDependencyArc(GraphNode<?> from, GraphNode<?> to) {
+        this.addEdge(from, to, new ControlDependencyArc());
     }
 
-    @Deprecated
-    public void addPDG(PDGGraph pdgGraph, MethodDeclaration methodDeclaration) {
-        if (this.rootVertex == null) {
-            this.setRootVertex(new GraphNode<>(getNextVertexId(), methodDeclaration.getNameAsString(), methodDeclaration));
-        }
-
-        for (Parameter parameter : methodDeclaration.getParameters()) {
-            GraphNode<?> sdgNode = new GraphNode<>(
-                    getNextVertexId(),
-                    String.format("%s = %s_in", parameter.getNameAsString(), parameter.getNameAsString()),
-                    new EmptyStmt()
-            );
-
-            addVertex(sdgNode);
-        }
-
-        for (GraphNode<?> node : pdgGraph.getNodes()) {
-            if (!this.verticies.contains(node)) {
-                GraphNode<?> sdgNode = new GraphNode<>(
-                        getNextVertexId(),
-                        node.getData(),
-                        node.getAstNode(),
-                        node.getIncomingArcs(),
-                        node.getOutgoingArcs(),
-                        node.getDeclaredVariables(),
-                        node.getDefinedVariables(),
-                        node.getUsedVariables()
-                );
-
-                addVertex(sdgNode);
-            }
-        }
+    public void addDataDependencyArc(GraphNode<?> from, GraphNode<?> to, String variable) {
+        this.addEdge(from, to, new DataDependencyArc(variable));
     }
 
-    public void addMethod(MethodDeclaration methodDeclaration, PDGGraph pdgGraph) {
-        GraphNode<MethodDeclaration> methodRootNode = new GraphNode<>(
-                getNextVertexId(),
-                "ENTER " + methodDeclaration.getDeclarationAsString(false, false, true),
-                methodDeclaration
-        );
+    public void addCallArc(MethodCallNode from, MethodRootNode to) {
+        this.addEdge(from, to, new CallArc());
+    }
 
-        super.addVertex(methodRootNode);
+    public void addParameterInOutArc(InOutVariableNode from, InOutVariableNode to) {
+        this.addEdge(from, to, new ParameterInOutArc());
     }
 }

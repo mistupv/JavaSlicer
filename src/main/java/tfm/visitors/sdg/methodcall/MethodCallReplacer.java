@@ -11,13 +11,13 @@ public class MethodCallReplacer {
     }
 
     public void replace() {
-        this.sdgGraph.getContextPDGGraphMap()
-                .forEach((context, pdgGraph) -> {
-                    if (!context.getCurrentMethod().isPresent()) {
-                        return; // Should NOT happen
-                    }
-
-                    context.getCurrentMethod().get().accept(new MethodCallReplacerVisitor(pdgGraph), context);
-                });
+//        this.sdg.getContextMethodRootMap()
+//                .forEach((context, pdgGraph) -> {
+//                    if (!context.getCurrentMethod().isPresent()) {
+//                        return; // Should NOT happen
+//                    }
+//
+//                    context.getCurrentMethod().get().accept(new MethodCallReplacerVisitor(pdgGraph), context);
+//                });
     }
 }
