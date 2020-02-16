@@ -38,10 +38,6 @@ public class PDGBuilder {
         if (!methodDeclaration.getBody().isPresent())
             throw new IllegalStateException("Method needs to have a body");
 
-        this.pdg.buildRootNode("ENTER " + methodDeclaration.getNameAsString(), methodDeclaration);
-
-        assert this.pdg.getRootNode().isPresent();
-
         BlockStmt methodBody = methodDeclaration.getBody().get();
 
         // build CFG
@@ -52,6 +48,10 @@ public class PDGBuilder {
         cfg.vertexSet().stream()
                 .filter(node -> !Objects.equals(node, cfg.getExitNode()))
                 .forEach(node -> pdg.addVertex(node));
+
+        assert this.cfg.getRootNode().isPresent();
+        
+        pdg.setRootNode(cfg.getRootNode().get());
 
         // Build control dependency
         ControlDependencyBuilder controlDependencyBuilder = new ControlDependencyBuilder(pdg, cfg);

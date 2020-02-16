@@ -10,12 +10,10 @@ import java.util.Optional;
 
 public abstract class GraphWithRootNode<ASTRootNode extends Node> extends Graph implements Buildable<MethodDeclaration> {
 
-    protected final int ROOT_NODE_ID = 0;
-
     protected GraphNode<ASTRootNode> rootNode;
 
-    public GraphWithRootNode() {
-        super(1);
+    protected GraphWithRootNode() {
+        super();
     }
 
     /**
@@ -31,7 +29,7 @@ public abstract class GraphWithRootNode<ASTRootNode extends Node> extends Graph 
             return false;
         }
 
-        GraphNode<ASTRootNode> root = NodeFactory.graphNode(ROOT_NODE_ID, instruction, rootNodeAst);
+        GraphNode<ASTRootNode> root = NodeFactory.graphNode(instruction, rootNodeAst);
         this.rootNode = root;
         this.addVertex(root);
 
@@ -40,6 +38,14 @@ public abstract class GraphWithRootNode<ASTRootNode extends Node> extends Graph 
 
     public Optional<GraphNode<ASTRootNode>> getRootNode() {
         return Optional.ofNullable(rootNode);
+    }
+
+    public void setRootNode(GraphNode<ASTRootNode> rootNode) {
+        if (!this.containsVertex(rootNode)) {
+            throw new IllegalArgumentException("Cannot set root node: " + rootNode + " is not contained in graph!");
+        }
+
+        this.rootNode = rootNode;
     }
 
     @Override

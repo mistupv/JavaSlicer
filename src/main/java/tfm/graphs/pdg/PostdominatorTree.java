@@ -191,8 +191,8 @@ public class PostdominatorTree extends DirectedTree<GraphNode<?>, DefaultEdge> {
         return Integer.compare(sortingMap.get(b1), sortingMap.get(b2));
     }
 
-    private static <ASTNode extends Node> List<GraphNode<?>> postorder(GraphWithRootNode<ASTNode> graph) {
-        Optional<GraphNode<ASTNode>> rootNode = graph.getRootNode();
+    private static <RootNode extends Node> List<GraphNode<?>> postorder(GraphWithRootNode<RootNode> graph) {
+        Optional<GraphNode<RootNode>> rootNode = graph.getRootNode();
         if (!rootNode.isPresent())
             throw new IllegalStateException("CFG lacks root node");
         return postorder(graph, rootNode.get());

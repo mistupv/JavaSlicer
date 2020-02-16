@@ -133,7 +133,7 @@ public class PDGTests {
         List<MethodDeclaration> slicedMethods = new LinkedList<>();
         assert pdgs.length > 0;
         for (GraphNode<?> node : pdgs[0].vertexSet().stream()
-                .sorted(Comparator.comparingInt(GraphNode::getId))
+                .sorted(Comparator.comparingLong(GraphNode::getId))
                 .collect(Collectors.toList())) {
             // Skip start of graph
             if (node.getAstNode() instanceof MethodDeclaration)
@@ -176,7 +176,7 @@ public class PDGTests {
 
     public final void printSlices(PDG pdg, Slice... slices) {
         pdg.vertexSet().stream()
-                .sorted(Comparator.comparingInt(GraphNode::getId))
+                .sorted(Comparator.comparingLong(GraphNode::getId))
                 .forEach(n -> Logger.format("%3d: %s %s",
                         n.getId(),
                         Arrays.stream(slices)

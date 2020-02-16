@@ -27,7 +27,7 @@ import java.util.Set;
  */
 public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
 
-    private final int id;
+    private final long id;
     private final String instruction;
     private final N astNode;
 
@@ -35,7 +35,7 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
     private final Set<String> definedVariables;
     private final Set<String> usedVariables;
 
-    GraphNode(int id, String instruction, @NotNull N astNode) {
+    GraphNode(long id, String instruction, @NotNull N astNode) {
         this(
                 id,
                 instruction,
@@ -49,7 +49,7 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
     }
 
     GraphNode(
-                int id,
+                long id,
                 String instruction,
                 @NotNull N astNode,
                 Collection<String> declaredVariables,
@@ -73,7 +73,7 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
                 .visit(node);
     }
 
-    public int getId() {
+    public long getId() {
         return id;
     }
 
@@ -139,6 +139,6 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
 
     @Override
     public int compareTo(@NotNull GraphNode<?> o) {
-        return Integer.compare(id, o.id);
+        return Long.compare(id, o.id);
     }
 }

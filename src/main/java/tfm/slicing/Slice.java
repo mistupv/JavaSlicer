@@ -10,7 +10,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class Slice {
-    private final Map<Integer, GraphNode<?>> map = new HashMap<>();
+    private final Map<Long, GraphNode<?>> map = new HashMap<>();
     private final Set<Node> nodes = new HashSet<>();
 
     public Slice() {}
@@ -42,8 +42,8 @@ public class Slice {
     public Node getAst() {
         List<GraphNode<?>> methods = map.values().stream().filter(e -> e.getAstNode() instanceof MethodDeclaration).collect(Collectors.toList());
         if (methods.size() == 1) {
-            Optional<Integer> secondNode = map.keySet().stream()
-                    .sorted(Integer::compareTo).skip(1).findFirst();
+            Optional<Long> secondNode = map.keySet().stream()
+                    .sorted(Long::compareTo).skip(1).findFirst();
             assert secondNode.isPresent();
             Node n = map.get(secondNode.get()).getAstNode();
             assert !(n instanceof MethodDeclaration);

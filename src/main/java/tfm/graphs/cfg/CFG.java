@@ -40,7 +40,7 @@ public class CFG extends GraphWithRootNode<MethodDeclaration> {
         return findLastDefinitionsFrom(new HashSet<>(), startNode.getId(), startNode, variable);
     }
 
-    private Set<GraphNode<?>> findLastDefinitionsFrom(Set<Integer> visited, int startNode, GraphNode<?> currentNode, String variable) {
+    private Set<GraphNode<?>> findLastDefinitionsFrom(Set<Long> visited, long startNode, GraphNode<?> currentNode, String variable) {
         visited.add(currentNode.getId());
 
         Set<GraphNode<?>> res = new HashSet<>();

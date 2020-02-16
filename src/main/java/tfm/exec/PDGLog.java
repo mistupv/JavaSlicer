@@ -29,7 +29,7 @@ public class PDGLog extends GraphLog<PDG> {
 
         Logger.log("Nodes with variable info");
         Logger.log(graph.vertexSet().stream()
-                .sorted(Comparator.comparingInt(GraphNode::getId))
+                .sorted(Comparator.comparingLong(GraphNode::getId))
                 .map(node ->
                         String.format("GraphNode { id: %s, instruction: %s, declared: %s, defined: %s, used: %s }",
                                 node.getId(),
