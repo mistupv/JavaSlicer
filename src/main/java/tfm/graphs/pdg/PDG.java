@@ -8,8 +8,6 @@ import tfm.graphs.GraphWithRootNode;
 import tfm.graphs.Sliceable;
 import tfm.graphs.cfg.CFG;
 import tfm.nodes.GraphNode;
-import tfm.nodes.MethodRootNode;
-import tfm.nodes.NodeFactory;
 import tfm.slicing.Slice;
 import tfm.slicing.SlicingCriterion;
 import tfm.utils.NodeNotFoundException;

@@ -11,6 +11,7 @@ import tfm.arcs.Arc;
 import tfm.graphs.pdg.PDG;
 import tfm.nodes.GraphNode;
 import tfm.utils.Context;
+import tfm.utils.Logger;
 
 import java.util.Map;
 import java.util.Optional;
@@ -36,8 +37,12 @@ class SDGBuilder extends VoidVisitorAdapter<Context> {
         pdg.build(methodDeclaration);
 
         for (GraphNode<?> node : pdg.vertexSet()) {
-            sdg.addNode(node, false);
+            sdg.addNode(node);
         }
+
+        assert pdg.getRootNode().isPresent();
+
+        sdg.addRootNode(context, pdg.getRootNode().get().getId());
 
         for (Arc arc : pdg.edgeSet()) {
             GraphNode<?> from = pdg.getEdgeSource(arc);
@@ -112,10 +117,6 @@ class SDGBuilder extends VoidVisitorAdapter<Context> {
         context.setCurrentClass(classOrInterfaceDeclaration);
 
         classOrInterfaceDeclaration.getMembers().accept(this, context);
-
-        // Once every PDG is built, expand method declaration nodes of each one
-        // todo methodDeclaration replacer
-
 
         // Once every PDG is built, expand method call nodes of each one
         // and link them to the corresponding method declaration node

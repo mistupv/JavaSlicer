@@ -9,6 +9,9 @@ import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
+import com.github.javaparser.symbolsolver.model.resolution.TypeSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
 import tfm.graphs.pdg.PDG;
 import tfm.nodes.GraphNode;
 import tfm.utils.Context;
@@ -23,23 +26,29 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
     private PDG pdg;
 
+    public MethodCallReplacerVisitor() {
+
+    }
+
     public MethodCallReplacerVisitor(PDG pdg) {
         this.pdg = pdg;
     }
 
     @Override
     public void visit(MethodCallExpr methodCallExpr, Context context) {
+        Logger.log("MethodCallReplacerVisitor", context);
 
         Optional<MethodDeclaration> optionalCallingMethod = methodCallExpr.getScope().isPresent()
                 ? shouldMakeCallWithScope(methodCallExpr, context)
                 : shouldMakeCallWithNoScope(methodCallExpr, context);
 
         if (!optionalCallingMethod.isPresent()) {
+            Logger.log("Discarding: " + methodCallExpr);
             return;
         }
 
         // todo make call
-        Logger.log(String.format("Method '%s' called", optionalCallingMethod.get().getNameAsString()));
+        Logger.log(String.format("%s | Method '%s' called", methodCallExpr, optionalCallingMethod.get().getNameAsString()));
     }
 
     private Optional<MethodDeclaration> shouldMakeCallWithScope(MethodCallExpr methodCallExpr, Context context) {

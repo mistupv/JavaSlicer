@@ -3,6 +3,7 @@ package tfm.graphs.sdg;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.stmt.ExpressionStmt;
 import tfm.arcs.pdg.ControlDependencyArc;
 import tfm.arcs.pdg.DataDependencyArc;
 import tfm.arcs.sdg.CallArc;
@@ -16,12 +17,11 @@ import tfm.slicing.SlicingCriterion;
 import tfm.utils.Context;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class SDG extends Graph implements Sliceable, Buildable<NodeList<CompilationUnit>> {
     private boolean built = false;
 
-    private Map<Context, Integer> contextToRootNodeId;
+    private Map<Context, Long> contextToRootNodeId;
 
     public SDG() {
         this.contextToRootNodeId = new HashMap<>();
@@ -47,9 +47,17 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
     }
 
     public Optional<GraphNode<?>> getRootNode(Context context) {
-        Integer id = this.contextToRootNodeId.get(context);
+        Long id = this.contextToRootNodeId.get(context);
 
         return id != null ? findNodeById(id) : Optional.empty();
+    }
+
+    public void addRootNode(Context context, long id) {
+        if (!findNodeById(id).isPresent()) {
+            throw new IllegalArgumentException("Cannot add root node to SDG: " + id + " is not in graph!");
+        }
+
+        this.contextToRootNodeId.put(new Context(context), id);
     }
 
     public void addControlDependencyArc(GraphNode<?> from, GraphNode<?> to) {
@@ -60,11 +68,11 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
         this.addEdge(from, to, new DataDependencyArc(variable));
     }
 
-    public void addCallArc(MethodCallNode from, MethodRootNode to) {
+    public void addCallArc(GraphNode<ExpressionStmt> from, GraphNode<MethodDeclaration> to) {
         this.addEdge(from, to, new CallArc());
     }
 
-    public void addParameterInOutArc(InOutVariableNode from, InOutVariableNode to) {
+    public void addParameterInOutArc(GraphNode<ExpressionStmt> from, GraphNode<ExpressionStmt> to) {
         this.addEdge(from, to, new ParameterInOutArc());
     }
 }
