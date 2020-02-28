@@ -14,6 +14,7 @@ import tfm.utils.Context;
 import tfm.utils.Logger;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 class SDGBuilder extends VoidVisitorAdapter<Context> {
@@ -36,32 +37,27 @@ class SDGBuilder extends VoidVisitorAdapter<Context> {
         PDG pdg = new PDG();
         pdg.build(methodDeclaration);
 
+        assert pdg.isBuilt();
+        assert pdg.getRootNode().isPresent();
+
+        // Add all nodes from PDG to SDG
         for (GraphNode<?> node : pdg.vertexSet()) {
             sdg.addNode(node);
         }
 
-        assert pdg.getRootNode().isPresent();
-
-        sdg.addRootNode(context, pdg.getRootNode().get().getId());
-
+        // Add all arcs from PDG to SDG
         for (Arc arc : pdg.edgeSet()) {
-            GraphNode<?> from = pdg.getEdgeSource(arc);
-            GraphNode<?> to = pdg.getEdgeTarget(arc);
-
             if (arc.isControlDependencyArc()) {
-                sdg.addControlDependencyArc(from, to);
+                sdg.addControlDependencyArc(pdg.getEdgeSource(arc), pdg.getEdgeTarget(arc));
             } else {
-                sdg.addDataDependencyArc(from, to, arc.getLabel());
+                sdg.addDataDependencyArc(pdg.getEdgeSource(arc), pdg.getEdgeTarget(arc), arc.getLabel());
             }
         }
 
-        Optional<GraphNode<MethodDeclaration>> optionalMethodDeclarationNode = pdg.getRootNode();
+        GraphNode<MethodDeclaration> methodDeclarationNode = pdg.getRootNode().get();
 
-        if (!optionalMethodDeclarationNode.isPresent()) {
-            return; // Should not happen
-        }
-
-        GraphNode<MethodDeclaration> methodDeclarationNode = optionalMethodDeclarationNode.get();
+        // Add root node from PDG
+        sdg.addRootNode(context, methodDeclarationNode.getId());
 
         for (Parameter parameter : methodDeclaration.getParameters()) {
             // In node

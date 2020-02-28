@@ -1,5 +1,7 @@
 package tfm.graphs.sdg;
 
+import com.github.javaparser.ast.body.MethodDeclaration;
+import tfm.graphs.GraphWithRootNode;
 import tfm.nodes.GraphNode;
 import tfm.utils.Context;
 import tfm.utils.Logger;
@@ -20,7 +22,7 @@ class MethodCallReplacer {
             .forEach(context -> {
                 Logger.log("MethodCallReplacer", context);
 
-                Optional<GraphNode<?>> optionalRootNode = this.sdg.getRootNode(context);
+                Optional<GraphNode<MethodDeclaration>> optionalRootNode = this.sdg.getRootNode(context);
 
                 if (!optionalRootNode.isPresent()) {
                     return; // We don't have visited the code (e.g. the MethodDeclaration for a method call)

@@ -10,7 +10,7 @@ import com.github.javaparser.ast.nodeTypes.NodeWithSimpleName;
 import java.util.Objects;
 import java.util.Optional;
 
-public class Context implements Cloneable {
+public class Context {
 
     private CompilationUnit currentCU;
     private ClassOrInterfaceDeclaration currentClass;

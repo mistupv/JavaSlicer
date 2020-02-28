@@ -1,7 +1,5 @@
 package tfm.utils;
 
-import java.util.Objects;
-
 public class Logger {
 
     public static void log() {
@@ -21,7 +19,12 @@ public class Logger {
     }
 
     public static void log(String context, String message) {
-        System.out.println(String.format("%s: %s", context, message));
+        System.out.println(
+                String.format("%s%s",
+                        context.isEmpty() ? "" : String.format("[%s]: ", context),
+                        message
+                )
+        );
     }
 
     public static void format(String message, Object... args) {

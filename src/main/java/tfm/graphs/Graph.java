@@ -58,12 +58,6 @@ public abstract class Graph extends DirectedPseudograph<GraphNode<?>, Arc> {
                 .collect(Collectors.joining(System.lineSeparator()));
     }
 
-    public List<GraphNode<?>> findDeclarationsOfVariable(String variable) {
-        return vertexSet().stream()
-                .filter(node -> node.getDeclaredVariables().contains(variable))
-                .collect(Collectors.toList());
-    }
-
     public boolean isEmpty() {
         return this.vertexSet().isEmpty();
     }

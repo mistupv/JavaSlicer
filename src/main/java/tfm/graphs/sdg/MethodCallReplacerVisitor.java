@@ -24,14 +24,26 @@ import java.util.stream.Collectors;
 
 class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
-    private PDG pdg;
+    private SDG sdg;
+    private GraphNode<ExpressionStmt> methodCallNode;
 
     public MethodCallReplacerVisitor() {
 
     }
 
-    public MethodCallReplacerVisitor(PDG pdg) {
-        this.pdg = pdg;
+    public MethodCallReplacerVisitor(SDG sdg) {
+        this.sdg = sdg;
+    }
+
+    @Override
+    public void visit(ExpressionStmt n, Context arg) {
+        Optional<GraphNode<ExpressionStmt>> optionalNode = sdg.findNodeByASTNode(n);
+
+        assert optionalNode.isPresent();
+
+        methodCallNode = optionalNode.get();
+
+        super.visit(n, arg);
     }
 
     @Override
@@ -66,7 +78,7 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
         if (!Objects.equals(scopeName, currentClass.getNameAsString())) {
 
             // Check if 'scopeName' is a variable
-            List<GraphNode<?>> declarations = pdg.findDeclarationsOfVariable(scopeName);
+            List<GraphNode<?>> declarations = sdg.findDeclarationsOfVariable(scopeName, methodCallNode);
 
             if (declarations.isEmpty()) {
                 // It is a static method call of another class. We do nothing
