@@ -16,6 +16,7 @@ import tfm.graphs.augmented.APDG;
 import tfm.graphs.augmented.PPDG;
 import tfm.graphs.cfg.CFG;
 import tfm.nodes.GraphNode;
+import tfm.nodes.factories.MethodNodeFactory;
 import tfm.slicing.GraphNodeCriterion;
 import tfm.slicing.Slice;
 import tfm.slicing.SlicingCriterion;
@@ -80,7 +81,7 @@ public class PDGTests {
         CFG cfg = new CFG();
         cfg.build(root);
         PDG pdg = new PDG(cfg);
-        pdg.buildRootNode("ENTER " + methodName, root);
+        pdg.buildRootNode("ENTER " + methodName, root, new MethodNodeFactory());
         ctrlDepBuilder = new ControlDependencyBuilder(pdg, cfg);
         ctrlDepBuilder.analyze();
 
@@ -88,13 +89,13 @@ public class PDGTests {
         ACFG acfg = new ACFG();
         acfg.build(root);
         APDG apdg = new APDG(acfg);
-        apdg.buildRootNode("ENTER " + methodName, root);
+        apdg.buildRootNode("ENTER " + methodName, root, new MethodNodeFactory());
         ctrlDepBuilder = new ControlDependencyBuilder(apdg, acfg);
         ctrlDepBuilder.analyze();
 
         // Create PPDG
         PPDG ppdg = new PPDG(acfg);
-        ppdg.buildRootNode("ENTER " + methodName, root);
+        ppdg.buildRootNode("ENTER " + methodName, root, new MethodNodeFactory());
         ctrlDepBuilder = new ControlDependencyBuilder(ppdg, acfg);
         ctrlDepBuilder.analyze();
 

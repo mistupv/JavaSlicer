@@ -12,11 +12,11 @@ class IdHelper {
         nextId = START_ID;
     }
 
-    public static IdHelper getInstance() {
+    static IdHelper getInstance() {
         return INSTANCE;
     }
 
-    public synchronized long getNextId() {
+    synchronized long getNextId() {
         return nextId++;
     }
 }

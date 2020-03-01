@@ -53,46 +53,6 @@ class SDGBuilder extends VoidVisitorAdapter<Context> {
 
         // Add root node from PDG
         sdg.addRootNode(context, methodDeclarationNode.getId());
-
-        for (Parameter parameter : methodDeclaration.getParameters()) {
-            // In node
-            AssignExpr inAssignExpr = new AssignExpr();
-            ExpressionStmt inExprStmt = new ExpressionStmt(inAssignExpr);
-
-            inAssignExpr.setTarget(
-                    new VariableDeclarationExpr(
-                            parameter.getType(),
-                            parameter.getNameAsString()
-                    )
-            );
-
-            inAssignExpr.setOperator(AssignExpr.Operator.ASSIGN);
-
-            inAssignExpr.setValue(new NameExpr(parameter.getNameAsString() + "_in"));
-
-            GraphNode<ExpressionStmt> inNode = sdg.addNode(inAssignExpr.toString(), inExprStmt);
-
-            sdg.addControlDependencyArc(methodDeclarationNode, inNode);
-
-            // Out node
-            AssignExpr outAssignExpr = new AssignExpr();
-            ExpressionStmt outExprStmt = new ExpressionStmt(outAssignExpr);
-
-            outAssignExpr.setTarget(
-                    new VariableDeclarationExpr(
-                            parameter.getType(),
-                            parameter.getNameAsString() + "_out"
-                    )
-            );
-
-            outAssignExpr.setOperator(AssignExpr.Operator.ASSIGN);
-
-            outAssignExpr.setValue(new NameExpr(parameter.getNameAsString()));
-
-            GraphNode<ExpressionStmt> outNode = sdg.addNode(outAssignExpr.toString(), outExprStmt);
-
-            sdg.addControlDependencyArc(methodDeclarationNode, outNode);
-        }
     }
 
     @Override

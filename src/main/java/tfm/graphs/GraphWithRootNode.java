@@ -2,8 +2,9 @@ package tfm.graphs;
 
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import org.jetbrains.annotations.NotNull;
 import tfm.nodes.GraphNode;
-import tfm.nodes.NodeFactory;
+import tfm.nodes.factories.NodeFactory;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -24,12 +25,12 @@ public abstract class GraphWithRootNode<ASTRootNode extends Node> extends Graph 
      * @param rootNodeAst the AST node
      * @return true if the root node is created, false otherwise
      */
-    public boolean buildRootNode(String instruction, ASTRootNode rootNodeAst) {
+    public boolean buildRootNode(@NotNull String instruction, @NotNull ASTRootNode rootNodeAst, @NotNull NodeFactory nodeFactory) {
         if (rootNode != null) {
             return false;
         }
 
-        GraphNode<ASTRootNode> root = NodeFactory.graphNode(instruction, rootNodeAst);
+        GraphNode<ASTRootNode> root = nodeFactory.graphNode(instruction, rootNodeAst);
         this.rootNode = root;
         this.addVertex(root);
 

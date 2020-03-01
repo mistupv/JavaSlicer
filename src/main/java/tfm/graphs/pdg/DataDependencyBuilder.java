@@ -6,6 +6,8 @@ import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.graphs.cfg.CFG;
 import tfm.nodes.GraphNode;
 
+import java.util.Optional;
+
 class DataDependencyBuilder extends VoidVisitorAdapter<Void> {
 
     private CFG cfg;
@@ -71,8 +73,16 @@ class DataDependencyBuilder extends VoidVisitorAdapter<Void> {
         switchEntryStmt.getStatements().accept(this, null);
     }
 
+    @Override
+    public void visit(ReturnStmt n, Void arg) {
+        buildDataDependency(n);
+    }
+
     private void buildDataDependency(Node node) {
-        buildDataDependency(pdg.findNodeByASTNode(node).get());
+        Optional<GraphNode<Node>> optionalGraphNode = pdg.findNodeByASTNode(node);
+        assert optionalGraphNode.isPresent();
+
+        buildDataDependency(optionalGraphNode.get());
     }
 
     private void buildDataDependency(GraphNode<?> node) {

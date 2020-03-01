@@ -8,6 +8,7 @@ import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitor;
 import tfm.graphs.cfg.CFGBuilder;
 import tfm.nodes.GraphNode;
+import tfm.nodes.factories.MethodNodeFactory;
 import tfm.utils.ASTUtils;
 
 import java.util.LinkedList;
@@ -237,7 +238,7 @@ public class ACFGBuilder extends CFGBuilder {
         if (!methodDeclaration.getBody().isPresent())
             throw new IllegalStateException("The method must have a body!");
 
-        graph.buildRootNode("ENTER " + methodDeclaration.getNameAsString(), methodDeclaration);
+        graph.buildRootNode("ENTER " + methodDeclaration.getNameAsString(), methodDeclaration, new MethodNodeFactory());
 
         hangingNodes.add(graph.getRootNode().get());
         methodDeclaration.getBody().get().accept(this, arg);
