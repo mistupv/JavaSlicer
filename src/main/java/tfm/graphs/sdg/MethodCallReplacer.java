@@ -28,7 +28,7 @@ class MethodCallReplacer {
                     return; // We don't have visited the code (e.g. the MethodDeclaration for a method call)
                 }
 
-                optionalRootNode.get().getAstNode().accept(new MethodCallReplacerVisitor(), context);
+                optionalRootNode.get().getAstNode().accept(new MethodCallReplacerVisitor(sdg), context);
             });
     }
 }

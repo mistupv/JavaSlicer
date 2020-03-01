@@ -9,10 +9,6 @@ import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import com.github.javaparser.symbolsolver.model.resolution.TypeSolver;
-import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
-import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
-import tfm.graphs.pdg.PDG;
 import tfm.nodes.GraphNode;
 import tfm.utils.Context;
 import tfm.utils.Logger;
@@ -26,10 +22,6 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
     private SDG sdg;
     private GraphNode<ExpressionStmt> methodCallNode;
-
-    public MethodCallReplacerVisitor() {
-
-    }
 
     public MethodCallReplacerVisitor(SDG sdg) {
         this.sdg = sdg;

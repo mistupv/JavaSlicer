@@ -11,11 +11,6 @@ import tfm.arcs.Arc;
 import tfm.graphs.pdg.PDG;
 import tfm.nodes.GraphNode;
 import tfm.utils.Context;
-import tfm.utils.Logger;
-
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
 
 class SDGBuilder extends VoidVisitorAdapter<Context> {
 
