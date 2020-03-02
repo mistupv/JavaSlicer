@@ -1,9 +1,14 @@
 package tfm.graphs.pdg;
 
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
+import com.github.javaparser.ast.stmt.ExpressionStmt;
 import tfm.graphs.cfg.CFG;
 import tfm.nodes.GraphNode;
+import tfm.nodes.type.NodeType;
 
 import java.util.Objects;
 
@@ -62,5 +67,29 @@ public class PDGBuilder {
         methodBody.accept(dataDependencyBuilder, null);
 
         // Build data dependency of "out" variables
+        pdg.vertexSet().stream()
+            .filter(node -> node.getNodeType() == NodeType.VARIABLE_OUT)
+            .forEach(node -> {
+                assert node.getAstNode() instanceof ExpressionStmt;
+
+                Expression expression = ((ExpressionStmt) node.getAstNode()).getExpression();
+
+                assert expression.isVariableDeclarationExpr();
+
+                VariableDeclarationExpr variableDeclarationExpr = expression.asVariableDeclarationExpr();
+
+                // There should be only 1 variableDeclarator
+                assert variableDeclarationExpr.getVariables().size() == 1;
+
+                VariableDeclarator variableDeclarator = variableDeclarationExpr.getVariables().get(0);
+
+                assert variableDeclarator.getInitializer().isPresent();
+                assert variableDeclarator.getInitializer().get().isNameExpr();
+
+                String variable = variableDeclarator.getInitializer().get().asNameExpr().getNameAsString();
+
+                cfg.findLastDefinitionsFrom(node, variable)
+                        .forEach(variableDefinitionNode -> pdg.addDataDependencyArc(variableDefinitionNode, node, variable));
+            });
     }
 }
