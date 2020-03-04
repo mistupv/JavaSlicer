@@ -13,6 +13,16 @@ import java.util.Map;
 import java.util.Objects;
 
 public abstract class Arc extends DefaultEdge {
+
+    private String label;
+
+    protected Arc() {
+    }
+
+    protected Arc(String label) {
+        this.label = label;
+    }
+
     /** @see tfm.arcs.cfg.ControlFlowArc */
     public final boolean isControlFlowArc() {
         return this instanceof ControlFlowArc;
@@ -69,10 +79,6 @@ public abstract class Arc extends DefaultEdge {
                 ((GraphNode<?>) getSource()).getId(), ((GraphNode<?>) getTarget()).getId());
     }
 
-    public String getLabel() {
-        return "";
-    }
-
     public Map<String, Attribute> getDotAttributes() {
         return new HashMap<>();
     }
@@ -85,12 +91,17 @@ public abstract class Arc extends DefaultEdge {
             return false;
         if (!o.getClass().equals(this.getClass()))
             return false;
-        return Objects.equals(getSource(), ((Arc) o).getSource()) &&
-                Objects.equals(getTarget(), ((Arc) o).getTarget());
+        return Objects.equals(getSource(), ((Arc) o).getSource())
+                && Objects.equals(getTarget(), ((Arc) o).getTarget())
+                && Objects.equals(getLabel(), ((Arc) o).getLabel());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getClass(), getSource(), getTarget());
+        return Objects.hash(getClass(), getLabel(), getSource(), getTarget());
+    }
+
+    public String getLabel() {
+        return label;
     }
 }

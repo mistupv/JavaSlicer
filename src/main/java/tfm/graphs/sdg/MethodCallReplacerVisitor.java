@@ -10,9 +10,7 @@ import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.VariableDeclarationExpr;
-import com.github.javaparser.ast.stmt.ExpressionStmt;
-import com.github.javaparser.ast.stmt.ReturnStmt;
-import com.github.javaparser.ast.stmt.Statement;
+import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.nodes.GraphNode;
@@ -43,6 +41,42 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
     }
 
     @Override
+    public void visit(DoStmt n, Context arg) {
+        searchAndSetMethodCallNode(n);
+        super.visit(n, arg);
+    }
+
+    @Override
+    public void visit(ForEachStmt n, Context arg) {
+        searchAndSetMethodCallNode(n);
+        super.visit(n, arg);
+    }
+
+    @Override
+    public void visit(ForStmt n, Context arg) {
+        searchAndSetMethodCallNode(n);
+        super.visit(n, arg);
+    }
+
+    @Override
+    public void visit(IfStmt n, Context arg) {
+        searchAndSetMethodCallNode(n);
+        super.visit(n, arg);
+    }
+
+    @Override
+    public void visit(SwitchStmt n, Context arg) {
+        searchAndSetMethodCallNode(n);
+        super.visit(n, arg);
+    }
+
+    @Override
+    public void visit(WhileStmt n, Context arg) {
+        searchAndSetMethodCallNode(n);
+        super.visit(n, arg);
+    }
+
+    @Override
     public void visit(ReturnStmt n, Context arg) {
         searchAndSetMethodCallNode(n);
         super.visit(n, arg);
@@ -50,17 +84,19 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
     @Override
     public void visit(ExpressionStmt n, Context arg) {
-        Optional<GraphNode<ExpressionStmt>> optionalNode = sdg.findNodeByASTNode(n);
-
-        assert optionalNode.isPresent();
-
-        methodCallNode = optionalNode.get();
-
+        searchAndSetMethodCallNode(n);
         super.visit(n, arg);
     }
 
     @Override
     public void visit(MethodCallExpr methodCallExpr, Context context) {
+        List<Expression> arguments = methodCallExpr.getArguments();
+
+//        // Parse first method call expressions as arguments
+//        arguments.stream()
+//                .filter(Expression::isMethodCallExpr)
+//                .forEach(expression -> expression.accept(this, context));
+
         Logger.log("MethodCallReplacerVisitor", context);
 
         Optional<MethodDeclaration> optionalCallingMethod = methodCallExpr.getScope().isPresent()
@@ -82,13 +118,18 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
         sdg.addCallArc(methodCallNode, calledMethodNode);
 
-        for (Parameter parameter : calledMethodNode.getAstNode().getParameters()) {
+        NodeList<Parameter> parameters = calledMethodNode.getAstNode().getParameters();
+
+        for (int i = 0; i < parameters.size(); i++) {
+            Parameter parameter = parameters.get(i);
+            Expression argument = arguments.get(i);
+
             // In expression
             VariableDeclarationExpr inVariableDeclarationExpr = new VariableDeclarationExpr(
                     new VariableDeclarator(
                             parameter.getType(),
                             parameter.getNameAsString() + "_in",
-                            new NameExpr(parameter.getNameAsString())
+                            new NameExpr(argument.toString())
                     )
             );
 

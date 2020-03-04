@@ -96,7 +96,7 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
         this.addEdge(from, to, new DataDependencyArc(variable));
     }
 
-    public void addCallArc(GraphNode<ExpressionStmt> from, GraphNode<MethodDeclaration> to) {
+    public void addCallArc(GraphNode<?> from, GraphNode<MethodDeclaration> to) {
         this.addEdge(from, to, new CallArc());
     }
 

@@ -7,7 +7,6 @@ import tfm.graphs.pdg.PDG;
 import tfm.graphs.sdg.SDG;
 
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * An arc used in the {@link PDG} and {@link SDG},
@@ -17,16 +16,9 @@ import java.util.Objects;
  * path between the nodes where the variable is not redefined.
  */
 public class DataDependencyArc extends Arc {
-    private final String variable;
 
     public DataDependencyArc(String variable) {
-        super();
-        this.variable = variable;
-    }
-
-    @Override
-    public String getLabel() {
-        return variable;
+        super(variable);
     }
 
     @Override
@@ -35,16 +27,6 @@ public class DataDependencyArc extends Arc {
         map.put("style", DefaultAttribute.createAttribute("dashed"));
         map.put("color", DefaultAttribute.createAttribute("red"));
         return map;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        return super.equals(o) && Objects.equals(variable, ((DataDependencyArc) o).variable);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(variable, super.hashCode());
     }
 }
 
