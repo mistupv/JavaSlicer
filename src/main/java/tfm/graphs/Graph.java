@@ -88,7 +88,8 @@ public abstract class Graph extends DirectedPseudograph<GraphNode<?>, Arc> {
 
     @Override
     public String toString() {
-        return vertexSet().stream().sorted()
+        return vertexSet().stream()
+                .sorted(Comparator.comparingInt(GraphNode::getId))
                 .map(GraphNode::toString)
                 .collect(Collectors.joining(System.lineSeparator()));
     }
