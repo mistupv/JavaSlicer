@@ -25,7 +25,7 @@ import java.util.Set;
  * It is immutable.
  * @param <N> The type of the AST represented by this node.
  */
-public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
+public class GraphNode<N extends Node> {
 
     private final int id;
     private final String instruction;
@@ -135,10 +135,5 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
 
     public String getInstruction() {
         return instruction;
-    }
-
-    @Override
-    public int compareTo(@NotNull GraphNode<?> o) {
-        return Integer.compare(id, o.id);
     }
 }

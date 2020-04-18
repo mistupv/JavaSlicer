@@ -20,7 +20,6 @@ import java.util.Set;
  */
 public class CFG extends GraphWithRootNode<MethodDeclaration> {
     private boolean built = false;
-    protected GraphNode<?> exitNode;
 
     public CFG() {
         super();
@@ -64,27 +63,8 @@ public class CFG extends GraphWithRootNode<MethodDeclaration> {
     }
 
     @Override
-    public boolean removeVertex(GraphNode<?> graphNode) {
-        if (Objects.equals(graphNode, exitNode))
-            return false;
-        return super.removeVertex(graphNode);
-    }
-
-    public GraphNode<?> getExitNode() {
-        return exitNode;
-    }
-
-    protected void setExitNode(GraphNode<?> exitNode) {
-        if (this.exitNode != null)
-            throw new IllegalStateException("Exit node already set!");
-        this.exitNode = exitNode;
-    }
-
-    @Override
     public void build(MethodDeclaration method) {
         method.accept(newCFGBuilder(), null);
-        if (exitNode == null)
-            throw new IllegalStateException("Exit node missing!");
         built = true;
     }
 

@@ -3,7 +3,6 @@ package tfm.graphs.pdg;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import tfm.graphs.cfg.CFG;
-import tfm.nodes.GraphNode;
 
 import java.util.Objects;
 
