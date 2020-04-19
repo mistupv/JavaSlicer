@@ -14,8 +14,8 @@ import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.nodes.GraphNode;
-import tfm.nodes.factories.InVariableNodeFactory;
-import tfm.nodes.factories.OutVariableNodeFactory;
+import tfm.nodes.TypeNodeFactory;
+import tfm.nodes.type.NodeType;
 import tfm.utils.Context;
 import tfm.utils.Logger;
 
@@ -135,7 +135,7 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
             ExpressionStmt inExprStmt = new ExpressionStmt(inVariableDeclarationExpr);
 
-            GraphNode<ExpressionStmt> argumentInNode = sdg.addNode(inExprStmt.toString(), inExprStmt, new InVariableNodeFactory());
+            GraphNode<ExpressionStmt> argumentInNode = sdg.addNode(inExprStmt.toString(), inExprStmt, TypeNodeFactory.fromType(NodeType.VARIABLE_IN));
 
             // Out expression
             VariableDeclarationExpr outVariableDeclarationExpr = new VariableDeclarationExpr(
@@ -148,7 +148,7 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
             ExpressionStmt outExprStmt = new ExpressionStmt(outVariableDeclarationExpr);
 
-            GraphNode<ExpressionStmt> argumentOutNode = sdg.addNode(outExprStmt.toString(), outExprStmt, new OutVariableNodeFactory());
+            GraphNode<ExpressionStmt> argumentOutNode = sdg.addNode(outExprStmt.toString(), outExprStmt, TypeNodeFactory.fromType(NodeType.VARIABLE_OUT));
 
 
         }

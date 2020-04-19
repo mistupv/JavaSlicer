@@ -1,4 +1,4 @@
-package tfm.nodes.factories;
+package tfm.nodes;
 
 import com.github.javaparser.ast.Node;
 import org.jetbrains.annotations.NotNull;

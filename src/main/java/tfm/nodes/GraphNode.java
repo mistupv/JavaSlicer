@@ -5,8 +5,6 @@ import org.jetbrains.annotations.NotNull;
 import tfm.graphs.cfg.CFG;
 import tfm.graphs.pdg.PDG;
 import tfm.graphs.sdg.SDG;
-import tfm.nodes.factories.NodeFactory;
-import tfm.nodes.factories.StatementNodeFactory;
 import tfm.nodes.type.NodeType;
 import tfm.utils.Utils;
 import tfm.variables.VariableExtractor;
@@ -28,7 +26,7 @@ import java.util.Set;
  */
 public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
 
-    public static final NodeFactory DEFAULT_FACTORY = new StatementNodeFactory();
+    public static final NodeFactory DEFAULT_FACTORY = TypeNodeFactory.fromType(NodeType.STATEMENT);
 
     private NodeType nodeType;
 

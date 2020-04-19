@@ -9,9 +9,9 @@ import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitor;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.nodes.GraphNode;
-import tfm.nodes.factories.InVariableNodeFactory;
-import tfm.nodes.factories.MethodNodeFactory;
-import tfm.nodes.factories.OutVariableNodeFactory;
+import tfm.nodes.NodeFactory;
+import tfm.nodes.TypeNodeFactory;
+import tfm.nodes.type.NodeType;
 import tfm.utils.ASTUtils;
 
 import java.util.*;
@@ -291,7 +291,7 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         if (!methodDeclaration.getBody().isPresent())
             throw new IllegalStateException("The method must have a body!");
 
-        graph.buildRootNode("ENTER " + methodDeclaration.getNameAsString(), methodDeclaration, new MethodNodeFactory());
+        graph.buildRootNode("ENTER " + methodDeclaration.getNameAsString(), methodDeclaration, TypeNodeFactory.fromType(NodeType.METHOD));
 
         // Compute variable in and out expressions (necessary to compute data dependence in SDG)
         List<ExpressionStmt> inVariableExpressions = new ArrayList<>();
@@ -329,7 +329,7 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
 
         // Add in variable nodes
         for (ExpressionStmt expressionStmt : inVariableExpressions) {
-            GraphNode<ExpressionStmt> node = this.graph.addNode(expressionStmt.toString(), expressionStmt, new InVariableNodeFactory());
+            GraphNode<ExpressionStmt> node = this.graph.addNode(expressionStmt.toString(), expressionStmt, TypeNodeFactory.fromType(NodeType.VARIABLE_IN));
             connectTo(node);
         }
 
@@ -339,7 +339,7 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
 
         // Add out variable nodes
         for (ExpressionStmt expressionStmt : outVariableExpressions) {
-            GraphNode<ExpressionStmt> node = this.graph.addNode(expressionStmt.toString(), expressionStmt, new OutVariableNodeFactory());
+            GraphNode<ExpressionStmt> node = this.graph.addNode(expressionStmt.toString(), expressionStmt, TypeNodeFactory.fromType(NodeType.VARIABLE_OUT));
             connectTo(node);
         }
 

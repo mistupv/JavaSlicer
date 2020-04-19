@@ -2,13 +2,21 @@ package tfm.nodes;
 
 import com.github.javaparser.ast.Node;
 import org.jetbrains.annotations.NotNull;
-import tfm.nodes.factories.NodeFactory;
 import tfm.nodes.type.NodeType;
 
 import java.util.Collection;
 import java.util.Objects;
 
-public abstract class AbstractTypeNodeFactory implements NodeFactory {
+public abstract class TypeNodeFactory implements NodeFactory {
+
+    public static TypeNodeFactory fromType(NodeType type) {
+        return new TypeNodeFactory() {
+            @Override
+            protected NodeType getSpecificType() {
+                return type;
+            }
+        };
+    }
 
     public <ASTNode extends Node> GraphNode<ASTNode> computedGraphNode(
             @NotNull String instruction,

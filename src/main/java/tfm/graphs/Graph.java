@@ -6,7 +6,7 @@ import org.jgrapht.graph.DirectedPseudograph;
 import org.jgrapht.io.DOTExporter;
 import tfm.arcs.Arc;
 import tfm.nodes.GraphNode;
-import tfm.nodes.factories.NodeFactory;
+import tfm.nodes.NodeFactory;
 import tfm.utils.ASTUtils;
 
 import java.util.*;

@@ -4,7 +4,7 @@ import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import org.jetbrains.annotations.NotNull;
 import tfm.nodes.GraphNode;
-import tfm.nodes.factories.NodeFactory;
+import tfm.nodes.NodeFactory;
 
 import java.util.Objects;
 import java.util.Optional;
