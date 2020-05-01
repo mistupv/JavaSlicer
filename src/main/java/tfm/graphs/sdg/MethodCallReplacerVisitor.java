@@ -1,5 +1,6 @@
 package tfm.graphs.sdg;
 
+import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
@@ -13,12 +14,25 @@ import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
+import com.github.javaparser.resolution.UnsolvedSymbolException;
+import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
+import com.github.javaparser.resolution.declarations.ResolvedReferenceTypeDeclaration;
+import com.github.javaparser.symbolsolver.JavaSymbolSolver;
+import com.github.javaparser.symbolsolver.SourceFileInfoExtractor;
+import com.github.javaparser.symbolsolver.javaparsermodel.JavaParserFacade;
+import com.github.javaparser.symbolsolver.model.resolution.SymbolReference;
+import com.github.javaparser.symbolsolver.model.resolution.TypeSolver;
+import com.github.javaparser.symbolsolver.resolution.SymbolSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 import tfm.nodes.GraphNode;
 import tfm.nodes.TypeNodeFactory;
 import tfm.nodes.type.NodeType;
 import tfm.utils.Context;
 import tfm.utils.Logger;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -99,22 +113,16 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
         Logger.log("MethodCallReplacerVisitor", context);
 
-        Optional<MethodDeclaration> optionalCallingMethod = methodCallExpr.getScope().isPresent()
-                ? shouldMakeCallWithScope(methodCallExpr, context)
-                : shouldMakeCallWithNoScope(methodCallExpr, context);
+        Optional<GraphNode<MethodDeclaration>> optionalNethodDeclarationNode = getMethodDeclarationNodeWithJavaParser(methodCallExpr);
 
-        if (!optionalCallingMethod.isPresent()) {
-            Logger.log("Discarding: " + methodCallExpr);
+        if (!optionalNethodDeclarationNode.isPresent()) {
+            Logger.format("Not found: '%s'. Discarding");
             return;
         }
 
-        MethodDeclaration methodCalled = optionalCallingMethod.get();
+        GraphNode<MethodDeclaration> calledMethodNode = optionalNethodDeclarationNode.get();
 
-        Optional<GraphNode<MethodDeclaration>> optionalCalledMethodNode = sdg.findNodeByASTNode(methodCalled);
-
-        assert optionalCalledMethodNode.isPresent();
-
-        GraphNode<MethodDeclaration> calledMethodNode = optionalCalledMethodNode.get();
+        MethodDeclaration methodCalled = calledMethodNode.getAstNode();
 
         sdg.addCallArc(methodCallNode, calledMethodNode);
 
@@ -157,6 +165,26 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
         Logger.log("MethodCallReplacerVisitor", String.format("%s | Method '%s' called", methodCallExpr, methodCalled.getNameAsString()));
     }
 
+    private Optional<GraphNode<MethodDeclaration>> getMethodDeclarationNodeWithJavaParser(MethodCallExpr methodCallExpr) {
+        TypeSolver typeSolver = new ReflectionTypeSolver();
+
+        try {
+            SymbolReference<ResolvedMethodDeclaration> solver = JavaParserFacade.get(typeSolver).solve(methodCallExpr);
+
+            return solver.isSolved()
+                    ? solver.getCorrespondingDeclaration().toAst()
+                        .flatMap(methodDeclaration -> sdg.findNodeByASTNode(methodDeclaration))
+                    : Optional.empty();
+        } catch (UnsolvedSymbolException e) {
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Handles method calls with scope. Examples:
+     *  - System.out.println() -> println() is a method call with scope System.out
+     *  - new A().getB() -> getB() is a method call with scope new A()
+     */
     private Optional<MethodDeclaration> shouldMakeCallWithScope(MethodCallExpr methodCallExpr, Context context) {
         assert methodCallExpr.getScope().isPresent();
 

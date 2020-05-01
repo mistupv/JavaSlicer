@@ -28,7 +28,7 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
 
     public static final NodeFactory DEFAULT_FACTORY = TypeNodeFactory.fromType(NodeType.STATEMENT);
 
-    private NodeType nodeType;
+    private final NodeType nodeType;
 
     private final long id;
     private final String instruction;
