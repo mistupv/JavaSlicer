@@ -11,6 +11,7 @@ import tfm.arcs.sdg.CallArc;
 import tfm.arcs.sdg.ParameterInOutArc;
 import tfm.graphs.Buildable;
 import tfm.graphs.Graph;
+import tfm.graphs.cfg.CFG;
 import tfm.graphs.pdg.PDG;
 import tfm.nodes.*;
 import tfm.slicing.Slice;
@@ -25,10 +26,10 @@ import java.util.stream.Collectors;
 public class SDG extends Graph implements Sliceable, Buildable<NodeList<CompilationUnit>> {
     private boolean built = false;
 
-    private Map<Context, Long> contextToMethodRoot;
+    private Map<MethodDeclaration, CFG> methodCFGMap;
 
     public SDG() {
-        this.contextToMethodRoot = new HashMap<>();
+        this.methodCFGMap = new HashMap<>();
     }
 
     @Override
@@ -46,46 +47,20 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
         return built;
     }
 
-    public Set<Context> getContexts() {
-        return contextToMethodRoot.keySet();
+    public Set<MethodDeclaration> getMethodDeclarations() {
+        return this.methodCFGMap.keySet();
     }
 
-    @SuppressWarnings("unchecked")
-    public List<GraphNode<MethodDeclaration>> getMethodRoots() {
-        return contextToMethodRoot.values().stream()
-                .map(id -> findNodeById(id))
-                .filter(Optional::isPresent)
-                .map(optional -> (GraphNode<MethodDeclaration>) optional.get())
-                .collect(Collectors.toList());
+    public void setMethodCFG(MethodDeclaration methodDeclaration, CFG cfg) {
+        this.methodCFGMap.put(methodDeclaration, cfg);
     }
 
-    @SuppressWarnings("unchecked")
-    public Optional<GraphNode<MethodDeclaration>> getRootNode(Context context) {
-        Long id = this.contextToMethodRoot.get(context);
-
-        if (id == null) {
+    public Optional<CFG> getMethodCFG(MethodDeclaration methodDeclaration) {
+        if (!this.methodCFGMap.containsKey(methodDeclaration)) {
             return Optional.empty();
         }
 
-        return findNodeById(id).map(node -> (GraphNode<MethodDeclaration>) node);
-    }
-
-    public void addRootNode(Context context, long id) {
-        if (!findNodeById(id).isPresent())
-            throw new IllegalArgumentException("Root node with id " + id + " is not contained in graph!");
-
-        this.contextToMethodRoot.put(new Context(context), id);
-    }
-
-    public void addRootNode(Context context, GraphNode<MethodDeclaration> node) {
-        addRootNode(context, node.getId());
-    }
-
-    public Optional<Context> getContext(long id) {
-        return contextToMethodRoot.entrySet().stream()
-                .filter(entry -> Objects.equals(entry.getValue(), id))
-                .findFirst()
-                .map(Map.Entry::getKey);
+        return Optional.of(this.methodCFGMap.get(methodDeclaration));
     }
 
     public void addControlDependencyArc(GraphNode<?> from, GraphNode<?> to) {

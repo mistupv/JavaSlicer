@@ -51,8 +51,8 @@ class SDGBuilder extends VoidVisitorAdapter<Context> {
 
         GraphNode<MethodDeclaration> methodDeclarationNode = pdg.getRootNode().get();
 
-        // Add root node from PDG
-        sdg.addRootNode(context, methodDeclarationNode.getId());
+        // Add CFG
+        sdg.setMethodCFG(methodDeclaration, pdg.getCfg());
     }
 
     @Override
@@ -72,7 +72,7 @@ class SDGBuilder extends VoidVisitorAdapter<Context> {
         // Once every PDG is built, expand method call nodes of each one
         // and link them to the corresponding method declaration node
         MethodCallReplacer methodCallReplacer = new MethodCallReplacer(sdg);
-        methodCallReplacer.replace();
+        methodCallReplacer.replace(context);
 
 
 

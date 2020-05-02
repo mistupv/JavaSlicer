@@ -16,19 +16,9 @@ class MethodCallReplacer {
         this.sdg = sdg;
     }
 
-    public void replace() {
-        this.sdg.getContexts().stream()
-            .filter(context -> context.getCurrentMethod().isPresent())
-            .forEach(context -> {
-                Logger.log("MethodCallReplacer", context);
-
-                Optional<GraphNode<MethodDeclaration>> optionalRootNode = this.sdg.getRootNode(context);
-
-                if (!optionalRootNode.isPresent()) {
-                    return; // We don't have visited the code (e.g. the MethodDeclaration for a method call)
-                }
-
-                optionalRootNode.get().getAstNode().accept(new MethodCallReplacerVisitor(sdg), context);
-            });
+    public void replace(Context context) {
+        for (MethodDeclaration methodDeclaration : this.sdg.getMethodDeclarations()) {
+            methodDeclaration.accept(new MethodCallReplacerVisitor(sdg), context);
+        }
     }
 }
