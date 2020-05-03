@@ -1,6 +1,7 @@
 package tfm.graphs.sdg;
 
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
@@ -21,6 +22,7 @@ import tfm.utils.Context;
 
 import java.util.*;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class SDG extends Graph implements Sliceable, Buildable<NodeList<CompilationUnit>> {

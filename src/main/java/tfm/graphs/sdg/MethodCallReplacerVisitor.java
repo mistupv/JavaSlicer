@@ -1,16 +1,14 @@
 package tfm.graphs.sdg;
 
 import com.github.javaparser.ParserConfiguration;
+import com.github.javaparser.ast.ArrayCreationLevel;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
-import com.github.javaparser.ast.expr.Expression;
-import com.github.javaparser.ast.expr.MethodCallExpr;
-import com.github.javaparser.ast.expr.NameExpr;
-import com.github.javaparser.ast.expr.VariableDeclarationExpr;
+import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
@@ -26,6 +24,7 @@ import com.github.javaparser.symbolsolver.resolution.SymbolSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
+import tfm.graphs.cfg.CFG;
 import tfm.nodes.GraphNode;
 import tfm.nodes.TypeNodeFactory;
 import tfm.nodes.type.NodeType;
@@ -104,7 +103,7 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
     @Override
     public void visit(MethodCallExpr methodCallExpr, Context context) {
-        List<Expression> arguments = methodCallExpr.getArguments();
+        NodeList<Expression> arguments = methodCallExpr.getArguments();
 
 //        // Parse first method call expressions as arguments
 //        arguments.stream()
@@ -120,17 +119,33 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
             return;
         }
 
-        GraphNode<MethodDeclaration> calledMethodNode = optionalNethodDeclarationNode.get();
+        GraphNode<MethodDeclaration> methodDeclarationNode = optionalNethodDeclarationNode.get();
+        MethodDeclaration methodDeclaration = methodDeclarationNode.getAstNode();
 
-        MethodDeclaration methodCalled = calledMethodNode.getAstNode();
+        Optional<CFG> optionalCFG = sdg.getMethodCFG(methodDeclaration);
+        assert optionalCFG.isPresent();
+        CFG methodCFG = optionalCFG.get();
 
-        sdg.addCallArc(methodCallNode, calledMethodNode);
+        sdg.addCallArc(methodCallNode, methodDeclarationNode);
 
-        NodeList<Parameter> parameters = calledMethodNode.getAstNode().getParameters();
+        NodeList<Parameter> parameters = methodDeclarationNode.getAstNode().getParameters();
 
         for (int i = 0; i < parameters.size(); i++) {
             Parameter parameter = parameters.get(i);
-            Expression argument = arguments.get(i);
+            Expression argument;
+
+            // TODO: Check if parameter is varargs...
+            if (!parameter.isVarArgs()) {
+                argument = arguments.get(i);
+            } else {
+                NodeList<Expression> varArgs = new NodeList<>(arguments.subList(i, arguments.size()));
+
+                argument = new ArrayCreationExpr(
+                        parameter.getType(),
+                        new NodeList<>(new ArrayCreationLevel(varArgs.size())),
+                        new ArrayInitializerExpr(varArgs)
+                );
+            }
 
             // In expression
             VariableDeclarationExpr inVariableDeclarationExpr = new VariableDeclarationExpr(
@@ -164,7 +179,7 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
         }
 
         // todo make call
-        Logger.log("MethodCallReplacerVisitor", String.format("%s | Method '%s' called", methodCallExpr, methodCalled.getNameAsString()));
+        Logger.log("MethodCallReplacerVisitor", String.format("%s | Method '%s' called", methodCallExpr, methodDeclaration.getNameAsString()));
     }
 
     private Optional<GraphNode<MethodDeclaration>> getMethodDeclarationNodeWithJavaParser(MethodCallExpr methodCallExpr) {
