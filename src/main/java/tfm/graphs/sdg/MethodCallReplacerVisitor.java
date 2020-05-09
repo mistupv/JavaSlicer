@@ -24,6 +24,8 @@ import com.github.javaparser.symbolsolver.resolution.SymbolSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
+import tfm.arcs.Arc;
+import tfm.arcs.pdg.DataDependencyArc;
 import tfm.graphs.cfg.CFG;
 import tfm.nodes.GraphNode;
 import tfm.nodes.TypeNodeFactory;
@@ -115,7 +117,7 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
         Optional<GraphNode<MethodDeclaration>> optionalNethodDeclarationNode = getMethodDeclarationNodeWithJavaParser(methodCallExpr);
 
         if (!optionalNethodDeclarationNode.isPresent()) {
-            Logger.format("Not found: '%s'. Discarding");
+            Logger.format("Not found: '%s'. Discarding", methodCallExpr);
             return;
         }
 
@@ -134,7 +136,6 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
             Parameter parameter = parameters.get(i);
             Expression argument;
 
-            // TODO: Check if parameter is varargs...
             if (!parameter.isVarArgs()) {
                 argument = arguments.get(i);
             } else {
@@ -162,6 +163,33 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
             sdg.addControlDependencyArc(methodCallNode, argumentInNode);
 
+            // Handle data dependency: Remove arc from method call node and add it to IN node
+
+            List<DataDependencyArc> inDataDependencies = sdg.incomingEdgesOf(methodCallNode).stream()
+                .filter(arc -> arc.isDataDependencyArc() && Objects.equals(arc.getLabel(), argument.toString()))
+                .map(Arc::asDataDependencyArc)
+                .collect(Collectors.toList());
+
+            for (DataDependencyArc arc : inDataDependencies) {
+                GraphNode<?> dataDependencySource = sdg.getEdgeSource(arc);
+                sdg.removeEdge(arc);
+                sdg.addDataDependencyArc(dataDependencySource, argumentInNode, argument.toString());
+            }
+
+            // Now, find the corresponding method declaration's in node and link argument node with it
+
+            Optional<GraphNode<ExpressionStmt>> optionalParameterInNode = sdg.outgoingEdgesOf(methodDeclarationNode).stream()
+                    .map(arc -> (GraphNode<ExpressionStmt>) sdg.getEdgeTarget(arc))
+                    .filter(node -> node.getNodeType() == NodeType.VARIABLE_IN && node.getInstruction().contains(parameter.getNameAsString() + "_in"))
+                    .findFirst();
+
+            if (optionalParameterInNode.isPresent()) {
+                sdg.addParameterInOutArc(argumentInNode, optionalParameterInNode.get());
+            } else {
+                Logger.log("MethodCallReplacerVisitor", "WARNING: IN declaration node for argument " + argument + " not found.");
+                Logger.log("MethodCallReplacerVisitor", String.format("Context: %s, Method: %s, Call: %s", context.getCurrentMethod().get().getNameAsString(), methodDeclaration.getSignature().asString(), methodCallExpr));
+            }
+
             // Out expression
             VariableDeclarationExpr outVariableDeclarationExpr = new VariableDeclarationExpr(
                     new VariableDeclarator(
@@ -175,7 +203,21 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
             GraphNode<ExpressionStmt> argumentOutNode = sdg.addNode(outExprStmt.toString(), outExprStmt, TypeNodeFactory.fromType(NodeType.VARIABLE_OUT));
 
+            sdg.addControlDependencyArc(methodCallNode, argumentOutNode);
 
+            // Now, find the corresponding method declaration's out node and link argument node with it
+
+            Optional<GraphNode<ExpressionStmt>> optionalParameterOutNode = sdg.outgoingEdgesOf(methodDeclarationNode).stream()
+                    .map(arc -> (GraphNode<ExpressionStmt>) sdg.getEdgeTarget(arc))
+                    .filter(node -> node.getNodeType() == NodeType.VARIABLE_OUT && node.getInstruction().contains(parameter.getNameAsString() + "_out"))
+                    .findFirst();
+
+            if (optionalParameterOutNode.isPresent()) {
+                sdg.addParameterInOutArc(optionalParameterOutNode.get(), argumentOutNode);
+            } else {
+                Logger.log("MethodCallReplacerVisitor", "WARNING: OUT declaration node for argument " + argument + " not found.");
+                Logger.log("MethodCallReplacerVisitor", String.format("Context: %s, Method: %s, Call: %s", context.getCurrentMethod().get().getNameAsString(), methodDeclaration.getSignature().asString(), methodCallExpr));
+            }
         }
 
         // todo make call
@@ -195,5 +237,12 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
         } catch (UnsolvedSymbolException e) {
             return Optional.empty();
         }
+    }
+
+    @Override
+    public void visit(MethodDeclaration n, Context arg) {
+        arg.setCurrentMethod(n);
+
+        super.visit(n, arg);
     }
 }

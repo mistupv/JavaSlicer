@@ -4,9 +4,12 @@ import tfm.utils.Logger;
 
 public class Example1 {
 
+    /*
     public Example1() {
 
     }
+
+     */
 
     public static void main(String[] args) {
         int x = 1;
@@ -14,6 +17,7 @@ public class Example1 {
 
         int f = sum(x, y);
 
+        Logger.log(x);
         Logger.log(f);
     }
 
@@ -22,6 +26,7 @@ public class Example1 {
         return res;
     }
 
+    /*
     public int m1() {
         return 1;
     }
@@ -29,4 +34,5 @@ public class Example1 {
     public int m2() {
         return m1();
     }
+     */
 }
