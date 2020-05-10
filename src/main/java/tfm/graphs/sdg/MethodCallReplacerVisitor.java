@@ -32,6 +32,7 @@ import tfm.nodes.TypeNodeFactory;
 import tfm.nodes.type.NodeType;
 import tfm.utils.Context;
 import tfm.utils.Logger;
+import tfm.utils.MethodDeclarationSolver;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -114,7 +115,10 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
         Logger.log("MethodCallReplacerVisitor", context);
 
-        Optional<GraphNode<MethodDeclaration>> optionalNethodDeclarationNode = getMethodDeclarationNodeWithJavaParser(methodCallExpr);
+        Optional<GraphNode<MethodDeclaration>> optionalNethodDeclarationNode =
+                MethodDeclarationSolver.getInstance()
+                    .findDeclarationFrom(methodCallExpr)
+                    .flatMap(methodDeclaration -> sdg.findNodeByASTNode(methodDeclaration));
 
         if (!optionalNethodDeclarationNode.isPresent()) {
             Logger.format("Not found: '%s'. Discarding", methodCallExpr);
@@ -191,6 +195,15 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
             }
 
             // Out expression
+
+            if (!argument.isNameExpr() && !sdg.findDeclarationsOfVariable(argument.toString(), methodCallNode).isEmpty()) {
+                /*
+                    If the argument is not a variable (is a name expression and it is declared in the scope),
+                    then there is no OUT node
+                 */
+                continue;
+            }
+
             VariableDeclarationExpr outVariableDeclarationExpr = new VariableDeclarationExpr(
                     new VariableDeclarator(
                             parameter.getType(),
@@ -205,12 +218,25 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
             sdg.addControlDependencyArc(methodCallNode, argumentOutNode);
 
-            // Now, find the corresponding method declaration's out node and link argument node with it
+            // Now, find the corresponding method call's out node and link argument node with it
 
             Optional<GraphNode<ExpressionStmt>> optionalParameterOutNode = sdg.outgoingEdgesOf(methodDeclarationNode).stream()
                     .map(arc -> (GraphNode<ExpressionStmt>) sdg.getEdgeTarget(arc))
                     .filter(node -> node.getNodeType() == NodeType.VARIABLE_OUT && node.getInstruction().contains(parameter.getNameAsString() + "_out"))
                     .findFirst();
+
+            // Handle data dependency: remove arc from method call node and add it to OUT node
+
+            List<DataDependencyArc> outDataDependencies = sdg.outgoingEdgesOf(methodCallNode).stream()
+                    .filter(arc -> arc.isDataDependencyArc() && Objects.equals(arc.getLabel(), argument.toString()))
+                    .map(Arc::asDataDependencyArc)
+                    .collect(Collectors.toList());
+
+            for (DataDependencyArc arc : outDataDependencies) {
+                GraphNode<?> dataDependencyTarget = sdg.getEdgeTarget(arc);
+                sdg.removeEdge(arc);
+                sdg.addDataDependencyArc(argumentOutNode, dataDependencyTarget, argument.toString());
+            }
 
             if (optionalParameterOutNode.isPresent()) {
                 sdg.addParameterInOutArc(optionalParameterOutNode.get(), argumentOutNode);
@@ -224,19 +250,8 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
         Logger.log("MethodCallReplacerVisitor", String.format("%s | Method '%s' called", methodCallExpr, methodDeclaration.getNameAsString()));
     }
 
-    private Optional<GraphNode<MethodDeclaration>> getMethodDeclarationNodeWithJavaParser(MethodCallExpr methodCallExpr) {
-        TypeSolver typeSolver = new ReflectionTypeSolver();
+    private void argumentAsNameExpr(GraphNode<ExpressionStmt> methodCallNode) {
 
-        try {
-            SymbolReference<ResolvedMethodDeclaration> solver = JavaParserFacade.get(typeSolver).solve(methodCallExpr);
-
-            return solver.isSolved()
-                    ? solver.getCorrespondingDeclaration().toAst()
-                        .flatMap(methodDeclaration -> sdg.findNodeByASTNode(methodDeclaration))
-                    : Optional.empty();
-        } catch (UnsolvedSymbolException e) {
-            return Optional.empty();
-        }
     }
 
     @Override
