@@ -31,4 +31,22 @@ So, for the list of expressions that are not literal:
 - `ObjectCreationExpr`: NO
 - `SuperExpr`: NO
 - `ThisExpr`: NO
-- `UnaryExpr (a++)`: we'll have to check if `a` is a variable
+- `UnaryExpr (a++)`: we'll have to check the operator (only `++`, `--` return the variable), and if `a` is a variable
+
+## 11/5/20
+
+### Implemented
+
+- Added a CALL node between the node which contains the statement with the `MethodCallExpr` and the `MethodDeclaration`. This node is linked with `in` and `out` nodes. This is because if a statement has more than 1 `MethodCallExpr`, it may have repeated `in` and `out` nodes with the same variables
+- Changed `out` node expression from `VariableDeclarationExpr` to `AssignExpr`, where the name of the variable is the argument expression
+
+### WIP
+
+- `OutNodeVariableVisitor`, a visitor that returns the expressions that should be candidate for being `out` nodes. This visitor overrides all `*Expr` methods who may contain a `NameExpr`
+    - `ConditionalExpr`: Here, we have `ThenExpr` and `ElseExpr`. As we are performing a static analysis, both should be considered for `out` node in case they represented a variable (This is why `OutNodeVariableVisitor` uses a `List`, and doesn't just return a `String` representing the variable)
+
+### Issues
+
+- `Out` node is generated for `MethodCallExpr` as an argument
+
+- When a `MethodCallExpr` is an argument of another, we have to link its output to the `in` node of the containing one

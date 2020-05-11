@@ -1,29 +1,14 @@
 package tfm.graphs.sdg;
 
-import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.ast.ArrayCreationLevel;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.stmt.*;
-import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import com.github.javaparser.resolution.UnsolvedSymbolException;
-import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
-import com.github.javaparser.resolution.declarations.ResolvedReferenceTypeDeclaration;
-import com.github.javaparser.symbolsolver.JavaSymbolSolver;
-import com.github.javaparser.symbolsolver.SourceFileInfoExtractor;
-import com.github.javaparser.symbolsolver.javaparsermodel.JavaParserFacade;
-import com.github.javaparser.symbolsolver.model.resolution.SymbolReference;
-import com.github.javaparser.symbolsolver.model.resolution.TypeSolver;
-import com.github.javaparser.symbolsolver.resolution.SymbolSolver;
-import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
-import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
-import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 import tfm.arcs.Arc;
 import tfm.arcs.pdg.DataDependencyArc;
 import tfm.graphs.cfg.CFG;
@@ -34,16 +19,13 @@ import tfm.utils.Context;
 import tfm.utils.Logger;
 import tfm.utils.MethodDeclarationSolver;
 
-import java.nio.file.Path;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
     private SDG sdg;
-    private GraphNode<?> methodCallNode;
+    private GraphNode<?> originalMethodCallNode;
 
     public MethodCallReplacerVisitor(SDG sdg) {
         this.sdg = sdg;
@@ -52,7 +34,7 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
     private void searchAndSetMethodCallNode(Node node) {
         Optional<GraphNode<Node>> optionalNode = sdg.findNodeByASTNode(node);
         assert optionalNode.isPresent();
-        methodCallNode = optionalNode.get();
+        originalMethodCallNode = optionalNode.get();
 
     }
 
@@ -108,10 +90,10 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
     public void visit(MethodCallExpr methodCallExpr, Context context) {
         NodeList<Expression> arguments = methodCallExpr.getArguments();
 
-//        // Parse first method call expressions as arguments
-//        arguments.stream()
-//                .filter(Expression::isMethodCallExpr)
-//                .forEach(expression -> expression.accept(this, context));
+        // Parse first method call expressions as arguments
+        arguments.stream()
+                .filter(Expression::isMethodCallExpr)
+                .forEach(expression -> expression.accept(this, context));
 
         Logger.log("MethodCallReplacerVisitor", context);
 
@@ -132,6 +114,9 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
         assert optionalCFG.isPresent();
         CFG methodCFG = optionalCFG.get();
 
+        GraphNode<MethodCallExpr> methodCallNode = sdg.addNode("CALL " + methodCallExpr.toString(), methodCallExpr, TypeNodeFactory.fromType(NodeType.METHOD_CALL));
+
+        sdg.addControlDependencyArc(originalMethodCallNode, methodCallNode);
         sdg.addCallArc(methodCallNode, methodDeclarationNode);
 
         NodeList<Parameter> parameters = methodDeclarationNode.getAstNode().getParameters();
@@ -169,7 +154,7 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
             // Handle data dependency: Remove arc from method call node and add it to IN node
 
-            List<DataDependencyArc> inDataDependencies = sdg.incomingEdgesOf(methodCallNode).stream()
+            List<DataDependencyArc> inDataDependencies = sdg.incomingEdgesOf(originalMethodCallNode).stream()
                 .filter(arc -> arc.isDataDependencyArc() && Objects.equals(arc.getLabel(), argument.toString()))
                 .map(Arc::asDataDependencyArc)
                 .collect(Collectors.toList());
@@ -196,23 +181,37 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
             // Out expression
 
-            if (!argument.isNameExpr() && !sdg.findDeclarationsOfVariable(argument.toString(), methodCallNode).isEmpty()) {
+            OutNodeVariableVisitor shouldHaveOutNodeVisitor = new OutNodeVariableVisitor();
+            Set<String> variablesForOutNode = new HashSet<>();
+            argument.accept(shouldHaveOutNodeVisitor, variablesForOutNode);
+
+            // Here, variablesForOutNode may have 1 variable or more depending on the expression
+
+            if (variablesForOutNode.isEmpty()) {
                 /*
-                    If the argument is not a variable (is a name expression and it is declared in the scope),
+                    If the argument is not a variable or it is not declared in the scope,
                     then there is no OUT node
                  */
+                Logger.log("MethodCallReplacerVisitor", String.format("Expression '%s' should not have out node", argument.toString()));
+                continue;
+            } else if (variablesForOutNode.size() == 1) {
+                String variable = variablesForOutNode.iterator().next();
+
+                if (sdg.findDeclarationsOfVariable(variable, originalMethodCallNode).isEmpty()) {
+                    Logger.log("MethodCallReplacerVisitor", String.format("Expression '%s' should not have out node", argument.toString()));
+                    continue;
+                }
+            } else {
                 continue;
             }
 
-            VariableDeclarationExpr outVariableDeclarationExpr = new VariableDeclarationExpr(
-                    new VariableDeclarator(
-                            parameter.getType(),
-                            parameter.getNameAsString(),
-                            new NameExpr(parameter.getNameAsString() + "_out")
-                    )
+            AssignExpr outVariableAssignExpr = new AssignExpr(
+                argument,
+                new NameExpr(parameter.getNameAsString() + "_out"),
+                AssignExpr.Operator.ASSIGN
             );
 
-            ExpressionStmt outExprStmt = new ExpressionStmt(outVariableDeclarationExpr);
+            ExpressionStmt outExprStmt = new ExpressionStmt(outVariableAssignExpr);
 
             GraphNode<ExpressionStmt> argumentOutNode = sdg.addNode(outExprStmt.toString(), outExprStmt, TypeNodeFactory.fromType(NodeType.VARIABLE_OUT));
 
@@ -227,7 +226,7 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
             // Handle data dependency: remove arc from method call node and add it to OUT node
 
-            List<DataDependencyArc> outDataDependencies = sdg.outgoingEdgesOf(methodCallNode).stream()
+            List<DataDependencyArc> outDataDependencies = sdg.outgoingEdgesOf(originalMethodCallNode).stream()
                     .filter(arc -> arc.isDataDependencyArc() && Objects.equals(arc.getLabel(), argument.toString()))
                     .map(Arc::asDataDependencyArc)
                     .collect(Collectors.toList());
