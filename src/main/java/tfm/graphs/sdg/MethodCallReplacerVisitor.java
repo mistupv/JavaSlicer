@@ -250,7 +250,18 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
             }
         }
 
-        // todo make call
+        // 'Return' node
+        GraphNode<EmptyStmt> returnNode = sdg.addNode("return", new EmptyStmt(), TypeNodeFactory.fromType(NodeType.METHOD_CALL_RETURN));
+        sdg.addControlDependencyArc(methodCallNode, returnNode);
+
+        sdg.addReturnArc(returnNode, originalMethodCallNode);
+
+        methodCFG.vertexSet().stream()
+            .filter(node -> node.getAstNode() instanceof ReturnStmt)
+            .map(node -> (GraphNode<ReturnStmt>) node)
+            .forEach(node -> sdg.addReturnArc(node, returnNode));
+
+
         Logger.log("MethodCallReplacerVisitor", String.format("%s | Method '%s' called", methodCallExpr, methodDeclaration.getNameAsString()));
     }
 

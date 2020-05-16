@@ -5,5 +5,6 @@ public enum NodeType {
     METHOD,
     METHOD_CALL,
     VARIABLE_IN,
-    VARIABLE_OUT
+    VARIABLE_OUT,
+    METHOD_CALL_RETURN
 }
