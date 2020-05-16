@@ -14,16 +14,16 @@ public class Example1 {
     int num;
 
     public static void main(String[] args) {
-        int x = 1;
-        int y = 2;
+        int n1 = 1;
+        int n2 = 2;
 
-        Example1 example1 = new Example1();
-        Example1 example2 = new Example1();
+//        Example1 example1 = new Example1();
+//        Example1 example2 = new Example1();
 
-        int f = sum(example1.getNum(), example2.num);
+        int f = sum(sum(n1, n2), n2);
 
-        Logger.log(example1.num);
         Logger.log(f);
+        Logger.log(z);
     }
 
     public int getNum() {

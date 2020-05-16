@@ -91,9 +91,9 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
         NodeList<Expression> arguments = methodCallExpr.getArguments();
 
         // Parse first method call expressions as arguments
-        arguments.stream()
-                .filter(Expression::isMethodCallExpr)
-                .forEach(expression -> expression.accept(this, context));
+//        arguments.stream()
+//                .filter(Expression::isMethodCallExpr)
+//                .forEach(expression -> expression.accept(this, context));
 
         Logger.log("MethodCallReplacerVisitor", context);
 
@@ -187,6 +187,7 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
             // Here, variablesForOutNode may have 1 variable or more depending on the expression
 
+            Logger.log("MethodCallReplacerVisitor", String.format("Variables for out node: %s", variablesForOutNode));
             if (variablesForOutNode.isEmpty()) {
                 /*
                     If the argument is not a variable or it is not declared in the scope,
@@ -197,7 +198,11 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
             } else if (variablesForOutNode.size() == 1) {
                 String variable = variablesForOutNode.iterator().next();
 
-                if (sdg.findDeclarationsOfVariable(variable, originalMethodCallNode).isEmpty()) {
+                List<GraphNode<?>> declarations = sdg.findDeclarationsOfVariable(variable, originalMethodCallNode);
+
+                Logger.log("MethodCallReplacerVisitor", String.format("Declarations of variable: '%s': %s", variable, declarations));
+
+                if (declarations.isEmpty()) {
                     Logger.log("MethodCallReplacerVisitor", String.format("Expression '%s' should not have out node", argument.toString()));
                     continue;
                 }

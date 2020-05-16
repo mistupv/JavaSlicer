@@ -6,6 +6,7 @@ import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import tfm.arcs.Arc;
+import tfm.arcs.cfg.ControlFlowArc;
 import tfm.arcs.pdg.ControlDependencyArc;
 import tfm.arcs.pdg.DataDependencyArc;
 import tfm.arcs.sdg.CallArc;
@@ -19,6 +20,7 @@ import tfm.slicing.Slice;
 import tfm.slicing.Sliceable;
 import tfm.slicing.SlicingCriterion;
 import tfm.utils.Context;
+import tfm.utils.Utils;
 
 import java.util.*;
 import java.util.function.Function;
@@ -82,19 +84,24 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
     }
 
     public List<GraphNode<?>> findDeclarationsOfVariable(String variable, GraphNode<?> root) {
-        List<GraphNode<?>> res = new ArrayList<>();
+        return this.methodCFGMap.values().stream()
+                .filter(cfg -> cfg.containsVertex(root))
+                .findFirst()
+                .map(cfg -> doFindDeclarationsOfVariable(variable, root, cfg, Utils.emptyList()))
+                .orElse(Utils.emptyList());
+    }
 
-        // First, expand the node
-        for (Arc arc : incomingEdgesOf(root)) {
-            if (arc.isDataDependencyArc() || arc.isControlDependencyArc()) {
-                res.addAll(findDeclarationsOfVariable(variable, getEdgeSource(arc)));
+    private List<GraphNode<?>> doFindDeclarationsOfVariable(String variable, GraphNode<?> root, CFG cfg, List<GraphNode<?>> res) {
+        Set<Arc> controlDependencies = cfg.incomingEdgesOf(root);
+
+        for (Arc arc : controlDependencies) {
+            GraphNode<?> source = cfg.getEdgeSource(arc);
+
+            if (source.getDeclaredVariables().contains(variable)) {
+                res.add(root);
+            } else {
+                res.addAll(doFindDeclarationsOfVariable(variable, source, cfg, res));
             }
-        }
-
-        // Finally, the current node
-        // This way, the last element of the list is the most recent declaration
-        if (root.getDeclaredVariables().contains(variable)) {
-            res.add(root);
         }
 
         return res;
