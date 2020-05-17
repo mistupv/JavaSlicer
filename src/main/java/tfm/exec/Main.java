@@ -2,7 +2,12 @@ package tfm.exec;
 
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.type.Type;
+import com.github.javaparser.ast.visitor.GenericVisitor;
+import com.github.javaparser.ast.visitor.VoidVisitor;
+import com.github.javaparser.resolution.types.ResolvedType;
 import tfm.graphs.cfg.CFG;
 import tfm.graphs.Graph;
 import tfm.graphs.pdg.PDG;
@@ -17,8 +22,8 @@ import java.util.Optional;
 
 public class Main {
 
-    public static final String PROGRAM = Utils.PROGRAMS_FOLDER + "cfg/Eval_4.java";
-    public static final String GRAPH = GraphLog.SDG;
+    public static final String PROGRAM = Utils.PROGRAMS_FOLDER + "sdg/Example1.java";
+    public static final String GRAPH = GraphLog.PDG;
     public static final String METHOD = "main";
 
     public static void main(String[] args) throws IOException {
@@ -65,8 +70,9 @@ public class Main {
                 pdg.build(method);
                 return pdg;
             case GraphLog.SDG:
-                Logger.log("Not yet considered!");
-                return new SDG();
+                SDG sdg = new SDG();
+                sdg.build(new NodeList<>(method.findCompilationUnit().get()));
+                return sdg;
             default:
                 Logger.log("Unkown graph type");
                 System.exit(1);

@@ -12,7 +12,9 @@ import tfm.slicing.Slice;
 import tfm.slicing.SlicingCriterion;
 import tfm.utils.NodeNotFoundException;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * The <b>Program Dependence Graph</b> represents the statements of a method in
@@ -76,5 +78,11 @@ public class PDG extends GraphWithRootNode<MethodDeclaration> implements Sliceab
     @Override
     public boolean isBuilt() {
         return built;
+    }
+
+    public List<GraphNode<?>> findDeclarationsOfVariable(String variable) {
+        return vertexSet().stream()
+                .filter(node -> node.getDeclaredVariables().contains(variable))
+                .collect(Collectors.toList());
     }
 }

@@ -4,12 +4,8 @@ import tfm.arcs.Arc;
 import tfm.graphs.augmented.PPDG;
 import tfm.graphs.cfg.CFG;
 import tfm.nodes.GraphNode;
-import tfm.nodes.NodeFactory;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -38,23 +34,23 @@ class ControlDependencyBuilder {
     }
 
     public void analyze() {
-        Map<GraphNode<?>, GraphNode<?>> nodeMap = new HashMap<>();
         assert cfg.getRootNode().isPresent();
         assert pdg.getRootNode().isPresent();
-        nodeMap.put(cfg.getRootNode().get(), pdg.getRootNode().get());
+
         Set<GraphNode<?>> roots = new HashSet<>(cfg.vertexSet());
         roots.remove(cfg.getRootNode().get());
+
         Set<GraphNode<?>> cfgNodes = new HashSet<>(cfg.vertexSet());
-        cfgNodes.removeIf(node -> node.getInstruction().equals("Exit"));
+        cfgNodes.remove(cfg.getExitNode());
 
         for (GraphNode<?> node : cfgNodes)
-            registerNode(node, nodeMap);
+            registerNode(node);
 
         for (GraphNode<?> src : cfgNodes) {
             for (GraphNode<?> dest : cfgNodes) {
                 if (src == dest) continue;
                 if (hasControlDependence(src, dest)) {
-                    pdg.addControlDependencyArc(nodeMap.get(src), nodeMap.get(dest));
+                    pdg.addControlDependencyArc(src, dest);
                     roots.remove(dest);
                 }
             }
@@ -62,15 +58,11 @@ class ControlDependencyBuilder {
         // In the original definition, nodes were dependent by default on the Enter/Start node
         for (GraphNode<?> node : roots)
             if (!node.getInstruction().equals("Exit"))
-                pdg.addControlDependencyArc(pdg.getRootNode().get(), nodeMap.get(node));
+                pdg.addControlDependencyArc(pdg.getRootNode().get(), node);
     }
 
-    public void registerNode(GraphNode<?> node, Map<GraphNode<?>, GraphNode<?>> nodeMap) {
-        if (nodeMap.containsKey(node) || node.getInstruction().equals("Exit"))
-            return;
-        GraphNode<?> clone = NodeFactory.graphNode(node.getId(), node.getInstruction(), node.getAstNode());
-        nodeMap.put(node, clone);
-        pdg.addVertex(clone);
+    public void registerNode(GraphNode<?> node) {
+        pdg.addVertex(node);
     }
 
     public boolean hasControlDependence(GraphNode<?> a, GraphNode<?> b) {

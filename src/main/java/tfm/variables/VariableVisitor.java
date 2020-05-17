@@ -7,6 +7,8 @@ import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import tfm.variables.actions.VariableAction;
 
+import java.awt.*;
+
 abstract class VariableVisitor extends VoidVisitorAdapter<VariableAction.Actions> {
 
     @Override
@@ -101,7 +103,14 @@ abstract class VariableVisitor extends VoidVisitorAdapter<VariableAction.Actions
     public void visit(MethodCallExpr n, VariableAction.Actions action) {
         // // Logger.log("On MethodCallExpr: [" + n + "]");
         n.getScope().ifPresent(expression -> expression.accept(this, action.or(VariableAction.Actions.USE)));
-        n.getArguments().forEach(expression -> expression.accept(this, action.or(VariableAction.Actions.USE)));
+        n.getArguments().forEach(expression -> {
+            expression.accept(this, action.or(VariableAction.Actions.USE));
+
+
+            if (expression.isNameExpr() || expression.isFieldAccessExpr()) {
+                expression.accept(this, action.or(VariableAction.Actions.DEFINITION));
+            }
+        });
     }
 
     @Override

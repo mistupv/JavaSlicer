@@ -12,12 +12,14 @@ import tfm.graphs.augmented.ACFG;
 import tfm.graphs.augmented.APDG;
 import tfm.graphs.augmented.PPDG;
 import tfm.nodes.GraphNode;
+import tfm.nodes.TypeNodeFactory;
+import tfm.nodes.type.NodeType;
 
 public class HandCraftedGraphs {
     public static APDG problem1WithGotos() {
         // Generate the control flow of a graph
         ACFG cfg = new ACFG();
-        cfg.buildRootNode("ENTER Problem1", new MethodDeclaration(new NodeList<>(), new VoidType(), "Problem1"));
+        cfg.buildRootNode("ENTER Problem1", new MethodDeclaration(new NodeList<>(), new VoidType(), "Problem1"), TypeNodeFactory.fromType(NodeType.METHOD));
         GraphNode<?> wx = cfg.addNode("while (X)", new WhileStmt());
         GraphNode<?> ify = cfg.addNode("L: if (Y)", new IfStmt());
         GraphNode<?> ifz = cfg.addNode("if (Z)", new IfStmt());
@@ -56,7 +58,7 @@ public class HandCraftedGraphs {
     public static APDG problem1ContinueWithGotos() {
         // Generate the control flow of a graph
         ACFG cfg = new ACFG();
-        cfg.buildRootNode("ENTER Problem1", new MethodDeclaration(new NodeList<>(), new VoidType(), "Problem1"));
+        cfg.buildRootNode("ENTER Problem1", new MethodDeclaration(new NodeList<>(), new VoidType(), "Problem1"), TypeNodeFactory.fromType(NodeType.METHOD));
         GraphNode<?> wx = cfg.addNode("while (X)", new WhileStmt());
         GraphNode<?> ify = cfg.addNode("L: if (Y)", new IfStmt());
         GraphNode<?> ifz = cfg.addNode("if (Z)", new IfStmt());

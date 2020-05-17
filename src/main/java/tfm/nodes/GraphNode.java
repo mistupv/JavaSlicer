@@ -1,12 +1,11 @@
 package tfm.nodes;
 
 import com.github.javaparser.ast.Node;
-import com.github.javaparser.ast.stmt.Statement;
 import org.jetbrains.annotations.NotNull;
 import tfm.graphs.cfg.CFG;
 import tfm.graphs.pdg.PDG;
 import tfm.graphs.sdg.SDG;
-import tfm.utils.ASTUtils;
+import tfm.nodes.type.NodeType;
 import tfm.utils.Utils;
 import tfm.variables.VariableExtractor;
 
@@ -25,9 +24,13 @@ import java.util.Set;
  * It is immutable.
  * @param <N> The type of the AST represented by this node.
  */
-public class GraphNode<N extends Node> {
+public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
 
-    private final int id;
+    public static final NodeFactory DEFAULT_FACTORY = TypeNodeFactory.fromType(NodeType.STATEMENT);
+
+    private final NodeType nodeType;
+
+    private final long id;
     private final String instruction;
     private final N astNode;
 
@@ -35,9 +38,10 @@ public class GraphNode<N extends Node> {
     private final Set<String> definedVariables;
     private final Set<String> usedVariables;
 
-    GraphNode(int id, String instruction, @NotNull N astNode) {
+    GraphNode(long id, NodeType type, String instruction, @NotNull N astNode) {
         this(
                 id,
+                type,
                 instruction,
                 astNode,
                 Utils.emptySet(),
@@ -49,7 +53,8 @@ public class GraphNode<N extends Node> {
     }
 
     GraphNode(
-                int id,
+                long id,
+                NodeType type,
                 String instruction,
                 @NotNull N astNode,
                 Collection<String> declaredVariables,
@@ -57,6 +62,7 @@ public class GraphNode<N extends Node> {
                 Collection<String> usedVariables
     ) {
         this.id = id;
+        this.nodeType = type;
         this.instruction = instruction;
         this.astNode = astNode;
 
@@ -73,13 +79,14 @@ public class GraphNode<N extends Node> {
                 .visit(node);
     }
 
-    public int getId() {
+    public long getId() {
         return id;
     }
 
     public String toString() {
-        return String.format("GraphNode{id: %s, instruction: '%s', astNodeType: %s}",
+        return String.format("GraphNode{id: %s, type: %s, instruction: '%s', astNodeType: %s}",
                 getId(),
+                getNodeType(),
                 getInstruction(),
                 getAstNode().getClass().getSimpleName()
         );
@@ -112,13 +119,14 @@ public class GraphNode<N extends Node> {
         GraphNode<?> other = (GraphNode<?>) o;
 
         return Objects.equals(getId(), other.getId())
+                && Objects.equals(getNodeType(), other.getNodeType())
                 && Objects.equals(getInstruction(), other.getInstruction())
                 && Objects.equals(astNode, other.astNode);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getId(), getInstruction(), getAstNode());
+        return Objects.hash(getId(), getNodeType(), getInstruction(), getAstNode());
     }
 
     public Set<String> getDeclaredVariables() {
@@ -135,5 +143,14 @@ public class GraphNode<N extends Node> {
 
     public String getInstruction() {
         return instruction;
+    }
+
+    @Override
+    public int compareTo(@NotNull GraphNode<?> o) {
+        return Long.compare(id, o.id);
+    }
+
+    public NodeType getNodeType() {
+        return nodeType;
     }
 }

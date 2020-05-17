@@ -5,6 +5,7 @@ import org.jgrapht.io.Attribute;
 import tfm.arcs.cfg.ControlFlowArc;
 import tfm.arcs.pdg.ControlDependencyArc;
 import tfm.arcs.pdg.DataDependencyArc;
+import tfm.arcs.sdg.CallArc;
 import tfm.nodes.GraphNode;
 
 import java.util.HashMap;
@@ -12,6 +13,16 @@ import java.util.Map;
 import java.util.Objects;
 
 public abstract class Arc extends DefaultEdge {
+
+    private String label;
+
+    protected Arc() {
+    }
+
+    protected Arc(String label) {
+        this.label = label;
+    }
+
     /** @see tfm.arcs.cfg.ControlFlowArc */
     public final boolean isControlFlowArc() {
         return this instanceof ControlFlowArc;
@@ -51,14 +62,21 @@ public abstract class Arc extends DefaultEdge {
         throw new UnsupportedOperationException("Not a DataDependencyArc");
     }
 
+    /** @see CallArc */
+    public final boolean isCallArc() {
+        return this instanceof CallArc;
+    }
+
+    public final CallArc asCallArc() {
+        if (isCallArc())
+            return (CallArc) this;
+        throw new UnsupportedOperationException("Not a CallArc");
+    }
+
     @Override
     public String toString() {
         return String.format("%s{%d -> %d}", getClass().getName(),
                 ((GraphNode<?>) getSource()).getId(), ((GraphNode<?>) getTarget()).getId());
-    }
-
-    public String getLabel() {
-        return "";
     }
 
     public Map<String, Attribute> getDotAttributes() {
@@ -73,12 +91,17 @@ public abstract class Arc extends DefaultEdge {
             return false;
         if (!o.getClass().equals(this.getClass()))
             return false;
-        return Objects.equals(getSource(), ((Arc) o).getSource()) &&
-                Objects.equals(getTarget(), ((Arc) o).getTarget());
+        return Objects.equals(getSource(), ((Arc) o).getSource())
+                && Objects.equals(getTarget(), ((Arc) o).getTarget())
+                && Objects.equals(getLabel(), ((Arc) o).getLabel());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getClass(), getSource(), getTarget());
+        return Objects.hash(getClass(), getLabel(), getSource(), getTarget());
+    }
+
+    public String getLabel() {
+        return label;
     }
 }

@@ -16,6 +16,8 @@ import tfm.graphs.augmented.APDG;
 import tfm.graphs.augmented.PPDG;
 import tfm.graphs.cfg.CFG;
 import tfm.nodes.GraphNode;
+import tfm.nodes.TypeNodeFactory;
+import tfm.nodes.type.NodeType;
 import tfm.slicing.GraphNodeCriterion;
 import tfm.slicing.Slice;
 import tfm.slicing.SlicingCriterion;
@@ -80,7 +82,7 @@ public class PDGTests {
         CFG cfg = new CFG();
         cfg.build(root);
         PDG pdg = new PDG(cfg);
-        pdg.buildRootNode("ENTER " + methodName, root);
+        pdg.buildRootNode("ENTER " + methodName, root, TypeNodeFactory.fromType(NodeType.METHOD));
         ctrlDepBuilder = new ControlDependencyBuilder(pdg, cfg);
         ctrlDepBuilder.analyze();
 
@@ -88,13 +90,13 @@ public class PDGTests {
         ACFG acfg = new ACFG();
         acfg.build(root);
         APDG apdg = new APDG(acfg);
-        apdg.buildRootNode("ENTER " + methodName, root);
+        apdg.buildRootNode("ENTER " + methodName, root, TypeNodeFactory.fromType(NodeType.METHOD));
         ctrlDepBuilder = new ControlDependencyBuilder(apdg, acfg);
         ctrlDepBuilder.analyze();
 
         // Create PPDG
         PPDG ppdg = new PPDG(acfg);
-        ppdg.buildRootNode("ENTER " + methodName, root);
+        ppdg.buildRootNode("ENTER " + methodName, root, TypeNodeFactory.fromType(NodeType.METHOD));
         ctrlDepBuilder = new ControlDependencyBuilder(ppdg, acfg);
         ctrlDepBuilder.analyze();
 
@@ -133,7 +135,7 @@ public class PDGTests {
         List<MethodDeclaration> slicedMethods = new LinkedList<>();
         assert pdgs.length > 0;
         for (GraphNode<?> node : pdgs[0].vertexSet().stream()
-                .sorted(Comparator.comparingInt(GraphNode::getId))
+                .sorted(Comparator.comparingLong(GraphNode::getId))
                 .collect(Collectors.toList())) {
             // Skip start of graph
             if (node.getAstNode() instanceof MethodDeclaration)
@@ -176,7 +178,7 @@ public class PDGTests {
 
     public final void printSlices(PDG pdg, Slice... slices) {
         pdg.vertexSet().stream()
-                .sorted(Comparator.comparingInt(GraphNode::getId))
+                .sorted(Comparator.comparingLong(GraphNode::getId))
                 .forEach(n -> Logger.format("%3d: %s %s",
                         n.getId(),
                         Arrays.stream(slices)

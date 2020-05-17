@@ -3,138 +3,60 @@ package tfm.graphs.sdg;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.expr.Expression;
-import com.github.javaparser.ast.expr.MethodCallExpr;
-import com.github.javaparser.ast.stmt.Statement;
+import com.github.javaparser.ast.body.Parameter;
+import com.github.javaparser.ast.expr.*;
+import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
+import tfm.arcs.Arc;
 import tfm.graphs.pdg.PDG;
+import tfm.nodes.GraphNode;
+import tfm.utils.Context;
 
-import java.util.ArrayList;
-import java.util.List;
-
-/**
- * 31/8/19
- * Asumimos que procesamos 1 archivo con una o más clases donde el primer método de la primera clase es el main
- *
- */
-class SDGBuilder extends VoidVisitorAdapter<Void> {
+class SDGBuilder extends VoidVisitorAdapter<Context> {
 
     SDG sdg;
-    List<PDG> pdgs;
 
-    private ClassOrInterfaceDeclaration currentClass;
-    private CompilationUnit currentCompilationUnit;
-
-    protected SDGBuilder(SDG sdg) {
+    public SDGBuilder(SDG sdg) {
         this.sdg = sdg;
-        this.pdgs = new ArrayList<>();
     }
 
     @Override
-    public void visit(MethodDeclaration methodDeclaration, Void ignored) {
-        if (!methodDeclaration.getBody().isPresent())
+    public void visit(MethodDeclaration methodDeclaration, Context context) {
+        if (!methodDeclaration.getBody().isPresent()) {
             return;
-
-
-        if (sdg.isEmpty()) {
-            sdg.addNode("ENTER " + methodDeclaration.getNameAsString(), methodDeclaration);
-        } else {
-//            sdgGraph.addMethod(methodDeclaration);
         }
 
+        context.setCurrentMethod(methodDeclaration);
+
+        // Build PDG and add to SDGGraph
         PDG pdg = new PDG();
+        pdg.build(methodDeclaration);
 
-        // TODO: this should happen in the PDG's creation, not here.
-//        PDGBuilder PDGBuilder = new PDGBuilder(pdg) {
-//            @Override
-//            public void visit(MethodCallExpr methodCallExpr, Void empty) {
-//                if (methodCallExpr.getScope().isPresent()) {
-//                    String scopeName = methodCallExpr.getScope().get().toString();
-//
-//                    String currentClassName = currentClass.getNameAsString();
-//
-//                    // Check if it's a static method call of current class
-//                    if (!Objects.equals(scopeName, currentClassName)) {
-//
-//                        // Check if 'scopeName' is a variable
-//                        List<GraphNode<?>> declarations = sdg.findDeclarationsOfVariable(scopeName);
-//
-//                        if (declarations.isEmpty()) {
-//                            // It is a static method call of another class. We don't do anything
-//                            return;
-//                        } else {
-//                            /*
-//                                It's a variable since it has declarations. We now have to check if the class name
-//                                is the same as the current class (the object is an instance of our class)
-//                            */
-//                            GraphNode<?> declarationNode = declarations.get(declarations.size() - 1);
-//
-//                            ExpressionStmt declarationExpr = (ExpressionStmt) declarationNode.getAstNode();
-//                            VariableDeclarationExpr variableDeclarationExpr = declarationExpr.getExpression().asVariableDeclarationExpr();
-//
-//                            Optional<VariableDeclarator> optionalVariableDeclarator = variableDeclarationExpr.getVariables().stream()
-//                                    .filter(variableDeclarator -> Objects.equals(variableDeclarator.getNameAsString(), scopeName))
-//                                    .findFirst();
-//
-//                            if (!optionalVariableDeclarator.isPresent()) {
-//                                // should not happen
-//                                return;
-//                            }
-//
-//                            Type variableType = optionalVariableDeclarator.get().getType();
-//
-//                            if (!variableType.isClassOrInterfaceType()) {
-//                                // Not class type
-//                                return;
-//                            }
-//
-//                            if (!Objects.equals(variableType.asClassOrInterfaceType().getNameAsString(), currentClassName)) {
-//                                // object is not instance of our class
-//                                return;
-//                            }
-//
-//                            // if we got here, the object is instance of our class, so we make the call
-//                        }
-//                    }
-//
-//                    // It's a static method call to a method of the current class
-//
-//                }
-//            }
-//        };
+        assert pdg.isBuilt();
+        assert pdg.getRootNode().isPresent();
 
-//        PDGBuilder.createFrom(methodDeclaration);
+        // Add all nodes from PDG to SDG
+        for (GraphNode<?> node : pdg.vertexSet()) {
+            sdg.addNode(node);
+        }
 
-
-        sdg.addNode(methodDeclaration.getNameAsString(), methodDeclaration);
-
-        pdg.vertexSet().stream().skip(1).forEach(pdgNode -> {
-            Statement statement = (Statement) pdgNode.getAstNode();
-
-            if (statement.isExpressionStmt()) {
-                Expression expression = statement.asExpressionStmt().getExpression();
-
-                expression.findFirst(MethodCallExpr.class).ifPresent(methodCallExpr -> {
-
-                });
+        // Add all arcs from PDG to SDG
+        for (Arc arc : pdg.edgeSet()) {
+            if (arc.isControlDependencyArc()) {
+                sdg.addControlDependencyArc(pdg.getEdgeSource(arc), pdg.getEdgeTarget(arc));
             } else {
-
+                sdg.addDataDependencyArc(pdg.getEdgeSource(arc), pdg.getEdgeTarget(arc), arc.getLabel());
             }
-        });
+        }
 
+        GraphNode<MethodDeclaration> methodDeclarationNode = pdg.getRootNode().get();
 
-
-
-
-        sdg.addPDG(pdg, methodDeclaration);
-
-        methodDeclaration.accept(this, ignored);
-
-        pdgs.add(pdg);
+        // Add CFG
+        sdg.setMethodCFG(methodDeclaration, pdg.getCfg());
     }
 
     @Override
-    public void visit(ClassOrInterfaceDeclaration classOrInterfaceDeclaration, Void ignored) {
+    public void visit(ClassOrInterfaceDeclaration classOrInterfaceDeclaration, Context context) {
 //        if (sdgGraph.getRootNode() != null) {
 //            throw new IllegalStateException("¡Solo podemos procesar una clase por el momento!");
 //        }
@@ -143,15 +65,24 @@ class SDGBuilder extends VoidVisitorAdapter<Void> {
             throw new IllegalArgumentException("¡Las interfaces no estan permitidas!");
         }
 
-        currentClass = classOrInterfaceDeclaration;
+        context.setCurrentClass(classOrInterfaceDeclaration);
 
-        classOrInterfaceDeclaration.accept(this, ignored);
+        classOrInterfaceDeclaration.getMembers().accept(this, context);
+
+        // Once every PDG is built, expand method call nodes of each one
+        // and link them to the corresponding method declaration node
+        MethodCallReplacer methodCallReplacer = new MethodCallReplacer(sdg);
+        methodCallReplacer.replace(context);
+
+
+
+        // 3. Build summary arcs
     }
 
     @Override
-    public void visit(CompilationUnit compilationUnit, Void ignored) {
-        currentCompilationUnit = compilationUnit;
+    public void visit(CompilationUnit compilationUnit, Context context) {
+        context.setCurrentCU(compilationUnit);
 
-        super.visit(compilationUnit, ignored);
+        super.visit(compilationUnit, context);
     }
 }

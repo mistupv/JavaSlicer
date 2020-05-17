@@ -3,6 +3,7 @@ package tfm.graphs.cfg;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import tfm.arcs.Arc;
 import tfm.arcs.cfg.ControlFlowArc;
+import tfm.graphs.Graph;
 import tfm.graphs.GraphWithRootNode;
 import tfm.nodes.GraphNode;
 import tfm.utils.NodeNotFoundException;
@@ -20,6 +21,7 @@ import java.util.Set;
  */
 public class CFG extends GraphWithRootNode<MethodDeclaration> {
     private boolean built = false;
+    protected GraphNode<?> exitNode;
 
     public CFG() {
         super();
@@ -39,7 +41,7 @@ public class CFG extends GraphWithRootNode<MethodDeclaration> {
         return findLastDefinitionsFrom(new HashSet<>(), startNode.getId(), startNode, variable);
     }
 
-    private Set<GraphNode<?>> findLastDefinitionsFrom(Set<Integer> visited, int startNode, GraphNode<?> currentNode, String variable) {
+    private Set<GraphNode<?>> findLastDefinitionsFrom(Set<Long> visited, long startNode, GraphNode<?> currentNode, String variable) {
         visited.add(currentNode.getId());
 
         Set<GraphNode<?>> res = new HashSet<>();
@@ -63,8 +65,27 @@ public class CFG extends GraphWithRootNode<MethodDeclaration> {
     }
 
     @Override
+    public boolean removeVertex(GraphNode<?> graphNode) {
+        if (Objects.equals(graphNode, exitNode))
+            return false;
+        return super.removeVertex(graphNode);
+    }
+
+    public GraphNode<?> getExitNode() {
+        return exitNode;
+    }
+
+    protected void setExitNode(GraphNode<?> exitNode) {
+        if (this.exitNode != null)
+            throw new IllegalStateException("Exit node already set!");
+        this.exitNode = exitNode;
+    }
+
+    @Override
     public void build(MethodDeclaration method) {
         method.accept(newCFGBuilder(), null);
+        if (exitNode == null)
+            throw new IllegalStateException("Exit node missing!");
         built = true;
     }
 

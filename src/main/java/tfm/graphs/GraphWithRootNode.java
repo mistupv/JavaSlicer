@@ -2,6 +2,7 @@ package tfm.graphs;
 
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import org.jetbrains.annotations.NotNull;
 import tfm.nodes.GraphNode;
 import tfm.nodes.NodeFactory;
 
@@ -10,12 +11,10 @@ import java.util.Optional;
 
 public abstract class GraphWithRootNode<ASTRootNode extends Node> extends Graph implements Buildable<MethodDeclaration> {
 
-    protected final int ROOT_NODE_ID = 0;
-
     protected GraphNode<ASTRootNode> rootNode;
 
-    public GraphWithRootNode() {
-        super(1);
+    protected GraphWithRootNode() {
+        super();
     }
 
     /**
@@ -26,20 +25,28 @@ public abstract class GraphWithRootNode<ASTRootNode extends Node> extends Graph 
      * @param rootNodeAst the AST node
      * @return true if the root node is created, false otherwise
      */
-    public boolean buildRootNode(String instruction, ASTRootNode rootNodeAst) {
+    public boolean buildRootNode(@NotNull String instruction, @NotNull ASTRootNode rootNodeAst, @NotNull NodeFactory nodeFactory) {
         if (rootNode != null) {
             return false;
         }
 
-        GraphNode<ASTRootNode> root = NodeFactory.graphNode(ROOT_NODE_ID, instruction, rootNodeAst);
+        GraphNode<ASTRootNode> root = nodeFactory.graphNode(instruction, rootNodeAst);
         this.rootNode = root;
         this.addVertex(root);
 
         return true;
     }
 
-    public Optional<GraphNode<?>> getRootNode() {
+    public Optional<GraphNode<ASTRootNode>> getRootNode() {
         return Optional.ofNullable(rootNode);
+    }
+
+    public void setRootNode(GraphNode<ASTRootNode> rootNode) {
+        if (!this.containsVertex(rootNode)) {
+            throw new IllegalArgumentException("Cannot set root node: " + rootNode + " is not contained in graph!");
+        }
+
+        this.rootNode = rootNode;
     }
 
     @Override

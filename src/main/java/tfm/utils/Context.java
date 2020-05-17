@@ -4,6 +4,8 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.nodeTypes.NodeWithName;
+import com.github.javaparser.ast.nodeTypes.NodeWithSimpleName;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -30,6 +32,12 @@ public class Context {
         this.currentCU = cu;
         this.currentClass = clazz;
         this.currentMethod = method;
+    }
+
+    public Context(Context context) {
+        this.currentCU = context.currentCU;
+        this.currentClass = context.currentClass;
+        this.currentMethod = context.currentMethod;
     }
 
     public Optional<CompilationUnit> getCurrentCU() {
@@ -83,9 +91,9 @@ public class Context {
     @Override
     public String toString() {
         return String.format("Context{compilationUnit: %s, class: %s, method: %s}",
-                getCurrentCU().map(Node::toString),
-                getCurrentClass().map(Node::toString),
-                getCurrentMethod().map(Node::toString)
+                getCurrentCU().flatMap(cu -> cu.getPackageDeclaration().map(NodeWithName::getNameAsString)).orElse(null),
+                getCurrentClass().map(NodeWithSimpleName::getNameAsString).orElse(null),
+                getCurrentMethod().map(NodeWithSimpleName::getNameAsString).orElse(null)
         );
     }
 }

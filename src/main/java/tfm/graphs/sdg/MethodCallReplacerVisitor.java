@@ -1,142 +1,278 @@
 package tfm.graphs.sdg;
 
+import com.github.javaparser.ast.ArrayCreationLevel;
 import com.github.javaparser.ast.Node;
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
-import com.github.javaparser.ast.expr.MethodCallExpr;
-import com.github.javaparser.ast.expr.VariableDeclarationExpr;
-import com.github.javaparser.ast.stmt.ExpressionStmt;
-import com.github.javaparser.ast.type.Type;
+import com.github.javaparser.ast.expr.*;
+import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import tfm.graphs.pdg.PDG;
+import tfm.arcs.Arc;
+import tfm.arcs.pdg.DataDependencyArc;
+import tfm.graphs.cfg.CFG;
 import tfm.nodes.GraphNode;
+import tfm.nodes.TypeNodeFactory;
+import tfm.nodes.type.NodeType;
 import tfm.utils.Context;
 import tfm.utils.Logger;
+import tfm.utils.MethodDeclarationSolver;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
-    private PDG pdg;
+    private SDG sdg;
+    private GraphNode<?> originalMethodCallNode;
 
-    public MethodCallReplacerVisitor(PDG pdg) {
-        this.pdg = pdg;
+    public MethodCallReplacerVisitor(SDG sdg) {
+        this.sdg = sdg;
+    }
+
+    private void searchAndSetMethodCallNode(Node node) {
+        Optional<GraphNode<Node>> optionalNode = sdg.findNodeByASTNode(node);
+        assert optionalNode.isPresent();
+        originalMethodCallNode = optionalNode.get();
+
+    }
+
+    @Override
+    public void visit(DoStmt n, Context arg) {
+        searchAndSetMethodCallNode(n);
+        super.visit(n, arg);
+    }
+
+    @Override
+    public void visit(ForEachStmt n, Context arg) {
+        searchAndSetMethodCallNode(n);
+        super.visit(n, arg);
+    }
+
+    @Override
+    public void visit(ForStmt n, Context arg) {
+        searchAndSetMethodCallNode(n);
+        super.visit(n, arg);
+    }
+
+    @Override
+    public void visit(IfStmt n, Context arg) {
+        searchAndSetMethodCallNode(n);
+        super.visit(n, arg);
+    }
+
+    @Override
+    public void visit(SwitchStmt n, Context arg) {
+        searchAndSetMethodCallNode(n);
+        super.visit(n, arg);
+    }
+
+    @Override
+    public void visit(WhileStmt n, Context arg) {
+        searchAndSetMethodCallNode(n);
+        super.visit(n, arg);
+    }
+
+    @Override
+    public void visit(ReturnStmt n, Context arg) {
+        searchAndSetMethodCallNode(n);
+        super.visit(n, arg);
+    }
+
+    @Override
+    public void visit(ExpressionStmt n, Context arg) {
+        searchAndSetMethodCallNode(n);
+        super.visit(n, arg);
     }
 
     @Override
     public void visit(MethodCallExpr methodCallExpr, Context context) {
+        NodeList<Expression> arguments = methodCallExpr.getArguments();
 
-        Optional<MethodDeclaration> optionalCallingMethod = methodCallExpr.getScope().isPresent()
-                ? shouldMakeCallWithScope(methodCallExpr, context)
-                : shouldMakeCallWithNoScope(methodCallExpr, context);
+        // Parse first method call expressions as arguments
+//        arguments.stream()
+//                .filter(Expression::isMethodCallExpr)
+//                .forEach(expression -> expression.accept(this, context));
 
-        if (!optionalCallingMethod.isPresent()) {
+        Logger.log("MethodCallReplacerVisitor", context);
+
+        Optional<GraphNode<MethodDeclaration>> optionalNethodDeclarationNode =
+                MethodDeclarationSolver.getInstance()
+                    .findDeclarationFrom(methodCallExpr)
+                    .flatMap(methodDeclaration -> sdg.findNodeByASTNode(methodDeclaration));
+
+        if (!optionalNethodDeclarationNode.isPresent()) {
+            Logger.format("Not found: '%s'. Discarding", methodCallExpr);
             return;
         }
 
-        // todo make call
-        Logger.log(String.format("Method '%s' called", optionalCallingMethod.get().getNameAsString()));
-    }
+        GraphNode<MethodDeclaration> methodDeclarationNode = optionalNethodDeclarationNode.get();
+        MethodDeclaration methodDeclaration = methodDeclarationNode.getAstNode();
 
-    private Optional<MethodDeclaration> shouldMakeCallWithScope(MethodCallExpr methodCallExpr, Context context) {
-        assert methodCallExpr.getScope().isPresent();
+        Optional<CFG> optionalCFG = sdg.getMethodCFG(methodDeclaration);
+        assert optionalCFG.isPresent();
+        CFG methodCFG = optionalCFG.get();
 
-        String scopeName = methodCallExpr.getScope().get().toString();
+        GraphNode<MethodCallExpr> methodCallNode = sdg.addNode("CALL " + methodCallExpr.toString(), methodCallExpr, TypeNodeFactory.fromType(NodeType.METHOD_CALL));
 
-        if (!context.getCurrentClass().isPresent()) {
-            return Optional.empty();
-        }
+        sdg.addControlDependencyArc(originalMethodCallNode, methodCallNode);
+        sdg.addCallArc(methodCallNode, methodDeclarationNode);
 
-        ClassOrInterfaceDeclaration currentClass = context.getCurrentClass().get();
+        NodeList<Parameter> parameters = methodDeclarationNode.getAstNode().getParameters();
 
-        // Check if it's a static method call of current class
-        if (!Objects.equals(scopeName, currentClass.getNameAsString())) {
+        for (int i = 0; i < parameters.size(); i++) {
+            Parameter parameter = parameters.get(i);
+            Expression argument;
 
-            // Check if 'scopeName' is a variable
-            List<GraphNode<?>> declarations = pdg.findDeclarationsOfVariable(scopeName);
+            if (!parameter.isVarArgs()) {
+                argument = arguments.get(i);
+            } else {
+                NodeList<Expression> varArgs = new NodeList<>(arguments.subList(i, arguments.size()));
 
-            if (declarations.isEmpty()) {
-                // It is a static method call of another class. We do nothing
-                return Optional.empty();
+                argument = new ArrayCreationExpr(
+                        parameter.getType(),
+                        new NodeList<>(new ArrayCreationLevel(varArgs.size())),
+                        new ArrayInitializerExpr(varArgs)
+                );
             }
 
-            /*
-                It's a variable since it has declarations. We now have to check if the class name
-                is the same as the current class (the object is an instance of our class)
-            */
-            GraphNode<?> declarationNode = declarations.get(declarations.size() - 1);
+            // In expression
+            VariableDeclarationExpr inVariableDeclarationExpr = new VariableDeclarationExpr(
+                    new VariableDeclarator(
+                            parameter.getType(),
+                            parameter.getNameAsString() + "_in",
+                            new NameExpr(argument.toString())
+                    )
+            );
 
-            ExpressionStmt declarationExpr = (ExpressionStmt) declarationNode.getAstNode();
-            VariableDeclarationExpr variableDeclarationExpr = declarationExpr.getExpression().asVariableDeclarationExpr();
+            ExpressionStmt inExprStmt = new ExpressionStmt(inVariableDeclarationExpr);
 
-            Optional<VariableDeclarator> optionalVariableDeclarator = variableDeclarationExpr.getVariables().stream()
-                    .filter(variableDeclarator -> Objects.equals(variableDeclarator.getNameAsString(), scopeName))
+            GraphNode<ExpressionStmt> argumentInNode = sdg.addNode(inExprStmt.toString(), inExprStmt, TypeNodeFactory.fromType(NodeType.VARIABLE_IN));
+
+            sdg.addControlDependencyArc(methodCallNode, argumentInNode);
+
+            // Handle data dependency: Remove arc from method call node and add it to IN node
+
+            List<DataDependencyArc> inDataDependencies = sdg.incomingEdgesOf(originalMethodCallNode).stream()
+                .filter(arc -> arc.isDataDependencyArc() && Objects.equals(arc.getLabel(), argument.toString()))
+                .map(Arc::asDataDependencyArc)
+                .collect(Collectors.toList());
+
+            for (DataDependencyArc arc : inDataDependencies) {
+                GraphNode<?> dataDependencySource = sdg.getEdgeSource(arc);
+                sdg.removeEdge(arc);
+                sdg.addDataDependencyArc(dataDependencySource, argumentInNode, argument.toString());
+            }
+
+            // Now, find the corresponding method declaration's in node and link argument node with it
+
+            Optional<GraphNode<ExpressionStmt>> optionalParameterInNode = sdg.outgoingEdgesOf(methodDeclarationNode).stream()
+                    .map(arc -> (GraphNode<ExpressionStmt>) sdg.getEdgeTarget(arc))
+                    .filter(node -> node.getNodeType() == NodeType.VARIABLE_IN && node.getInstruction().contains(parameter.getNameAsString() + "_in"))
                     .findFirst();
 
-            if (!optionalVariableDeclarator.isPresent()) {
-                // should not happen
-                return Optional.empty();
+            if (optionalParameterInNode.isPresent()) {
+                sdg.addParameterInOutArc(argumentInNode, optionalParameterInNode.get());
+            } else {
+                Logger.log("MethodCallReplacerVisitor", "WARNING: IN declaration node for argument " + argument + " not found.");
+                Logger.log("MethodCallReplacerVisitor", String.format("Context: %s, Method: %s, Call: %s", context.getCurrentMethod().get().getNameAsString(), methodDeclaration.getSignature().asString(), methodCallExpr));
             }
 
-            Type variableType = optionalVariableDeclarator.get().getType();
+            // Out expression
 
-            if (!variableType.isClassOrInterfaceType()) {
-                // Not class type
-                return Optional.empty();
+            OutNodeVariableVisitor shouldHaveOutNodeVisitor = new OutNodeVariableVisitor();
+            Set<String> variablesForOutNode = new HashSet<>();
+            argument.accept(shouldHaveOutNodeVisitor, variablesForOutNode);
+
+            // Here, variablesForOutNode may have 1 variable or more depending on the expression
+
+            Logger.log("MethodCallReplacerVisitor", String.format("Variables for out node: %s", variablesForOutNode));
+            if (variablesForOutNode.isEmpty()) {
+                /*
+                    If the argument is not a variable or it is not declared in the scope,
+                    then there is no OUT node
+                 */
+                Logger.log("MethodCallReplacerVisitor", String.format("Expression '%s' should not have out node", argument.toString()));
+                continue;
+            } else if (variablesForOutNode.size() == 1) {
+                String variable = variablesForOutNode.iterator().next();
+
+                List<GraphNode<?>> declarations = sdg.findDeclarationsOfVariable(variable, originalMethodCallNode);
+
+                Logger.log("MethodCallReplacerVisitor", String.format("Declarations of variable: '%s': %s", variable, declarations));
+
+                if (declarations.isEmpty()) {
+                    Logger.log("MethodCallReplacerVisitor", String.format("Expression '%s' should not have out node", argument.toString()));
+                    continue;
+                }
+            } else {
+                continue;
             }
 
-            if (!Objects.equals(variableType.asClassOrInterfaceType().getNameAsString(), currentClass.getNameAsString())) {
-                // object is not instance of our class
-                return Optional.empty();
+            AssignExpr outVariableAssignExpr = new AssignExpr(
+                argument,
+                new NameExpr(parameter.getNameAsString() + "_out"),
+                AssignExpr.Operator.ASSIGN
+            );
+
+            ExpressionStmt outExprStmt = new ExpressionStmt(outVariableAssignExpr);
+
+            GraphNode<ExpressionStmt> argumentOutNode = sdg.addNode(outExprStmt.toString(), outExprStmt, TypeNodeFactory.fromType(NodeType.VARIABLE_OUT));
+
+            sdg.addControlDependencyArc(methodCallNode, argumentOutNode);
+
+            // Now, find the corresponding method call's out node and link argument node with it
+
+            Optional<GraphNode<ExpressionStmt>> optionalParameterOutNode = sdg.outgoingEdgesOf(methodDeclarationNode).stream()
+                    .map(arc -> (GraphNode<ExpressionStmt>) sdg.getEdgeTarget(arc))
+                    .filter(node -> node.getNodeType() == NodeType.VARIABLE_OUT && node.getInstruction().contains(parameter.getNameAsString() + "_out"))
+                    .findFirst();
+
+            // Handle data dependency: remove arc from method call node and add it to OUT node
+
+            List<DataDependencyArc> outDataDependencies = sdg.outgoingEdgesOf(originalMethodCallNode).stream()
+                    .filter(arc -> arc.isDataDependencyArc() && Objects.equals(arc.getLabel(), argument.toString()))
+                    .map(Arc::asDataDependencyArc)
+                    .collect(Collectors.toList());
+
+            for (DataDependencyArc arc : outDataDependencies) {
+                GraphNode<?> dataDependencyTarget = sdg.getEdgeTarget(arc);
+                sdg.removeEdge(arc);
+                sdg.addDataDependencyArc(argumentOutNode, dataDependencyTarget, argument.toString());
             }
 
-            // if we got here, the object is instance of our class
+            if (optionalParameterOutNode.isPresent()) {
+                sdg.addParameterInOutArc(optionalParameterOutNode.get(), argumentOutNode);
+            } else {
+                Logger.log("MethodCallReplacerVisitor", "WARNING: OUT declaration node for argument " + argument + " not found.");
+                Logger.log("MethodCallReplacerVisitor", String.format("Context: %s, Method: %s, Call: %s", context.getCurrentMethod().get().getNameAsString(), methodDeclaration.getSignature().asString(), methodCallExpr));
+            }
         }
 
-        // It's a static method call to a method of the current class
+        // 'Return' node
+        GraphNode<EmptyStmt> returnNode = sdg.addNode("return", new EmptyStmt(), TypeNodeFactory.fromType(NodeType.METHOD_CALL_RETURN));
+        sdg.addControlDependencyArc(methodCallNode, returnNode);
 
-        return findMethodInClass(methodCallExpr, currentClass);
+        sdg.addReturnArc(returnNode, originalMethodCallNode);
+
+        methodCFG.vertexSet().stream()
+            .filter(node -> node.getAstNode() instanceof ReturnStmt)
+            .map(node -> (GraphNode<ReturnStmt>) node)
+            .forEach(node -> sdg.addReturnArc(node, returnNode));
+
+
+        Logger.log("MethodCallReplacerVisitor", String.format("%s | Method '%s' called", methodCallExpr, methodDeclaration.getNameAsString()));
     }
 
-    private Optional<MethodDeclaration> shouldMakeCallWithNoScope(MethodCallExpr methodCallExpr, Context context) {
-        assert !methodCallExpr.getScope().isPresent();
+    private void argumentAsNameExpr(GraphNode<ExpressionStmt> methodCallNode) {
 
-        /*
-            May be a call to a method of the current class or a call to an imported static method.
-            In the first case, we make the call. Otherwise, not.
-        */
-
-        if (!context.getCurrentClass().isPresent()) {
-            return Optional.empty();
-        }
-
-        // We get the current class and search along their methods to find the one we're looking for...
-
-        ClassOrInterfaceDeclaration currentClass = context.getCurrentClass().get();
-
-        return findMethodInClass(methodCallExpr, currentClass);
     }
 
-    private Optional<MethodDeclaration> findMethodInClass(MethodCallExpr methodCallExpr, ClassOrInterfaceDeclaration klass) {
-        String[] typeParameters = methodCallExpr.getTypeArguments()
-                .map(types -> types.stream()
-                        .map(Node::toString)
-                        .collect(Collectors.toList())
-                        .toArray(new String[types.size()])
-                ).orElse(new String[]{});
+    @Override
+    public void visit(MethodDeclaration n, Context arg) {
+        arg.setCurrentMethod(n);
 
-        List<MethodDeclaration> classMethods =
-                klass.getMethodsBySignature(methodCallExpr.getNameAsString(), typeParameters);
-
-        if (classMethods.isEmpty()) {
-            return Optional.empty(); // The method called is not inside the current class
-        }
-
-        // The current method is inside the current class, so we make the call
-        return Optional.of(classMethods.get(0));
+        super.visit(n, arg);
     }
 }

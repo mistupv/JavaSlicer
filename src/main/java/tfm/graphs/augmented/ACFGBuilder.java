@@ -8,6 +8,8 @@ import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitor;
 import tfm.graphs.cfg.CFGBuilder;
 import tfm.nodes.GraphNode;
+import tfm.nodes.TypeNodeFactory;
+import tfm.nodes.type.NodeType;
 import tfm.utils.ASTUtils;
 
 import java.util.LinkedList;
@@ -237,12 +239,13 @@ public class ACFGBuilder extends CFGBuilder {
         if (!methodDeclaration.getBody().isPresent())
             throw new IllegalStateException("The method must have a body!");
 
-        graph.buildRootNode("ENTER " + methodDeclaration.getNameAsString(), methodDeclaration);
+        graph.buildRootNode("ENTER " + methodDeclaration.getNameAsString(), methodDeclaration, TypeNodeFactory.fromType(NodeType.METHOD));
 
         hangingNodes.add(graph.getRootNode().get());
         methodDeclaration.getBody().get().accept(this, arg);
         returnList.stream().filter(node -> !hangingNodes.contains(node)).forEach(hangingNodes::add);
         nonExecHangingNodes.add(graph.getRootNode().get());
-        connectTo(new EmptyStmt(), "Exit");
+        GraphNode<EmptyStmt> exitNode = connectTo(new EmptyStmt(), "Exit");
+        ((ACFG) graph).setExitNode(exitNode);
     }
 }
