@@ -39,6 +39,10 @@ public class Slice {
         return obj instanceof Slice && map.equals(((Slice) obj).map);
     }
 
+    public Set<GraphNode<?>> getGraphNodes() {
+        return Set.copyOf(map.values());
+    }
+
     public Node getAst() {
         List<GraphNode<?>> methods = map.values().stream().filter(e -> e.getAstNode() instanceof MethodDeclaration).collect(Collectors.toList());
         if (methods.size() == 1) {

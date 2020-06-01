@@ -65,6 +65,14 @@ public abstract class Arc extends DefaultEdge {
         throw new UnsupportedOperationException("Not a DataDependencyArc");
     }
 
+    public boolean isInterproceduralInputArc() {
+        return false;
+    }
+
+    public boolean isInterproceduralOutputArc() {
+        return false;
+    }
+
     /** @see CallArc */
     public final boolean isCallArc() {
         return this instanceof CallArc;

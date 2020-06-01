@@ -1,13 +1,13 @@
 package tfm.graphs.pdg;
 
 import com.github.javaparser.ast.body.MethodDeclaration;
-import tfm.arcs.Arc;
 import tfm.arcs.pdg.ControlDependencyArc;
 import tfm.arcs.pdg.DataDependencyArc;
 import tfm.graphs.GraphWithRootNode;
 import tfm.graphs.Sliceable;
 import tfm.graphs.cfg.CFG;
 import tfm.nodes.GraphNode;
+import tfm.slicing.ClassicSlicingAlgorithm;
 import tfm.slicing.Slice;
 import tfm.slicing.SlicingCriterion;
 import tfm.utils.NodeNotFoundException;
@@ -47,22 +47,9 @@ public class PDG extends GraphWithRootNode<MethodDeclaration> implements Sliceab
     @Override
     public Slice slice(SlicingCriterion slicingCriterion) {
         Optional<GraphNode<?>> node = slicingCriterion.findNode(this);
-        if (!node.isPresent())
+        if (node.isEmpty())
             throw new NodeNotFoundException(slicingCriterion);
-        Slice slice = new Slice();
-        getSliceNodes(slice, node.get());
-        return slice;
-    }
-
-    protected void getSliceNodes(Slice slice, GraphNode<?> node) {
-        slice.add(node);
-
-        for (Arc arc : incomingEdgesOf(node)) {
-            GraphNode<?> from = getEdgeSource(arc);
-            if (slice.contains(from))
-                continue;
-            getSliceNodes(slice, from);
-        }
+        return new ClassicSlicingAlgorithm(this).traverse(node.get());
     }
 
     public CFG getCfg() {

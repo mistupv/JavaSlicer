@@ -13,7 +13,12 @@ import tfm.arcs.sdg.SummaryArc;
 import tfm.graphs.Buildable;
 import tfm.graphs.Graph;
 import tfm.graphs.cfg.CFG;
+<<<<<<< HEAD
 import tfm.nodes.*;
+=======
+import tfm.nodes.GraphNode;
+import tfm.slicing.ClassicSlicingAlgorithm;
+>>>>>>> 303de98... Created the SDG's ClassicSlicingAlgorithm
 import tfm.slicing.Slice;
 import tfm.slicing.Sliceable;
 import tfm.slicing.SlicingCriterion;
@@ -33,7 +38,10 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
 
     @Override
     public Slice slice(SlicingCriterion slicingCriterion) {
-        throw new RuntimeException("Slicing not implemented for the SDG");
+        Optional<GraphNode<?>> optSlicingNode = slicingCriterion.findNode(this);
+        if (optSlicingNode.isEmpty())
+            throw new IllegalArgumentException("Could not locate the slicing criterion in the SDG");
+        return new ClassicSlicingAlgorithm(this).traverse(optSlicingNode.get());
     }
 
     @Override

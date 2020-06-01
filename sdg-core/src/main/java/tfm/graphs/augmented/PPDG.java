@@ -1,9 +1,12 @@
 package tfm.graphs.augmented;
 
-import tfm.arcs.Arc;
 import tfm.nodes.GraphNode;
+import tfm.slicing.PseudoPredicateSlicingAlgorithm;
 import tfm.slicing.Slice;
-import tfm.utils.ASTUtils;
+import tfm.slicing.SlicingCriterion;
+import tfm.utils.NodeNotFoundException;
+
+import java.util.Optional;
 
 public class PPDG extends APDG {
     public PPDG() {
@@ -15,27 +18,10 @@ public class PPDG extends APDG {
     }
 
     @Override
-    protected void getSliceNodes(Slice slice, GraphNode<?> node) {
-        slice.add(node);
-
-        for (Arc arc : incomingEdgesOf(node)) {
-            GraphNode<?> from = getEdgeSource(arc);
-            if (slice.contains(from))
-                continue;
-            getSliceNodesPPDG(slice, from);
-        }
-    }
-
-    protected void getSliceNodesPPDG(Slice slice, GraphNode<?> node) {
-        slice.add(node);
-        if (ASTUtils.isPseudoPredicate(node.getAstNode()))
-            return;
-
-        for (Arc arc : incomingEdgesOf(node)) {
-            GraphNode<?> from = getEdgeSource(arc);
-            if (slice.contains(from))
-                continue;
-            getSliceNodesPPDG(slice, from);
-        }
+    public Slice slice(SlicingCriterion slicingCriterion) {
+        Optional<GraphNode<?>> node = slicingCriterion.findNode(this);
+        if (node.isEmpty())
+            throw new NodeNotFoundException(slicingCriterion);
+        return new PseudoPredicateSlicingAlgorithm(this).traverse(node.get());
     }
 }
