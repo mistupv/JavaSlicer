@@ -75,7 +75,7 @@ public class CFG extends GraphWithRootNode<MethodDeclaration> {
     @Override
     public void build(MethodDeclaration method) {
         method.accept(newCFGBuilder(), null);
-        if (vertexSet().stream().anyMatch(n -> n.getNodeType() == NodeType.METHOD_EXIT))
+        if (vertexSet().stream().noneMatch(n -> n.getNodeType() == NodeType.METHOD_EXIT))
             throw new IllegalStateException("There is no exit node after building the graph");
         built = true;
     }/**/

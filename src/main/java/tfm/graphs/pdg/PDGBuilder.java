@@ -48,7 +48,7 @@ public class PDGBuilder {
 
         // Copy nodes from CFG to PDG
         cfg.vertexSet().stream()
-                .filter(node -> node.getNodeType() == NodeType.METHOD_EXIT)
+                .filter(node -> node.getNodeType() != NodeType.METHOD_EXIT)
                 .forEach(node -> pdg.addVertex(node));
 
         assert this.cfg.getRootNode().isPresent();
