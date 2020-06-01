@@ -4,8 +4,10 @@ import tfm.arcs.Arc;
 import tfm.graphs.augmented.PPDG;
 import tfm.graphs.cfg.CFG;
 import tfm.nodes.GraphNode;
+import tfm.nodes.type.NodeType;
 
-import java.util.*;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -41,7 +43,7 @@ class ControlDependencyBuilder {
         roots.remove(cfg.getRootNode().get());
 
         Set<GraphNode<?>> cfgNodes = new HashSet<>(cfg.vertexSet());
-        cfgNodes.remove(cfg.getExitNode());
+        cfgNodes.removeIf(node -> node.getNodeType() == NodeType.METHOD_EXIT);
 
         for (GraphNode<?> node : cfgNodes)
             registerNode(node);

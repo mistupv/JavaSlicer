@@ -2,6 +2,7 @@ package tfm.graphs.augmented;
 
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.expr.BooleanLiteralExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.stmt.*;
@@ -239,13 +240,16 @@ public class ACFGBuilder extends CFGBuilder {
         if (!methodDeclaration.getBody().isPresent())
             throw new IllegalStateException("The method must have a body!");
 
-        graph.buildRootNode("ENTER " + methodDeclaration.getNameAsString(), methodDeclaration, TypeNodeFactory.fromType(NodeType.METHOD));
+        graph.buildRootNode("ENTER " + methodDeclaration.getNameAsString(), methodDeclaration, TypeNodeFactory.fromType(NodeType.METHOD_ENTER));
 
         hangingNodes.add(graph.getRootNode().get());
+        for (Parameter param : methodDeclaration.getParameters())
+            connectTo(addFormalInGraphNode(param));
         methodDeclaration.getBody().get().accept(this, arg);
         returnList.stream().filter(node -> !hangingNodes.contains(node)).forEach(hangingNodes::add);
+        for (Parameter param : methodDeclaration.getParameters())
+            connectTo(addFormalOutGraphNode(param));
         nonExecHangingNodes.add(graph.getRootNode().get());
-        GraphNode<EmptyStmt> exitNode = connectTo(new EmptyStmt(), "Exit");
-        ((ACFG) graph).setExitNode(exitNode);
+        connectTo(graph.addNode("Exit", new EmptyStmt(), TypeNodeFactory.fromType(NodeType.METHOD_EXIT)));
     }
 }
