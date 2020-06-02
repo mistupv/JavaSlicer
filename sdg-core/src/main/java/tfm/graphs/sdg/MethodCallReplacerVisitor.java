@@ -17,7 +17,6 @@ import tfm.nodes.TypeNodeFactory;
 import tfm.nodes.type.NodeType;
 import tfm.utils.Context;
 import tfm.utils.Logger;
-import tfm.utils.MethodDeclarationSolver;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -97,17 +96,15 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
         Logger.log("MethodCallReplacerVisitor", context);
 
-        Optional<GraphNode<MethodDeclaration>> optionalNethodDeclarationNode =
-                MethodDeclarationSolver.getInstance()
-                    .findDeclarationFrom(methodCallExpr)
-                    .flatMap(methodDeclaration -> sdg.findNodeByASTNode(methodDeclaration));
+        Optional<GraphNode<MethodDeclaration>> optMethodDeclGraphNode = methodCallExpr.resolve().toAst()
+                .flatMap(sdg::findNodeByASTNode);
 
-        if (!optionalNethodDeclarationNode.isPresent()) {
+        if (optMethodDeclGraphNode.isEmpty()) {
             Logger.format("Not found: '%s'. Discarding", methodCallExpr);
             return;
         }
 
-        GraphNode<MethodDeclaration> methodDeclarationNode = optionalNethodDeclarationNode.get();
+        GraphNode<MethodDeclaration> methodDeclarationNode = optMethodDeclGraphNode.get();
         MethodDeclaration methodDeclaration = methodDeclarationNode.getAstNode();
 
         Optional<CFG> optionalCFG = sdg.getMethodCFG(methodDeclaration);
