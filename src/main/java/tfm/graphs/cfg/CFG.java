@@ -3,9 +3,9 @@ package tfm.graphs.cfg;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import tfm.arcs.Arc;
 import tfm.arcs.cfg.ControlFlowArc;
-import tfm.graphs.Graph;
 import tfm.graphs.GraphWithRootNode;
 import tfm.nodes.GraphNode;
+import tfm.nodes.type.NodeType;
 import tfm.utils.NodeNotFoundException;
 
 import java.util.HashSet;
@@ -21,7 +21,6 @@ import java.util.Set;
  */
 public class CFG extends GraphWithRootNode<MethodDeclaration> {
     private boolean built = false;
-    protected GraphNode<?> exitNode;
 
     public CFG() {
         super();
@@ -66,28 +65,20 @@ public class CFG extends GraphWithRootNode<MethodDeclaration> {
 
     @Override
     public boolean removeVertex(GraphNode<?> graphNode) {
-        if (Objects.equals(graphNode, exitNode))
+        // Cannot remove exit node
+        // Enter node's removal is checked in super#removeVertex(GraphNode)
+        if (graphNode.getNodeType() == NodeType.METHOD_EXIT)
             return false;
         return super.removeVertex(graphNode);
-    }
-
-    public GraphNode<?> getExitNode() {
-        return exitNode;
-    }
-
-    protected void setExitNode(GraphNode<?> exitNode) {
-        if (this.exitNode != null)
-            throw new IllegalStateException("Exit node already set!");
-        this.exitNode = exitNode;
     }
 
     @Override
     public void build(MethodDeclaration method) {
         method.accept(newCFGBuilder(), null);
-        if (exitNode == null)
-            throw new IllegalStateException("Exit node missing!");
+        if (vertexSet().stream().noneMatch(n -> n.getNodeType() == NodeType.METHOD_EXIT))
+            throw new IllegalStateException("There is no exit node after building the graph");
         built = true;
-    }
+    }/**/
 
     @Override
     public boolean isBuilt() {

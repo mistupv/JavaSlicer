@@ -7,10 +7,7 @@ import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import tfm.graphs.cfg.CFG;
-import tfm.nodes.GraphNode;
 import tfm.nodes.type.NodeType;
-
-import java.util.Objects;
 
 /**
  * Populates a {@link PDG}, given a complete {@link CFG}, an empty {@link PDG} and an AST root node.
@@ -51,7 +48,7 @@ public class PDGBuilder {
 
         // Copy nodes from CFG to PDG
         cfg.vertexSet().stream()
-                .filter(node -> !Objects.equals(node, cfg.getExitNode()))
+                .filter(node -> node.getNodeType() != NodeType.METHOD_EXIT)
                 .forEach(node -> pdg.addVertex(node));
 
         assert this.cfg.getRootNode().isPresent();
@@ -68,7 +65,7 @@ public class PDGBuilder {
 
         // Build data dependency of "out" variables
         pdg.vertexSet().stream()
-            .filter(node -> node.getNodeType() == NodeType.VARIABLE_OUT)
+            .filter(node -> node.getNodeType() == NodeType.FORMAL_OUT)
             .forEach(node -> {
                 assert node.getAstNode() instanceof ExpressionStmt;
 

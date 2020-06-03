@@ -148,7 +148,7 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
             ExpressionStmt inExprStmt = new ExpressionStmt(inVariableDeclarationExpr);
 
-            GraphNode<ExpressionStmt> argumentInNode = sdg.addNode(inExprStmt.toString(), inExprStmt, TypeNodeFactory.fromType(NodeType.VARIABLE_IN));
+            GraphNode<ExpressionStmt> argumentInNode = sdg.addNode(inExprStmt.toString(), inExprStmt, TypeNodeFactory.fromType(NodeType.ACTUAL_IN));
 
             sdg.addControlDependencyArc(methodCallNode, argumentInNode);
 
@@ -169,7 +169,8 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
             Optional<GraphNode<ExpressionStmt>> optionalParameterInNode = sdg.outgoingEdgesOf(methodDeclarationNode).stream()
                     .map(arc -> (GraphNode<ExpressionStmt>) sdg.getEdgeTarget(arc))
-                    .filter(node -> node.getNodeType() == NodeType.VARIABLE_IN && node.getInstruction().contains(parameter.getNameAsString() + "_in"))
+                    .filter(node -> node.getNodeType() == NodeType.FORMAL_IN)
+                    .filter(node -> node.getInstruction().contains(parameter.getNameAsString() + "_in"))
                     .findFirst();
 
             if (optionalParameterInNode.isPresent()) {
@@ -218,7 +219,7 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
             ExpressionStmt outExprStmt = new ExpressionStmt(outVariableAssignExpr);
 
-            GraphNode<ExpressionStmt> argumentOutNode = sdg.addNode(outExprStmt.toString(), outExprStmt, TypeNodeFactory.fromType(NodeType.VARIABLE_OUT));
+            GraphNode<ExpressionStmt> argumentOutNode = sdg.addNode(outExprStmt.toString(), outExprStmt, TypeNodeFactory.fromType(NodeType.ACTUAL_OUT));
 
             sdg.addControlDependencyArc(methodCallNode, argumentOutNode);
 
@@ -226,7 +227,8 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
             Optional<GraphNode<ExpressionStmt>> optionalParameterOutNode = sdg.outgoingEdgesOf(methodDeclarationNode).stream()
                     .map(arc -> (GraphNode<ExpressionStmt>) sdg.getEdgeTarget(arc))
-                    .filter(node -> node.getNodeType() == NodeType.VARIABLE_OUT && node.getInstruction().contains(parameter.getNameAsString() + "_out"))
+                    .filter(node -> node.getNodeType() == NodeType.FORMAL_OUT)
+                    .filter(node -> node.getInstruction().contains(parameter.getNameAsString() + "_out"))
                     .findFirst();
 
             // Handle data dependency: remove arc from method call node and add it to OUT node

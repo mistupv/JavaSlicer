@@ -9,12 +9,14 @@ import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitor;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.nodes.GraphNode;
-import tfm.nodes.NodeFactory;
 import tfm.nodes.TypeNodeFactory;
 import tfm.nodes.type.NodeType;
 import tfm.utils.ASTUtils;
 
 import java.util.*;
+
+import static tfm.nodes.type.NodeType.FORMAL_IN;
+import static tfm.nodes.type.NodeType.FORMAL_OUT;
 
 /**
  * Populates a {@link CFG}, given one and an AST root node.
@@ -286,64 +288,46 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
 
     @Override
     public void visit(MethodDeclaration methodDeclaration, Void arg) {
+        // Sanity checks
         if (graph.getRootNode().isPresent())
             throw new IllegalStateException("CFG is only allowed for one method, not multiple!");
         if (!methodDeclaration.getBody().isPresent())
-            throw new IllegalStateException("The method must have a body!");
+            throw new IllegalStateException("The method must have a body! Abstract methods have no CFG");
 
-        graph.buildRootNode("ENTER " + methodDeclaration.getNameAsString(), methodDeclaration, TypeNodeFactory.fromType(NodeType.METHOD));
-
-        // Compute variable in and out expressions (necessary to compute data dependence in SDG)
-        List<ExpressionStmt> inVariableExpressions = new ArrayList<>();
-        List<ExpressionStmt> outVariableExpressions = new ArrayList<>();
-
-        for (Parameter parameter : methodDeclaration.getParameters()) {
-            // In expression
-            VariableDeclarationExpr inVariableDeclarationExpr = new VariableDeclarationExpr(
-                new VariableDeclarator(
-                    parameter.getType(),
-                    parameter.getNameAsString(),
-                    new NameExpr(parameter.getNameAsString() + "_in")
-                )
-            );
-
-            ExpressionStmt inExprStmt = new ExpressionStmt(inVariableDeclarationExpr);
-
-            inVariableExpressions.add(inExprStmt);
-
-            // Out expression
-            VariableDeclarationExpr outVariableDeclarationExpr = new VariableDeclarationExpr(
-                    new VariableDeclarator(
-                            parameter.getType(),
-                            parameter.getNameAsString() + "_out",
-                            new NameExpr(parameter.getNameAsString())
-                    )
-            );
-
-            ExpressionStmt outExprStmt = new ExpressionStmt(outVariableDeclarationExpr);
-
-            outVariableExpressions.add(outExprStmt);
-        }
-
+        // Create the root node
+        graph.buildRootNode(
+                "ENTER " + methodDeclaration.getNameAsString(),
+                methodDeclaration,
+                TypeNodeFactory.fromType(NodeType.METHOD_ENTER));
         hangingNodes.add(graph.getRootNode().get());
-
-        // Add in variable nodes
-        for (ExpressionStmt expressionStmt : inVariableExpressions) {
-            GraphNode<ExpressionStmt> node = this.graph.addNode(expressionStmt.toString(), expressionStmt, TypeNodeFactory.fromType(NodeType.VARIABLE_IN));
-            connectTo(node);
-        }
-
+        // Create and connect formal-in nodes sequentially
+        for (Parameter param : methodDeclaration.getParameters())
+            connectTo(addFormalInGraphNode(param));
+        // Visit the body of the method
         methodDeclaration.getBody().get().accept(this, arg);
-
+        // Append all return statements (without repetition)
         returnList.stream().filter(node -> !hangingNodes.contains(node)).forEach(hangingNodes::add);
 
-        // Add out variable nodes
-        for (ExpressionStmt expressionStmt : outVariableExpressions) {
-            GraphNode<ExpressionStmt> node = this.graph.addNode(expressionStmt.toString(), expressionStmt, TypeNodeFactory.fromType(NodeType.VARIABLE_OUT));
-            connectTo(node);
-        }
+        // Create and connect formal-out nodes sequentially
+        for (Parameter param : methodDeclaration.getParameters())
+            connectTo(addFormalOutGraphNode(param));
+        // Create and connect the exit node
+        connectTo(graph.addNode("Exit", new EmptyStmt(), TypeNodeFactory.fromType(NodeType.METHOD_EXIT)));
+    }
 
-        GraphNode<EmptyStmt> exitNode = connectTo(new EmptyStmt(), "Exit");
-        graph.setExitNode(exitNode);
+    protected GraphNode<ExpressionStmt> addFormalInGraphNode(Parameter param) {
+        ExpressionStmt exprStmt = new ExpressionStmt(new VariableDeclarationExpr(new VariableDeclarator(
+                param.getType(),
+                param.getNameAsString(),
+                new NameExpr(param.getNameAsString() + "_in"))));
+        return graph.addNode(exprStmt.toString(), exprStmt, TypeNodeFactory.fromType(FORMAL_IN));
+    }
+
+    protected GraphNode<ExpressionStmt> addFormalOutGraphNode(Parameter param) {
+        ExpressionStmt exprStmt = new ExpressionStmt(new VariableDeclarationExpr(new VariableDeclarator(
+                param.getType(),
+                param.getNameAsString() + "_out",
+                new NameExpr(param.getNameAsString()))));
+        return graph.addNode(exprStmt.toString(), exprStmt, TypeNodeFactory.fromType(FORMAL_OUT));
     }
 }
