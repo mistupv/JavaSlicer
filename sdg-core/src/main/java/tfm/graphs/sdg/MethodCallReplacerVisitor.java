@@ -151,16 +151,10 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
             // Handle data dependency: Remove arc from method call node and add it to IN node
 
-            List<DataDependencyArc> inDataDependencies = sdg.incomingEdgesOf(originalMethodCallNode).stream()
-                .filter(arc -> arc.isDataDependencyArc() && Objects.equals(arc.getLabel(), argument.toString()))
-                .map(Arc::asDataDependencyArc)
-                .collect(Collectors.toList());
-
-            for (DataDependencyArc arc : inDataDependencies) {
-                GraphNode<?> dataDependencySource = sdg.getEdgeSource(arc);
-                sdg.removeEdge(arc);
-                sdg.addDataDependencyArc(dataDependencySource, argumentInNode, argument.toString());
-            }
+            sdg.incomingEdgesOf(originalMethodCallNode).stream()
+                    .filter(Arc::isDataDependencyArc)
+                    .filter(arc -> Objects.equals(arc.getLabel(), argument.toString()))
+                    .forEach(arc -> sdg.addDataDependencyArc(sdg.getEdgeSource(arc), argumentInNode, argument.toString()));
 
             // Now, find the corresponding method declaration's in node and link argument node with it
 
@@ -230,16 +224,10 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
             // Handle data dependency: remove arc from method call node and add it to OUT node
 
-            List<DataDependencyArc> outDataDependencies = sdg.outgoingEdgesOf(originalMethodCallNode).stream()
-                    .filter(arc -> arc.isDataDependencyArc() && Objects.equals(arc.getLabel(), argument.toString()))
-                    .map(Arc::asDataDependencyArc)
-                    .collect(Collectors.toList());
-
-            for (DataDependencyArc arc : outDataDependencies) {
-                GraphNode<?> dataDependencyTarget = sdg.getEdgeTarget(arc);
-                sdg.removeEdge(arc);
-                sdg.addDataDependencyArc(argumentOutNode, dataDependencyTarget, argument.toString());
-            }
+            sdg.outgoingEdgesOf(originalMethodCallNode).stream()
+                    .filter(Arc::isDataDependencyArc)
+                    .filter(arc -> Objects.equals(arc.getLabel(), argument.toString()))
+                    .forEach(arc -> sdg.addDataDependencyArc(argumentOutNode, sdg.getEdgeTarget(arc), argument.toString()));
 
             if (optionalParameterOutNode.isPresent()) {
                 sdg.addParameterInOutArc(optionalParameterOutNode.get(), argumentOutNode);
