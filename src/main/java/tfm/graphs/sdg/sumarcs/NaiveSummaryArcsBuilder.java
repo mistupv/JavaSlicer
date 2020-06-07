@@ -1,16 +1,13 @@
 package tfm.graphs.sdg.sumarcs;
 
-import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import tfm.arcs.Arc;
-import tfm.graphs.Graph;
 import tfm.graphs.sdg.SDG;
 import tfm.nodes.GraphNode;
 import tfm.nodes.type.NodeType;
 import tfm.utils.Utils;
 
-import java.beans.Expression;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -43,7 +40,7 @@ public class NaiveSummaryArcsBuilder extends SummaryArcsBuilder {
 
                 for (GraphNode<ExpressionStmt> actualOutNode : actualOutNodes) {
                     for (GraphNode<ExpressionStmt> actualInNode : actualInNodes) {
-                        if (this.match(actualInNode, actualOutNode)) {
+                        if (this.belongToSameMethodCall(actualInNode, actualOutNode)) {
                             sdg.addSummaryArc(actualInNode, actualOutNode);
                         }
                     }
@@ -65,8 +62,14 @@ public class NaiveSummaryArcsBuilder extends SummaryArcsBuilder {
             res.add((GraphNode<ExpressionStmt>) root);
         } else {
             for (Arc arc : sdg.incomingEdgesOf(root)) {
+                GraphNode<?> nextNode = sdg.getEdgeSource(arc);
+
+                if (visited.contains(nextNode.getId())) {
+                    continue;
+                }
+
                 if (arc.isControlDependencyArc() || arc.isDataDependencyArc()) {
-                    res.addAll(this.doFindReachableFormalInNodes(sdg.getEdgeSource(arc), visited));
+                    res.addAll(this.doFindReachableFormalInNodes(nextNode, visited));
                 }
             }
         }
@@ -89,7 +92,7 @@ public class NaiveSummaryArcsBuilder extends SummaryArcsBuilder {
                 .collect(Collectors.toSet());
     }
 
-    private boolean match(GraphNode<ExpressionStmt> actualIn, GraphNode<ExpressionStmt> actualOut) {
+    private boolean belongToSameMethodCall(GraphNode<ExpressionStmt> actualIn, GraphNode<ExpressionStmt> actualOut) {
         Optional<GraphNode<ExpressionStmt>> optionalInCallNode = this.getCallNode(actualIn);
         Optional<GraphNode<ExpressionStmt>> optionalOutCallNode = this.getCallNode(actualOut);
 
