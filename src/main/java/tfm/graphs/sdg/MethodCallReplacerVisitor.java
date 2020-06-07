@@ -268,7 +268,7 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
         GraphNode<EmptyStmt> declarationOutputNode = optionalDeclarationOutputNode.get();
 
         // If method has output node, then create output call node and link them
-        GraphNode<EmptyStmt> callReturnNode = sdg.addNode("output", new EmptyStmt(), TypeNodeFactory.fromType(NodeType.METHOD_CALL_RETURN));
+        GraphNode<EmptyStmt> callReturnNode = sdg.addNode("output", new EmptyStmt(), TypeNodeFactory.fromType(NodeType.METHOD_OUTPUT));
 
         sdg.addControlDependencyArc(methodCallNode, callReturnNode);
         sdg.addReturnArc(callReturnNode, originalMethodCallNode);

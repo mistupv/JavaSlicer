@@ -23,7 +23,5 @@ public enum NodeType {
      *  has been modified in a method declaration. */
     FORMAL_OUT,
     /** A node representing the return value of a non-void method declaration. */
-    METHOD_OUTPUT,
-    /** A node representing the return value of a non-void method call. */
-    METHOD_CALL_RETURN,
+    METHOD_OUTPUT
 }
