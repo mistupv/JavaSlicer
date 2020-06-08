@@ -22,6 +22,8 @@ public enum NodeType {
     /** An argument or globally accessible variable that
      *  has been modified in a method declaration. */
     FORMAL_OUT,
+    /** A node representing the return value of a non-void method call. */
+    METHOD_CALL_RETURN,
     /** A node representing the return value of a non-void method declaration. */
     METHOD_OUTPUT
 }

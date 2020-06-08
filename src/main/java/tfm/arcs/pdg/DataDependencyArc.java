@@ -21,6 +21,10 @@ public class DataDependencyArc extends Arc {
         super(variable);
     }
 
+    public DataDependencyArc() {
+        super();
+    }
+
     @Override
     public Map<String, Attribute> getDotAttributes() {
         Map<String, Attribute> map = super.getDotAttributes();

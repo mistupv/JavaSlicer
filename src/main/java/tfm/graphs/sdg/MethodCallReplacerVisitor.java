@@ -255,6 +255,13 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
         // Add 'output' node of the call
 
         // First, check if method has an output node
+
+        if (methodDeclaration.getType().isVoidType()) {
+            return;
+        }
+
+        // If not void, find the output node
+
         Optional<GraphNode<EmptyStmt>> optionalDeclarationOutputNode = sdg.outgoingEdgesOf(methodDeclarationNode).stream()
                 .filter(arc -> sdg.getEdgeTarget(arc).getNodeType() == NodeType.METHOD_OUTPUT)
                 .map(arc -> (GraphNode<EmptyStmt>) sdg.getEdgeTarget(arc))
@@ -268,11 +275,11 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
         GraphNode<EmptyStmt> declarationOutputNode = optionalDeclarationOutputNode.get();
 
         // If method has output node, then create output call node and link them
-        GraphNode<EmptyStmt> callReturnNode = sdg.addNode("output", new EmptyStmt(), TypeNodeFactory.fromType(NodeType.METHOD_OUTPUT));
+        GraphNode<EmptyStmt> callReturnNode = sdg.addNode("output", new EmptyStmt(), TypeNodeFactory.fromType(NodeType.METHOD_CALL_RETURN));
 
         sdg.addControlDependencyArc(methodCallNode, callReturnNode);
-        sdg.addReturnArc(callReturnNode, originalMethodCallNode);
-        sdg.addReturnArc(declarationOutputNode, callReturnNode);
+        sdg.addDataDependencyArc(callReturnNode, originalMethodCallNode);
+        sdg.addParameterInOutArc(declarationOutputNode, callReturnNode);
 
         Logger.log("MethodCallReplacerVisitor", String.format("%s | Method '%s' called", methodCallExpr, methodDeclaration.getNameAsString()));
     }

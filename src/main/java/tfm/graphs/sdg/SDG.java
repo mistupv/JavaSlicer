@@ -1,23 +1,17 @@
 package tfm.graphs.sdg;
 
 import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.stmt.EmptyStmt;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
-import com.github.javaparser.ast.stmt.ReturnStmt;
 import tfm.arcs.Arc;
-import tfm.arcs.cfg.ControlFlowArc;
 import tfm.arcs.pdg.ControlDependencyArc;
 import tfm.arcs.pdg.DataDependencyArc;
 import tfm.arcs.sdg.CallArc;
 import tfm.arcs.sdg.ParameterInOutArc;
-import tfm.arcs.sdg.ReturnArc;
 import tfm.graphs.Buildable;
 import tfm.graphs.Graph;
 import tfm.graphs.cfg.CFG;
-import tfm.graphs.pdg.PDG;
 import tfm.nodes.*;
 import tfm.slicing.Slice;
 import tfm.slicing.Sliceable;
@@ -26,9 +20,6 @@ import tfm.utils.Context;
 import tfm.utils.Utils;
 
 import java.util.*;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 public class SDG extends Graph implements Sliceable, Buildable<NodeList<CompilationUnit>> {
     private boolean built = false;
@@ -74,6 +65,10 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
         this.addEdge(from, to, new ControlDependencyArc());
     }
 
+    public void addDataDependencyArc(GraphNode<?> from, GraphNode<?> to) {
+        this.addDataDependencyArc(from, to, null);
+    }
+
     public void addDataDependencyArc(GraphNode<?> from, GraphNode<?> to, String variable) {
         this.addEdge(from, to, new DataDependencyArc(variable));
     }
@@ -82,12 +77,8 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
         this.addEdge(from, to, new CallArc());
     }
 
-    public void addParameterInOutArc(GraphNode<ExpressionStmt> from, GraphNode<ExpressionStmt> to) {
+    public void addParameterInOutArc(GraphNode<?> from, GraphNode<?> to) {
         this.addEdge(from, to, new ParameterInOutArc());
-    }
-
-    public void addReturnArc(GraphNode<?> from, GraphNode<?> to) {
-        this.addEdge(from, to, new ReturnArc());
     }
 
     public List<GraphNode<?>> findDeclarationsOfVariable(String variable, GraphNode<?> root) {

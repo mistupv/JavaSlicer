@@ -74,7 +74,7 @@ class SDGBuilder extends VoidVisitorAdapter<Context> {
         pdg.getCfg().vertexSet().stream()
                 .filter(node -> node.getAstNode() instanceof ReturnStmt)
                 .map(node -> (GraphNode<ReturnStmt>) node)
-                .forEach(node -> sdg.addReturnArc(node, outputNode));
+                .forEach(node -> sdg.addDataDependencyArc(node, outputNode));
     }
 
     @Override
