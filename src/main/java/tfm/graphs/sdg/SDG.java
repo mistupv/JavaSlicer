@@ -14,6 +14,7 @@ import tfm.arcs.pdg.DataDependencyArc;
 import tfm.arcs.sdg.CallArc;
 import tfm.arcs.sdg.ParameterInOutArc;
 import tfm.arcs.sdg.ReturnArc;
+import tfm.arcs.sdg.SummaryArc;
 import tfm.graphs.Buildable;
 import tfm.graphs.Graph;
 import tfm.graphs.cfg.CFG;
@@ -88,6 +89,10 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
 
     public void addReturnArc(GraphNode<?> from, GraphNode<?> to) {
         this.addEdge(from, to, new ReturnArc());
+    }
+
+    public void addSummaryArc(GraphNode<ExpressionStmt> from, GraphNode<ExpressionStmt> to) {
+        this.addEdge(from, to, new SummaryArc());
     }
 
     public List<GraphNode<?>> findDeclarationsOfVariable(String variable, GraphNode<?> root) {

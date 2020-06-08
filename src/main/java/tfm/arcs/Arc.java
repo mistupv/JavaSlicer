@@ -6,6 +6,9 @@ import tfm.arcs.cfg.ControlFlowArc;
 import tfm.arcs.pdg.ControlDependencyArc;
 import tfm.arcs.pdg.DataDependencyArc;
 import tfm.arcs.sdg.CallArc;
+import tfm.arcs.sdg.ParameterInOutArc;
+import tfm.arcs.sdg.ReturnArc;
+import tfm.arcs.sdg.SummaryArc;
 import tfm.nodes.GraphNode;
 
 import java.util.HashMap;
@@ -71,6 +74,39 @@ public abstract class Arc extends DefaultEdge {
         if (isCallArc())
             return (CallArc) this;
         throw new UnsupportedOperationException("Not a CallArc");
+    }
+
+    /** @see ParameterInOutArc */
+    public final boolean isParameterInOutArc() {
+        return this instanceof ParameterInOutArc;
+    }
+
+    public final ParameterInOutArc asParameterInOutArc() {
+        if (isParameterInOutArc())
+            return (ParameterInOutArc) this;
+        throw new UnsupportedOperationException("Not a ParameterInOutArc");
+    }
+
+    /** @see ReturnArc */
+    public final boolean isReturnArc() {
+        return this instanceof ReturnArc;
+    }
+
+    public final ReturnArc asReturnArc() {
+        if (isReturnArc())
+            return (ReturnArc) this;
+        throw new UnsupportedOperationException("Not a ReturnArc");
+    }
+
+    /** @see SummaryArc */
+    public final boolean isSummaryArc() {
+        return this instanceof SummaryArc;
+    }
+
+    public final SummaryArc asSummaryArcArc() {
+        if (isSummaryArc())
+            return (SummaryArc) this;
+        throw new UnsupportedOperationException("Not a SummaryArc");
     }
 
     @Override
