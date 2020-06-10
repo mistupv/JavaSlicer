@@ -3,21 +3,17 @@ package tfm.graphs.sdg;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.stmt.ExpressionStmt;
+import com.github.javaparser.ast.stmt.EmptyStmt;
+import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.arcs.Arc;
 import tfm.graphs.pdg.PDG;
 import tfm.graphs.sdg.sumarcs.NaiveSummaryArcsBuilder;
 import tfm.graphs.sdg.sumarcs.SummaryArcsBuilder;
 import tfm.nodes.GraphNode;
+import tfm.nodes.TypeNodeFactory;
 import tfm.nodes.type.NodeType;
 import tfm.utils.Context;
-import tfm.utils.Utils;
-
-import java.util.HashSet;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 class SDGBuilder extends VoidVisitorAdapter<Context> {
 
@@ -60,6 +56,22 @@ class SDGBuilder extends VoidVisitorAdapter<Context> {
 
         // Add CFG
         sdg.setMethodCFG(methodDeclaration, pdg.getCfg());
+
+        // Add output node
+        if (methodDeclaration.getType().isVoidType()) {
+            // If method return type is void, do nothing
+            return;
+        }
+
+        GraphNode<EmptyStmt> outputNode = sdg.addNode("output", new EmptyStmt(), TypeNodeFactory.fromType(NodeType.METHOD_OUTPUT));
+
+        sdg.addControlDependencyArc(methodDeclarationNode, outputNode);
+
+        // Add return arc from all return statements to the output node
+        pdg.getCfg().vertexSet().stream()
+                .filter(node -> node.getAstNode() instanceof ReturnStmt)
+                .map(node -> (GraphNode<ReturnStmt>) node)
+                .forEach(node -> sdg.addDataDependencyArc(node, outputNode));
     }
 
     @Override

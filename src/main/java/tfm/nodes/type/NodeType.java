@@ -24,4 +24,6 @@ public enum NodeType {
     FORMAL_OUT,
     /** A node representing the return value of a non-void method call. */
     METHOD_CALL_RETURN,
+    /** A node representing the return value of a non-void method declaration. */
+    METHOD_OUTPUT
 }

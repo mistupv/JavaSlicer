@@ -252,17 +252,34 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
             }
         }
 
-        // 'Return' node
-        GraphNode<EmptyStmt> returnNode = sdg.addNode("return", new EmptyStmt(), TypeNodeFactory.fromType(NodeType.METHOD_CALL_RETURN));
-        sdg.addControlDependencyArc(methodCallNode, returnNode);
+        // Add 'output' node of the call
 
-        sdg.addReturnArc(returnNode, originalMethodCallNode);
+        // First, check if method has an output node
 
-        methodCFG.vertexSet().stream()
-            .filter(node -> node.getAstNode() instanceof ReturnStmt)
-            .map(node -> (GraphNode<ReturnStmt>) node)
-            .forEach(node -> sdg.addReturnArc(node, returnNode));
+        if (methodDeclaration.getType().isVoidType()) {
+            return;
+        }
 
+        // If not void, find the output node
+
+        Optional<GraphNode<EmptyStmt>> optionalDeclarationOutputNode = sdg.outgoingEdgesOf(methodDeclarationNode).stream()
+                .filter(arc -> sdg.getEdgeTarget(arc).getNodeType() == NodeType.METHOD_OUTPUT)
+                .map(arc -> (GraphNode<EmptyStmt>) sdg.getEdgeTarget(arc))
+                .findFirst();
+
+        if (!optionalDeclarationOutputNode.isPresent()) {
+            // Method return type is void, do nothing
+            return;
+        }
+
+        GraphNode<EmptyStmt> declarationOutputNode = optionalDeclarationOutputNode.get();
+
+        // If method has output node, then create output call node and link them
+        GraphNode<EmptyStmt> callReturnNode = sdg.addNode("output", new EmptyStmt(), TypeNodeFactory.fromType(NodeType.METHOD_CALL_RETURN));
+
+        sdg.addControlDependencyArc(methodCallNode, callReturnNode);
+        sdg.addDataDependencyArc(callReturnNode, originalMethodCallNode);
+        sdg.addParameterInOutArc(declarationOutputNode, callReturnNode);
 
         Logger.log("MethodCallReplacerVisitor", String.format("%s | Method '%s' called", methodCallExpr, methodDeclaration.getNameAsString()));
     }
