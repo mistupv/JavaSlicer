@@ -7,7 +7,6 @@ import tfm.arcs.pdg.ControlDependencyArc;
 import tfm.arcs.pdg.DataDependencyArc;
 import tfm.arcs.sdg.CallArc;
 import tfm.arcs.sdg.ParameterInOutArc;
-import tfm.arcs.sdg.ReturnArc;
 import tfm.arcs.sdg.SummaryArc;
 import tfm.nodes.GraphNode;
 
@@ -85,17 +84,6 @@ public abstract class Arc extends DefaultEdge {
         if (isParameterInOutArc())
             return (ParameterInOutArc) this;
         throw new UnsupportedOperationException("Not a ParameterInOutArc");
-    }
-
-    /** @see ReturnArc */
-    public final boolean isReturnArc() {
-        return this instanceof ReturnArc;
-    }
-
-    public final ReturnArc asReturnArc() {
-        if (isReturnArc())
-            return (ReturnArc) this;
-        throw new UnsupportedOperationException("Not a ReturnArc");
     }
 
     /** @see SummaryArc */
