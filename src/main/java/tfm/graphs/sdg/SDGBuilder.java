@@ -3,20 +3,17 @@ package tfm.graphs.sdg;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.body.Parameter;
-import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.stmt.EmptyStmt;
-import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.arcs.Arc;
 import tfm.graphs.pdg.PDG;
+import tfm.graphs.sdg.sumarcs.NaiveSummaryArcsBuilder;
+import tfm.graphs.sdg.sumarcs.SummaryArcsBuilder;
 import tfm.nodes.GraphNode;
 import tfm.nodes.TypeNodeFactory;
 import tfm.nodes.type.NodeType;
 import tfm.utils.Context;
-
-import java.lang.reflect.Type;
 
 class SDGBuilder extends VoidVisitorAdapter<Context> {
 
@@ -99,6 +96,8 @@ class SDGBuilder extends VoidVisitorAdapter<Context> {
 
 
         // 3. Build summary arcs
+        SummaryArcsBuilder summaryArcsBuilder = new NaiveSummaryArcsBuilder(sdg);
+        summaryArcsBuilder.visit();
     }
 
     @Override
