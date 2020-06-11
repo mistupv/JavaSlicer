@@ -31,9 +31,14 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
     private boolean built = false;
 
     private Map<MethodDeclaration, CFG> methodCFGMap;
+    private NodeList<CompilationUnit> compilationUnits;
 
     public SDG() {
         this.methodCFGMap = new HashMap<>();
+    }
+
+    public NodeList<CompilationUnit> getCompilationUnits() {
+        return compilationUnits;
     }
 
     @Override
@@ -47,6 +52,8 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
     @Override
     public void build(NodeList<CompilationUnit> nodeList) {
         nodeList.accept(new SDGBuilder(this), new Context());
+        compilationUnits = nodeList;
+        built = true;
     }
 
     @Override

@@ -1,5 +1,6 @@
 package tfm.slicing;
 
+import com.github.javaparser.Position;
 import com.github.javaparser.ast.Node;
 import tfm.graphs.cfg.CFG;
 import tfm.graphs.pdg.PDG;
@@ -10,8 +11,9 @@ import tfm.utils.Logger;
 import java.util.Optional;
 
 public class LineNumberCriterion extends SlicingCriterion {
+    protected static final Position DEFAULT_POSITION = new Position(0, 0);
 
-    private int lineNumber;
+    protected int lineNumber;
 
     public LineNumberCriterion(int lineNumber, String variable) {
         super(variable);
@@ -30,7 +32,7 @@ public class LineNumberCriterion extends SlicingCriterion {
         return graph.vertexSet().stream().filter(node -> {
             Node astNode = node.getAstNode();
 
-            if (!astNode.getBegin().isPresent() || !astNode.getEnd().isPresent())
+            if (astNode.getBegin().isEmpty() || astNode.getEnd().isEmpty())
                 return false;
 
             int begin = astNode.getBegin().get().line;
@@ -45,6 +47,10 @@ public class LineNumberCriterion extends SlicingCriterion {
     @Override
     public Optional<GraphNode<?>> findNode(SDG graph) {
         return Optional.empty();
+    }
+
+    protected boolean matchesLine(Node node) {
+        return node.getBegin().orElse(DEFAULT_POSITION).line == lineNumber;
     }
 
     @Override
