@@ -52,15 +52,14 @@ public class Slice {
      */
     public NodeList<CompilationUnit> toAst() {
         Map<CompilationUnit, Set<Node>> cuMap = new HashMap<>();
-        // Build key set
-        nodes.stream().filter(n -> n instanceof CompilationUnit)
-                .forEach(cu -> cuMap.put((CompilationUnit) cu, new HashSet<>()));
         // Add each node to the corresponding bucket of the map
         // Nodes may not belong to a compilation unit (fictional nodes), and they are skipped for the slice.
-        for (Node node : nodes)
-            node.findCompilationUnit()
-                    .flatMap(n -> Optional.ofNullable(cuMap.get(n)))
-                    .ifPresent(set -> set.add(node));
+        for (Node node : nodes) {
+            Optional<CompilationUnit> cu = node.findCompilationUnit();
+            if (cu.isEmpty()) continue;
+            cuMap.putIfAbsent(cu.get(), new HashSet<>());
+            cuMap.get(cu.get()).add(node);
+        }
         // Traverse the AST of each compilation unit, creating a copy and
         // removing any element not present in the slice.
         NodeList<CompilationUnit> cus = new NodeList<>();
@@ -70,9 +69,8 @@ public class Slice {
             CompilationUnit clone = (CompilationUnit) entry.getKey().accept(cloneVisitor, null);
             assert entry.getKey().getStorage().isPresent();
             clone.setStorage(entry.getKey().getStorage().get().getPath());
-            Visitable sliced = clone.accept(sliceVisitor, entry.getValue());
-            assert sliced instanceof CompilationUnit;
-            cus.add((CompilationUnit) sliced);
+            clone.accept(sliceVisitor, entry.getValue());
+            cus.add(clone);
         }
         return cus;
     }

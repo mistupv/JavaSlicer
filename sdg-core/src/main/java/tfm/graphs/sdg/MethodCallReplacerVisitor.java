@@ -10,7 +10,6 @@ import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.arcs.Arc;
-import tfm.arcs.pdg.DataDependencyArc;
 import tfm.graphs.cfg.CFG;
 import tfm.nodes.GraphNode;
 import tfm.nodes.TypeNodeFactory;
@@ -19,7 +18,6 @@ import tfm.utils.Context;
 import tfm.utils.Logger;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
@@ -93,8 +91,6 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 //        arguments.stream()
 //                .filter(Expression::isMethodCallExpr)
 //                .forEach(expression -> expression.accept(this, context));
-
-        Logger.log("MethodCallReplacerVisitor", context);
 
         Optional<GraphNode<MethodDeclaration>> optMethodDeclGraphNode = methodCallExpr.resolve().toAst()
                 .flatMap(sdg::findNodeByASTNode);

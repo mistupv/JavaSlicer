@@ -33,14 +33,14 @@ public class SlicePruneVisitor extends ModifierVisitor<Set<Node>> {
     public Visitable visit(CompilationUnit n, Set<Node> arg) {
         boolean keep = arg.contains(n);
         Visitable v = super.visit(n, arg);
-        return keep ? v : null;
+        return keep || !((Node) v).getChildNodes().isEmpty() ? v : null;
     }
 
     @Override
     public Visitable visit(ClassOrInterfaceDeclaration n, Set<Node> arg) {
         boolean keep = arg.contains(n);
         Visitable v = super.visit(n, arg);
-        return keep ? v : null;
+        return keep || !((Node) v).getChildNodes().isEmpty() ? v : null;
     }
 
     // ========== Class body visitors ==========
