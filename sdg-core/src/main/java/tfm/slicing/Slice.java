@@ -1,6 +1,8 @@
 package tfm.slicing;
 
+import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.visitor.CloneVisitor;
 import com.github.javaparser.ast.visitor.Visitable;
@@ -43,6 +45,39 @@ public class Slice {
         return Set.copyOf(map.values());
     }
 
+    /**
+     * Organize all nodes pertaining to this slice in one or more CompilationUnits.
+     * CompilationUnits themselves need not be part of the slice to be included if any of their
+     * components are present.
+     */
+    public NodeList<CompilationUnit> toAst() {
+        Map<CompilationUnit, Set<Node>> cuMap = new HashMap<>();
+        // Build key set
+        nodes.stream().filter(n -> n instanceof CompilationUnit)
+                .forEach(cu -> cuMap.put((CompilationUnit) cu, new HashSet<>()));
+        // Add each node to the corresponding bucket of the map
+        // Nodes may not belong to a compilation unit (fictional nodes), and they are skipped for the slice.
+        for (Node node : nodes)
+            node.findCompilationUnit()
+                    .flatMap(n -> Optional.ofNullable(cuMap.get(n)))
+                    .ifPresent(set -> set.add(node));
+        // Traverse the AST of each compilation unit, creating a copy and
+        // removing any element not present in the slice.
+        NodeList<CompilationUnit> cus = new NodeList<>();
+        SlicePruneVisitor sliceVisitor = new SlicePruneVisitor();
+        CloneVisitor cloneVisitor = new CloneVisitor();
+        for (Map.Entry<CompilationUnit, Set<Node>> entry : cuMap.entrySet()) {
+            CompilationUnit clone = (CompilationUnit) entry.getKey().accept(cloneVisitor, null);
+            assert entry.getKey().getStorage().isPresent();
+            clone.setStorage(entry.getKey().getStorage().get().getPath());
+            Visitable sliced = clone.accept(sliceVisitor, entry.getValue());
+            assert sliced instanceof CompilationUnit;
+            cus.add((CompilationUnit) sliced);
+        }
+        return cus;
+    }
+
+    @Deprecated
     public Node getAst() {
         List<GraphNode<?>> methods = map.values().stream().filter(e -> e.getAstNode() instanceof MethodDeclaration).collect(Collectors.toList());
         if (methods.size() == 1) {
@@ -63,7 +98,7 @@ public class Slice {
     private MethodDeclaration getMethodAst(Node node) {
         Visitable clone = node.accept(new CloneVisitor(), null);
         assert clone instanceof MethodDeclaration;
-        clone.accept(new SliceAstVisitor(), this);
+        clone.accept(new SlicePruneVisitor(), nodes);
         return ((MethodDeclaration) clone);
     }
 }
