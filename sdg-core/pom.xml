@@ -45,12 +45,5 @@
             <version>RELEASE</version>
             <scope>test</scope>
         </dependency>
-
-        <dependency>
-            <groupId>tfm</groupId>
-            <artifactId>sdg-cli</artifactId>
-            <version>1.0-SNAPSHOT</version>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 </project>

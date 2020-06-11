@@ -9,8 +9,6 @@ import com.github.javaparser.ast.stmt.ThrowStmt;
 import com.github.javaparser.ast.stmt.TryStmt;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-import tfm.cli.GraphLog;
-import tfm.cli.PDGLog;
 import tfm.graphs.augmented.ACFG;
 import tfm.graphs.augmented.APDG;
 import tfm.graphs.augmented.PPDG;
@@ -59,14 +57,14 @@ public class PDGTests {
 
     private void runPdg(File file, String methodName, MethodDeclaration root, PDG pdg) throws IOException {
         pdg.build(root);
-        GraphLog<?> graphLog = new PDGLog(pdg);
-        graphLog.log();
-        try {
-            graphLog.generateImages(file.getPath() + "-" + methodName);
-        } catch (Exception e) {
-            System.err.println("Could not generate PNG");
-            System.err.println(e.getMessage());
-        }
+//        GraphLog<?> graphLog = new PDGLog(pdg);
+//        graphLog.log();
+//        try {
+//            graphLog.generateImages(file.getPath() + "-" + methodName);
+//        } catch (Exception e) {
+//            System.err.println("Could not generate PNG");
+//            System.err.println(e.getMessage());
+//        }
     }
 
     @ParameterizedTest(name = "[{index}] {0} ({1})")
