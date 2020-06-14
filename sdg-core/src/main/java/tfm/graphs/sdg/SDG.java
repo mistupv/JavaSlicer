@@ -13,12 +13,8 @@ import tfm.arcs.sdg.SummaryArc;
 import tfm.graphs.Buildable;
 import tfm.graphs.Graph;
 import tfm.graphs.cfg.CFG;
-<<<<<<< HEAD
-import tfm.nodes.*;
-=======
 import tfm.nodes.GraphNode;
 import tfm.slicing.ClassicSlicingAlgorithm;
->>>>>>> 303de98... Created the SDG's ClassicSlicingAlgorithm
 import tfm.slicing.Slice;
 import tfm.slicing.Sliceable;
 import tfm.slicing.SlicingCriterion;
