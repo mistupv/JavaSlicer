@@ -9,6 +9,7 @@ import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
+import com.github.javaparser.resolution.UnsolvedSymbolException;
 import tfm.arcs.Arc;
 import tfm.graphs.cfg.CFG;
 import tfm.nodes.GraphNode;
@@ -92,15 +93,16 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 //                .filter(Expression::isMethodCallExpr)
 //                .forEach(expression -> expression.accept(this, context));
 
-        Optional<GraphNode<MethodDeclaration>> optMethodDeclGraphNode = methodCallExpr.resolve().toAst()
-                .flatMap(sdg::findNodeByASTNode);
-
-        if (optMethodDeclGraphNode.isEmpty()) {
-            Logger.format("Not found: '%s'. Discarding", methodCallExpr);
+        GraphNode<MethodDeclaration> methodDeclarationNode;
+        try {
+            methodDeclarationNode = methodCallExpr.resolve().toAst()
+                    .flatMap(sdg::findNodeByASTNode)
+                    .orElseThrow(() -> new UnsolvedSymbolException(""));
+        } catch (UnsolvedSymbolException e) {
+            Logger.format("Method declaration not found: '%s'. Discarding", methodCallExpr);
             return;
         }
 
-        GraphNode<MethodDeclaration> methodDeclarationNode = optMethodDeclGraphNode.get();
         MethodDeclaration methodDeclaration = methodDeclarationNode.getAstNode();
 
         Optional<CFG> optionalCFG = sdg.getMethodCFG(methodDeclaration);
