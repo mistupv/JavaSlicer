@@ -1,7 +1,5 @@
 package tfm.programs.sdg;
 
-import tfm.utils.Logger;
-
 public class Example1 {
 
     public static void main(String[] args) {
@@ -10,8 +8,7 @@ public class Example1 {
 
         int f = sum(n1, n2);
 
-        Logger.log(f);
-        Logger.log(z);
+        System.out.println(f);
     }
 
     private static int sum(int x, int y) {

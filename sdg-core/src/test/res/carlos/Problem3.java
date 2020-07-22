@@ -6,15 +6,15 @@ public class Problem3 {
         try {
             f();
         } catch (Exception e) {
-            log("error");
+            System.out.println("error");
         }
         x = 1;
         f();
     }
 
-    public static void f() {
+    public static void f() throws Exception {
         if (x % 2 == 0)
             throw new Exception("error!");
-        log("x = " + x);
+        System.out.println("x = " + x);
     }
 }

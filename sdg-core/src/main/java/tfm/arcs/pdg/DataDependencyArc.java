@@ -5,8 +5,10 @@ import org.jgrapht.io.DefaultAttribute;
 import tfm.arcs.Arc;
 import tfm.graphs.pdg.PDG;
 import tfm.graphs.sdg.SDG;
+import tfm.nodes.VariableAction;
 
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * An arc used in the {@link PDG} and {@link SDG},
@@ -16,13 +18,40 @@ import java.util.Map;
  * path between the nodes where the variable is not redefined.
  */
 public class DataDependencyArc extends Arc {
+    protected final VariableAction source;
+    protected final VariableAction target;
 
-    public DataDependencyArc(String variable) {
-        super(variable);
+    public DataDependencyArc(VariableAction.Definition source, VariableAction.Usage target) {
+        super(source.getVariable());
+        this.source = source;
+        this.target = target;
     }
 
-    public DataDependencyArc() {
-        super();
+    public DataDependencyArc(VariableAction.Declaration source, VariableAction.Definition target) {
+        super(source.getVariable());
+        this.source = source;
+        this.target = target;
+    }
+
+    public VariableAction getSource() {
+        return source;
+    }
+
+    public VariableAction getTarget() {
+        return target;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        return super.equals(o)
+                && o instanceof DataDependencyArc
+                && Objects.equals(source, ((DataDependencyArc) o).source)
+                && Objects.equals(target, ((DataDependencyArc) o).target);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), source, target);
     }
 
     @Override

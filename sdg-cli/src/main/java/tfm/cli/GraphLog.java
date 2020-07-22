@@ -1,6 +1,9 @@
 package tfm.cli;
 
+import org.jgrapht.io.DOTExporter;
+import tfm.arcs.Arc;
 import tfm.graphs.Graph;
+import tfm.nodes.GraphNode;
 import tfm.utils.FileUtil;
 import tfm.utils.Logger;
 
@@ -21,15 +24,12 @@ public abstract class GraphLog<G extends Graph> {
         }
     }
 
-    static final String CFG = "cfg";
-    static final String PDG = "pdg";
-    static final String SDG = "sdg";
-
-    G graph;
+    protected G graph;
 
     protected String imageName;
-    protected Format format;
+    protected String format;
     protected boolean generated = false;
+    protected File outputDir = new File("./out/");
 
     public GraphLog() {
         this(null);
@@ -37,6 +37,10 @@ public abstract class GraphLog<G extends Graph> {
 
     public GraphLog(G graph) {
         this.graph = graph;
+    }
+
+    public void setDirectory(File outputDir) {
+        this.outputDir = outputDir;
     }
 
     public void log() throws IOException {
@@ -52,7 +56,7 @@ public abstract class GraphLog<G extends Graph> {
                 "****************************"
         );
         try (StringWriter stringWriter = new StringWriter()) {
-            graph.getDOTExporter().exportGraph(graph, stringWriter);
+            getDOTExporter(graph).exportGraph(graph, stringWriter);
             stringWriter.append('\n');
             Logger.log(stringWriter.toString());
         }
@@ -63,22 +67,24 @@ public abstract class GraphLog<G extends Graph> {
     }
 
     public void generateImages(String imageName) throws IOException {
-        generateImages(imageName, Format.PNG);
+        generateImages(imageName, "pdf");
     }
 
-    public void generateImages(String imageName, Format format) throws IOException {
-        this.imageName = imageName + "-" + graph.getClass().getName();
+    public void generateImages(String imageName, String format) throws IOException {
+        this.imageName = imageName + "-" + graph.getClass().getSimpleName();
         this.format = format;
         generated = true;
         File tmpDot = File.createTempFile("graph-source-", ".dot");
+        tmpDot.getParentFile().mkdirs();
+        getImageFile().getParentFile().mkdirs();
 
         // Graph -> DOT -> file
         try (Writer w = new FileWriter(tmpDot)) {
-            graph.getDOTExporter().exportGraph(graph, w);
+            getDOTExporter(graph).exportGraph(graph, w);
         }
         // Execute dot
         ProcessBuilder pb = new ProcessBuilder("dot",
-            tmpDot.getAbsolutePath(), "-T" + format.getExt(),
+            tmpDot.getAbsolutePath(), "-T" + format,
             "-o", getImageFile().getAbsolutePath());
         try {
             int result = pb.start().waitFor();
@@ -96,7 +102,11 @@ public abstract class GraphLog<G extends Graph> {
         FileUtil.open(getImageFile());
     }
 
-    protected File getImageFile() {
-        return new File("./out/" + imageName + "." + format.getExt());
+    public File getImageFile() {
+        return new File(outputDir, imageName + "." + format);
+    }
+
+    protected DOTExporter<GraphNode<?>, Arc> getDOTExporter(G graph) {
+        return graph.getDOTExporter();
     }
 }

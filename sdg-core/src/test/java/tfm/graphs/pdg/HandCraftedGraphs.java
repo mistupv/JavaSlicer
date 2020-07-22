@@ -50,8 +50,8 @@ public class HandCraftedGraphs {
         cfg.addNonExecutableControlFlowEdge(cfg.getRootNode().get(), end);
 
         PPDG pdg = new PPDG(cfg);
-        ControlDependencyBuilder gen = new ControlDependencyBuilder(pdg, cfg);
-        gen.analyze();
+        ControlDependencyBuilder gen = new ControlDependencyBuilder(cfg, pdg);
+        gen.build();
         return pdg;
     }
 
@@ -92,8 +92,8 @@ public class HandCraftedGraphs {
         cfg.addNonExecutableControlFlowEdge(cfg.getRootNode().get(), end);
 
         PPDG pdg = new PPDG(cfg);
-        ControlDependencyBuilder gen = new ControlDependencyBuilder(pdg, cfg);
-        gen.analyze();
+        ControlDependencyBuilder gen = new ControlDependencyBuilder(cfg, pdg);
+        gen.build();
         return pdg;
     }
 }

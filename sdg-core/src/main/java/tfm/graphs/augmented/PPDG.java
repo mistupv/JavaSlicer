@@ -1,12 +1,6 @@
 package tfm.graphs.augmented;
 
-import tfm.nodes.GraphNode;
-import tfm.slicing.PseudoPredicateSlicingAlgorithm;
-import tfm.slicing.Slice;
-import tfm.slicing.SlicingCriterion;
-import tfm.utils.NodeNotFoundException;
-
-import java.util.Optional;
+import tfm.graphs.pdg.PDG;
 
 public class PPDG extends APDG {
     public PPDG() {
@@ -18,10 +12,18 @@ public class PPDG extends APDG {
     }
 
     @Override
-    public Slice slice(SlicingCriterion slicingCriterion) {
-        Optional<GraphNode<?>> node = slicingCriterion.findNode(this);
-        if (node.isEmpty())
-            throw new NodeNotFoundException(slicingCriterion);
-        return new PseudoPredicateSlicingAlgorithm(this).traverse(node.get());
+    protected PDG.Builder createBuilder() {
+        return new Builder();
+    }
+
+    public class Builder extends APDG.Builder {
+        protected Builder() {
+            super();
+        }
+
+        @Override
+        protected void buildControlDependency() {
+            new ControlDependencyBuilder((ACFG) cfg, PPDG.this).build();
+        }
     }
 }

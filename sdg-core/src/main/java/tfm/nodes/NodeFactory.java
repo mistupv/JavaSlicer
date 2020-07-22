@@ -3,7 +3,7 @@ package tfm.nodes;
 import com.github.javaparser.ast.Node;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Collection;
+import java.util.List;
 
 public interface NodeFactory {
 
@@ -13,18 +13,14 @@ public interface NodeFactory {
      *
      * @param instruction the instruction that represents
      * @param node the node of the AST that represents
-     * @param declaredVariables the set of declared variables
-     * @param definedVariables the set of defined variables
-     * @param usedVariables the set of used variables
+     * @param variableActions the list of variable actions performed in this node
      * @param <ASTNode> the type of the AST node
      * @return a new GraphNode
      */
     <ASTNode extends Node> GraphNode<ASTNode> computedGraphNode(
             @NotNull String instruction,
             @NotNull ASTNode node,
-            @NotNull Collection<String> declaredVariables,
-            @NotNull Collection<String> definedVariables,
-            @NotNull Collection<String> usedVariables
+            @NotNull List<VariableAction> variableActions
     );
 
 

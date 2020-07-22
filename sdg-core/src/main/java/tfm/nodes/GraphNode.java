@@ -1,18 +1,17 @@
 package tfm.nodes;
 
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.expr.NameExpr;
 import org.jetbrains.annotations.NotNull;
 import tfm.graphs.cfg.CFG;
 import tfm.graphs.pdg.PDG;
 import tfm.graphs.sdg.SDG;
 import tfm.nodes.type.NodeType;
-import tfm.utils.Utils;
-import tfm.variables.VariableExtractor;
 
-import java.util.Collection;
-import java.util.HashSet;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
 /**
  * Represents a node in the various graphs ({@link CFG CFG},
@@ -25,58 +24,38 @@ import java.util.Set;
  * @param <N> The type of the AST represented by this node.
  */
 public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
-
     public static final NodeFactory DEFAULT_FACTORY = TypeNodeFactory.fromType(NodeType.STATEMENT);
 
-    private final NodeType nodeType;
+    protected final NodeType nodeType;
 
-    private final long id;
-    private final String instruction;
-    private final N astNode;
+    protected final long id;
+    protected final String instruction;
+    protected final N astNode;
+    protected final List<VariableAction> variableActions;
 
-    private final Set<String> declaredVariables;
-    private final Set<String> definedVariables;
-    private final Set<String> usedVariables;
+    protected GraphNode(NodeType type, String instruction, @NotNull N astNode) {
+        this(IdHelper.getInstance().getNextId(), type, instruction, astNode);
+    }
 
-    GraphNode(long id, NodeType type, String instruction, @NotNull N astNode) {
-        this(
-                id,
-                type,
-                instruction,
-                astNode,
-                Utils.emptySet(),
-                Utils.emptySet(),
-                Utils.emptySet()
-        );
-
+    protected GraphNode(long id, NodeType type, String instruction, @NotNull N astNode) {
+        this(id, type, instruction, astNode, new LinkedList<>());
         extractVariables(astNode);
     }
 
-    GraphNode(
-                long id,
-                NodeType type,
-                String instruction,
-                @NotNull N astNode,
-                Collection<String> declaredVariables,
-                Collection<String> definedVariables,
-                Collection<String> usedVariables
-    ) {
+    protected GraphNode(NodeType type, String instruction, @NotNull N astNode, List<VariableAction> variableActions) {
+        this(IdHelper.getInstance().getNextId(), type, instruction, astNode, variableActions);
+    }
+
+    protected GraphNode(long id, NodeType type, String instruction, @NotNull N astNode, List<VariableAction> variableActions) {
         this.id = id;
         this.nodeType = type;
         this.instruction = instruction;
         this.astNode = astNode;
-
-        this.declaredVariables = new HashSet<>(declaredVariables);
-        this.definedVariables = new HashSet<>(definedVariables);
-        this.usedVariables = new HashSet<>(usedVariables);
+        this.variableActions = variableActions;
     }
 
-    private void extractVariables(@NotNull Node node) {
-        new VariableExtractor()
-                .setOnVariableDeclarationListener(this.declaredVariables::add)
-                .setOnVariableDefinitionListener(this.definedVariables::add)
-                .setOnVariableUseListener(this.usedVariables::add)
-                .visit(node);
+    protected void extractVariables(@NotNull Node node) {
+        new VariableVisitor(this::addUsedVariable, this::addDefinedVariable, this::addDeclaredVariable).search(node);
     }
 
     public long getId() {
@@ -96,16 +75,20 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
         return astNode;
     }
 
-    public void addDeclaredVariable(String variable) {
-        declaredVariables.add(variable);
+    public void addDeclaredVariable(NameExpr variable) {
+        variableActions.add(new VariableAction.Declaration(variable, this));
     }
 
-    public void addDefinedVariable(String variable) {
-        definedVariables.add(variable);
+    public VariableAction.Definition addDefinedVariable(NameExpr variable) {
+        VariableAction.Definition def = new VariableAction.Definition(variable, this);
+        variableActions.add(def);
+        return def;
     }
 
-    public void addUsedVariable(String variable) {
-        usedVariables.add(variable);
+    public VariableAction.Usage addUsedVariable(NameExpr variable) {
+        VariableAction.Usage use = new VariableAction.Usage(variable, this);
+        variableActions.add(use);
+        return use;
     }
 
     @Override
@@ -129,16 +112,8 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
         return Objects.hash(getId(), getNodeType(), getInstruction(), getAstNode());
     }
 
-    public Set<String> getDeclaredVariables() {
-        return declaredVariables;
-    }
-
-    public Set<String> getDefinedVariables() {
-        return definedVariables;
-    }
-
-    public Set<String> getUsedVariables() {
-        return usedVariables;
+    public List<VariableAction> getVariableActions() {
+        return Collections.unmodifiableList(variableActions);
     }
 
     public String getInstruction() {

@@ -23,6 +23,10 @@ public class Slice {
         nodes.add(node.getAstNode());
     }
 
+    public void addAll(Collection<GraphNode<?>> nodes) {
+        nodes.forEach(this::add);
+    }
+
     public boolean contains(GraphNode<?> node) {
         return map.containsKey(node.getId());
     }

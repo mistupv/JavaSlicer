@@ -1,6 +1,6 @@
 package tfm.nodes;
 
-class IdHelper {
+public class IdHelper {
 
     private static final int START_ID = 0;
 
@@ -18,5 +18,10 @@ class IdHelper {
 
     synchronized long getNextId() {
         return nextId++;
+    }
+
+    /** DO NOT USE!!! */
+    public static synchronized void reset() {
+        getInstance().nextId = START_ID;
     }
 }

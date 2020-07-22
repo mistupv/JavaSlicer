@@ -1,14 +1,13 @@
 package tfm.slicing;
 
 import tfm.arcs.Arc;
-import tfm.graphs.Graph;
+import tfm.graphs.exceptionsensitive.ESSDG;
 import tfm.nodes.GraphNode;
-import tfm.utils.ASTUtils;
 
 public class PseudoPredicateSlicingAlgorithm extends ClassicSlicingAlgorithm {
     protected GraphNode<?> slicingCriterion;
 
-    public PseudoPredicateSlicingAlgorithm(Graph graph) {
+    public PseudoPredicateSlicingAlgorithm(ESSDG graph) {
         super(graph);
     }
 
@@ -30,6 +29,8 @@ public class PseudoPredicateSlicingAlgorithm extends ClassicSlicingAlgorithm {
 
     protected boolean ignorePseudoPredicate(Arc arc) {
         GraphNode<?> target = graph.getEdgeTarget(arc);
-        return ASTUtils.isPseudoPredicate(target.getAstNode()) && target != slicingCriterion;
+        return ((ESSDG) graph).isPseudoPredicate(target)
+                && arc.isControlDependencyArc()
+                && target != slicingCriterion;
     }
 }

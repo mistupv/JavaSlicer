@@ -3,8 +3,8 @@ package tfm.graphs.sdg;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
-import tfm.arcs.Arc;
 import tfm.arcs.pdg.ControlDependencyArc;
 import tfm.arcs.pdg.DataDependencyArc;
 import tfm.arcs.sdg.CallArc;
@@ -13,25 +13,26 @@ import tfm.arcs.sdg.SummaryArc;
 import tfm.graphs.Buildable;
 import tfm.graphs.Graph;
 import tfm.graphs.cfg.CFG;
+import tfm.graphs.sdg.sumarcs.NaiveSummaryArcsBuilder;
 import tfm.nodes.GraphNode;
+import tfm.nodes.VariableAction;
 import tfm.slicing.ClassicSlicingAlgorithm;
 import tfm.slicing.Slice;
 import tfm.slicing.Sliceable;
 import tfm.slicing.SlicingCriterion;
 import tfm.utils.Context;
-import tfm.utils.Utils;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 public class SDG extends Graph implements Sliceable, Buildable<NodeList<CompilationUnit>> {
-    private boolean built = false;
+    protected final List<CFG> cfgs = new LinkedList<>();
 
-    private Map<MethodDeclaration, CFG> methodCFGMap;
-    private NodeList<CompilationUnit> compilationUnits;
-
-    public SDG() {
-        this.methodCFGMap = new HashMap<>();
-    }
+    protected boolean built = false;
+    protected NodeList<CompilationUnit> compilationUnits;
 
     public NodeList<CompilationUnit> getCompilationUnits() {
         return compilationUnits;
@@ -47,9 +48,15 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
 
     @Override
     public void build(NodeList<CompilationUnit> nodeList) {
-        nodeList.accept(new SDGBuilder(this), new Context());
+        nodeList.accept(createBuilder(), new Context());
+        nodeList.accept(new MethodCallReplacerVisitor(this), new Context());
+        new NaiveSummaryArcsBuilder(this).visit();
         compilationUnits = nodeList;
         built = true;
+    }
+
+    protected SDGBuilder createBuilder() {
+        return new SDGBuilder(this);
     }
 
     @Override
@@ -57,32 +64,27 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
         return built;
     }
 
-    public Set<MethodDeclaration> getMethodDeclarations() {
-        return this.methodCFGMap.keySet();
+    public void setMethodCFG(CFG cfg) {
+        this.cfgs.add(cfg);
     }
 
-    public void setMethodCFG(MethodDeclaration methodDeclaration, CFG cfg) {
-        this.methodCFGMap.put(methodDeclaration, cfg);
-    }
-
-    public Optional<CFG> getMethodCFG(MethodDeclaration methodDeclaration) {
-        if (!this.methodCFGMap.containsKey(methodDeclaration)) {
-            return Optional.empty();
-        }
-
-        return Optional.of(this.methodCFGMap.get(methodDeclaration));
+    public Collection<CFG> getCFGs() {
+        return cfgs;
     }
 
     public void addControlDependencyArc(GraphNode<?> from, GraphNode<?> to) {
         this.addEdge(from, to, new ControlDependencyArc());
     }
 
-    public void addDataDependencyArc(GraphNode<?> from, GraphNode<?> to) {
-        this.addDataDependencyArc(from, to, null);
-    }
-
-    public void addDataDependencyArc(GraphNode<?> from, GraphNode<?> to, String variable) {
-        this.addEdge(from, to, new DataDependencyArc(variable));
+    public void addDataDependencyArc(VariableAction src, VariableAction tgt) {
+        DataDependencyArc arc;
+        if (src instanceof VariableAction.Definition && tgt instanceof VariableAction.Usage)
+            arc = new DataDependencyArc((VariableAction.Definition) src, (VariableAction.Usage) tgt);
+        else if (src instanceof VariableAction.Declaration && tgt instanceof VariableAction.Definition)
+            arc = new DataDependencyArc((VariableAction.Declaration) src, (VariableAction.Definition) tgt);
+        else
+            throw new UnsupportedOperationException("Unsupported combination of VariableActions");
+        addEdge(src.getGraphNode(), tgt.getGraphNode(), arc);
     }
 
     public void addCallArc(GraphNode<?> from, GraphNode<MethodDeclaration> to) {
@@ -98,26 +100,13 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
     }
 
     public List<GraphNode<?>> findDeclarationsOfVariable(String variable, GraphNode<?> root) {
-        return this.methodCFGMap.values().stream()
+        return this.cfgs.stream()
                 .filter(cfg -> cfg.containsVertex(root))
                 .findFirst()
-                .map(cfg -> doFindDeclarationsOfVariable(variable, root, cfg, Utils.emptyList()))
-                .orElse(Utils.emptyList());
-    }
-
-    private List<GraphNode<?>> doFindDeclarationsOfVariable(String variable, GraphNode<?> root, CFG cfg, List<GraphNode<?>> res) {
-        Set<Arc> controlDependencies = cfg.incomingEdgesOf(root);
-
-        for (Arc arc : controlDependencies) {
-            GraphNode<?> source = cfg.getEdgeSource(arc);
-
-            if (source.getDeclaredVariables().contains(variable)) {
-                res.add(root);
-            } else {
-                res.addAll(doFindDeclarationsOfVariable(variable, source, cfg, res));
-            }
-        }
-
-        return res;
+                .map(cfg -> cfg.findLastDeclarationsFrom(root, new VariableAction.Definition(new NameExpr(variable), root)))
+                .orElseThrow()
+                .stream()
+                .map(VariableAction::getGraphNode)
+                .collect(Collectors.toList());
     }
 }

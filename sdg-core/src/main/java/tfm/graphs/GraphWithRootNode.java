@@ -2,7 +2,6 @@ package tfm.graphs;
 
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
-import org.jetbrains.annotations.NotNull;
 import tfm.nodes.GraphNode;
 import tfm.nodes.NodeFactory;
 
@@ -10,7 +9,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 public abstract class GraphWithRootNode<ASTRootNode extends Node> extends Graph implements Buildable<MethodDeclaration> {
-
+    protected boolean built = false;
     protected GraphNode<ASTRootNode> rootNode;
 
     protected GraphWithRootNode() {
@@ -19,22 +18,16 @@ public abstract class GraphWithRootNode<ASTRootNode extends Node> extends Graph 
 
     /**
      * Builds the root node with the given instruction and AST node.
-     * If the root node already exists, just returns false
-     *
+     * If the root node already exists, nothing happens.
      * @param instruction the instruction string
      * @param rootNodeAst the AST node
-     * @return true if the root node is created, false otherwise
      */
-    public boolean buildRootNode(@NotNull String instruction, @NotNull ASTRootNode rootNodeAst, @NotNull NodeFactory nodeFactory) {
-        if (rootNode != null) {
-            return false;
-        }
-
+    public void buildRootNode(String instruction, ASTRootNode rootNodeAst, NodeFactory nodeFactory) {
+        if (rootNode != null)
+            return;
         GraphNode<ASTRootNode> root = nodeFactory.graphNode(instruction, rootNodeAst);
         this.rootNode = root;
         this.addVertex(root);
-
-        return true;
     }
 
     public Optional<GraphNode<ASTRootNode>> getRootNode() {
@@ -56,5 +49,10 @@ public abstract class GraphWithRootNode<ASTRootNode extends Node> extends Graph 
         }
 
         return super.removeVertex(graphNode);
+    }
+
+    @Override
+    public boolean isBuilt() {
+        return built;
     }
 }
