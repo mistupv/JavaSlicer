@@ -60,10 +60,6 @@ public class ESCFG extends ACFG {
                 exceptions.put(t, true);
         }
 
-        public ExceptionSource(GraphNode<?> source, Collection<ResolvedType> exceptionTypes) {
-            this(source, exceptionTypes.toArray(ResolvedType[]::new));
-        }
-
         public void deactivateTypes(ResolvedReferenceType type) {
             exceptions.keySet().stream().filter(type::isAssignableBy).forEach(t -> exceptions.put(t, false));
         }
@@ -273,9 +269,6 @@ public class ESCFG extends ACFG {
                     tryNonExecHangingStack.peek().add(exceptionReturn);
                 clearHanging();
             }
-
-            // Add an exception source for the call node
-            populateExceptionSourceMap(new ExceptionSource(stmtNode, resolved.getSpecifiedExceptions()));
 
             // Register set of return nodes
             pendingNormalReturnNodes.put(normalReturn, returnNodes);

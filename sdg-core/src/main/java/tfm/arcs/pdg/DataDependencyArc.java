@@ -57,8 +57,7 @@ public class DataDependencyArc extends Arc {
     @Override
     public Map<String, Attribute> getDotAttributes() {
         Map<String, Attribute> map = super.getDotAttributes();
-        map.put("style", DefaultAttribute.createAttribute("dashed"));
-        map.put("color", DefaultAttribute.createAttribute("red"));
+        map.put("color", DefaultAttribute.createAttribute(target.isDefinition() ? "pink" : "red"));
         return map;
     }
 }
