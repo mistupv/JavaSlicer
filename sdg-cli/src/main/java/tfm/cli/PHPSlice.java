@@ -97,20 +97,24 @@ public class PHPSlice {
         SDG sdg = cliOpts.hasOption("exception-sensitive") ? new ESSDG() : new SDG();
         sdg.build(units);
 
-        // Slice the SDG
-        SlicingCriterion sc = new NodeIdSlicingCriterion(scId, "");
-        Slice slice = sdg.slice(sc);
+        SlicingCriterion sc = new NodeIdSlicingCriterion(0, "");
+        Slice slice = new Slice();
+        if (scId != 0) {
+            // Slice the SDG
+            sc = new NodeIdSlicingCriterion(scId, "");
+            slice = sdg.slice(sc);
 
-        // Convert the slice to code and output the result to `outputDir`
-        for (CompilationUnit cu : slice.toAst()) {
-            if (cu.getStorage().isEmpty())
-                throw new IllegalStateException("A synthetic CompilationUnit was discovered, with no file associated to it.");
-            File javaFile = new File(outputDir, cu.getStorage().get().getFileName());
-            try (PrintWriter pw = new PrintWriter(javaFile)) {
-                pw.print(new BlockComment(getDisclaimer(cu.getStorage().get())));
-                pw.print(cu);
-            } catch (FileNotFoundException e) {
-                System.err.println("Could not write file " + javaFile);
+            // Convert the slice to code and output the result to `outputDir`
+            for (CompilationUnit cu : slice.toAst()) {
+                if (cu.getStorage().isEmpty())
+                    throw new IllegalStateException("A synthetic CompilationUnit was discovered, with no file associated to it.");
+                File javaFile = new File(outputDir, cu.getStorage().get().getFileName());
+                try (PrintWriter pw = new PrintWriter(javaFile)) {
+                    pw.print(new BlockComment(getDisclaimer(cu.getStorage().get())));
+                    pw.print(cu);
+                } catch (FileNotFoundException e) {
+                    System.err.println("Could not write file " + javaFile);
+                }
             }
         }
 
@@ -137,6 +141,7 @@ public class PHPSlice {
             new PHPSlice(args).slice();
         } catch (Exception e) {
             System.err.println("Error!\n" + e.getMessage());
+            e.printStackTrace(System.err);
         }
     }
 
