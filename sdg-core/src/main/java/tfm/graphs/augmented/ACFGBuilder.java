@@ -255,7 +255,8 @@ public class ACFGBuilder extends CFGBuilder {
         if (!methodDeclaration.getBody().isPresent())
             throw new IllegalStateException("The method must have a body!");
 
-        graph.buildRootNode("ENTER " + methodDeclaration.getNameAsString(), methodDeclaration, TypeNodeFactory.fromType(NodeType.METHOD_ENTER));
+        graph.buildRootNode("ENTER " + methodDeclaration.getDeclarationAsString(false, false, false),
+                methodDeclaration, TypeNodeFactory.fromType(NodeType.METHOD_ENTER));
 
         hangingNodes.add(graph.getRootNode().get());
         for (Parameter param : methodDeclaration.getParameters())

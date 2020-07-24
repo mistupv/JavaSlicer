@@ -105,7 +105,8 @@ public class ESCFG extends ACFG {
             if (methodDeclaration.getBody().isEmpty())
                 throw new IllegalStateException("The method must have a body!");
 
-            buildRootNode("ENTER " + methodDeclaration.getNameAsString(), methodDeclaration, TypeNodeFactory.fromType(NodeType.METHOD_ENTER));
+            buildRootNode("ENTER " + methodDeclaration.getDeclarationAsString(false, false, false),
+                    methodDeclaration, TypeNodeFactory.fromType(NodeType.METHOD_ENTER));
 
             hangingNodes.add(getRootNode().get());
             for (Parameter param : methodDeclaration.getParameters())

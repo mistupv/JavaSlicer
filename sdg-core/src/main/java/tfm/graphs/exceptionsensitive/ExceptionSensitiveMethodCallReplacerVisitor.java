@@ -8,7 +8,6 @@ import com.github.javaparser.resolution.types.ResolvedReferenceType;
 import com.github.javaparser.resolution.types.ResolvedType;
 import tfm.graphs.sdg.MethodCallReplacerVisitor;
 import tfm.nodes.*;
-import tfm.utils.Context;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -19,10 +18,10 @@ public class ExceptionSensitiveMethodCallReplacerVisitor extends MethodCallRepla
     }
 
     @Override
-    public void visit(MethodCallExpr methodCallExpr, Context context) {
+    public void visit(MethodCallExpr methodCallExpr, Void arg) {
         if (methodCallExpr.resolve().getNumberOfSpecifiedExceptions() > 0)
             handleExceptionReturnArcs(methodCallExpr);
-        super.visit(methodCallExpr, context);
+        super.visit(methodCallExpr, arg);
     }
 
     /** Creates the following connections:
@@ -109,7 +108,7 @@ public class ExceptionSensitiveMethodCallReplacerVisitor extends MethodCallRepla
                     // Skip Error, unless Throwable is present as EE node
                     if (type.getQualifiedName().equals("java.lang.Error") && !hasThrowable)
                         continue;
-                    // Object has no ancestors, the search has ended
+                    // Object has no ancestors, the startVisit has ended
                     if (!type.getQualifiedName().equals("java.lang.Object"))
                         newTypeList.addAll(type.asReferenceType().getDirectAncestors());
                 }

@@ -1,15 +1,13 @@
 package tfm.nodes;
 
-import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.*;
-import com.github.javaparser.ast.stmt.*;
-import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
+import com.github.javaparser.ast.stmt.ForEachStmt;
+import tfm.graphs.GraphNodeContentVisitor;
 
 import java.util.Set;
-import java.util.function.Consumer;
 
-public class VariableVisitor extends VoidVisitorAdapter<VariableVisitor.Action> {
+public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Action> {
     enum Action {
         DECLARATION,
         DEFINITION,
@@ -29,50 +27,26 @@ public class VariableVisitor extends VoidVisitorAdapter<VariableVisitor.Action> 
     protected static final Set<UnaryExpr.Operator> POSTFIX_CHANGE = Set.of(
             UnaryExpr.Operator.POSTFIX_DECREMENT, UnaryExpr.Operator.POSTFIX_INCREMENT);
 
-    protected final Consumer<NameExpr> onUse;
-    protected final Consumer<NameExpr> onDef;
-    protected final Consumer<NameExpr> onDecl;
-
-    public VariableVisitor(Consumer<NameExpr> onUse, Consumer<NameExpr> onDef, Consumer<NameExpr> onDecl) {
-        this.onUse = onUse;
-        this.onDecl = onDecl;
-        this.onDef = onDef;
-    }
-
-    public void search(Node node) {
-        node.accept(this, Action.USE);
+    @Override
+    public void startVisit(GraphNode<?> node) {
+        startVisit(node, Action.USE);
     }
 
     @Override
     public void visit(NameExpr n, Action action) {
         switch (action) {
             case DECLARATION:
-                onDecl.accept(n);
+                graphNode.addDeclaredVariable(n);
                 break;
             case DEFINITION:
-                onDef.accept(n);
+                graphNode.addDefinedVariable(n);
                 break;
             case USE:
-                onUse.accept(n);
+                graphNode.addUsedVariable(n);
                 break;
             default:
                 throw new UnsupportedOperationException();
         }
-    }
-
-    // Transparently traversed (they contain no statements):
-    // AssertStmt, BreakStmt, ContinueStmt, EmptyStmt, ExplicitConstructorInvocationStmt,
-    // ReturnStmt, ExpressionStmt, LocalClassDeclarationStmt
-    // Transparently traversed (they contain only USE expressions):
-    // ArrayAccessExpr, BinaryExpr, ConditionalExpr, EnclosedExpr
-
-    // Not traversed at all (they only contain statements)
-    @Override
-    public void visit(BlockStmt n, Action arg) {
-    }
-
-    @Override
-    public void visit(TryStmt n, Action arg) {
     }
 
     // Partially traversed (only expressions that may contain variables are traversed)
@@ -84,36 +58,6 @@ public class VariableVisitor extends VoidVisitorAdapter<VariableVisitor.Action> 
     @Override
     public void visit(FieldAccessExpr n, Action action) {
         n.getScope().accept(this, action);
-    }
-
-    @Override
-    public void visit(DoStmt n, Action arg) {
-        n.getCondition().accept(this, Action.USE);
-    }
-
-    @Override
-    public void visit(ForStmt n, Action arg) {
-        n.getCompare().ifPresent(expression -> expression.accept(this, Action.USE));
-    }
-
-    @Override
-    public void visit(WhileStmt n, Action arg) {
-        n.getCondition().accept(this, Action.USE);
-    }
-
-    @Override
-    public void visit(IfStmt n, Action arg) {
-        n.getCondition().accept(this, Action.USE);
-    }
-
-    @Override
-    public void visit(SwitchEntryStmt n, Action arg) {
-        n.getLabel().ifPresent(expression -> expression.accept(this, Action.USE));
-    }
-
-    @Override
-    public void visit(SwitchStmt n, Action arg) {
-        n.getSelector().accept(this, Action.USE);
     }
 
     // Modified traversal (there may be variable definitions or declarations)

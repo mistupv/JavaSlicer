@@ -41,7 +41,8 @@ public class ESSDG extends SDG {
     @Override
     public void build(NodeList<CompilationUnit> nodeList) {
         nodeList.accept(createBuilder(), new Context());
-        nodeList.accept(new ExceptionSensitiveMethodCallReplacerVisitor(this), new Context());
+        Set<GraphNode<?>> vertices = Set.copyOf(vertexSet());
+        vertices.forEach(n -> new ExceptionSensitiveMethodCallReplacerVisitor(this).startVisit(n));
         new NaiveSummaryArcsBuilder(this).visit();
         compilationUnits = nodeList;
         built = true;

@@ -312,7 +312,7 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
 
         // Create the root node
         graph.buildRootNode(
-                "ENTER " + methodDeclaration.getNameAsString(),
+                "ENTER " + methodDeclaration.getDeclarationAsString(false, false, false),
                 methodDeclaration,
                 TypeNodeFactory.fromType(NodeType.METHOD_ENTER));
         hangingNodes.add(graph.getRootNode().get());

@@ -39,7 +39,7 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
 
     protected GraphNode(long id, NodeType type, String instruction, @NotNull N astNode) {
         this(id, type, instruction, astNode, new LinkedList<>());
-        extractVariables(astNode);
+        extractVariables();
     }
 
     protected GraphNode(NodeType type, String instruction, @NotNull N astNode, List<VariableAction> variableActions) {
@@ -54,8 +54,8 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
         this.variableActions = variableActions;
     }
 
-    protected void extractVariables(@NotNull Node node) {
-        new VariableVisitor(this::addUsedVariable, this::addDefinedVariable, this::addDeclaredVariable).search(node);
+    protected void extractVariables() {
+        new VariableVisitor().startVisit(this);
     }
 
     public long getId() {

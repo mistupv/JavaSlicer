@@ -22,10 +22,7 @@ import tfm.slicing.Sliceable;
 import tfm.slicing.SlicingCriterion;
 import tfm.utils.Context;
 
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class SDG extends Graph implements Sliceable, Buildable<NodeList<CompilationUnit>> {
@@ -49,7 +46,8 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
     @Override
     public void build(NodeList<CompilationUnit> nodeList) {
         nodeList.accept(createBuilder(), new Context());
-        nodeList.accept(new MethodCallReplacerVisitor(this), new Context());
+        Set<GraphNode<?>> vertices = Set.copyOf(vertexSet());
+        vertices.forEach(n -> new MethodCallReplacerVisitor(this).startVisit(n));
         new NaiveSummaryArcsBuilder(this).visit();
         compilationUnits = nodeList;
         built = true;
