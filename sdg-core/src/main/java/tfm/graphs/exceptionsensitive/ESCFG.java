@@ -230,6 +230,7 @@ public class ESCFG extends ACFG {
         public void visit(ThrowStmt n, Void arg) {
             stmtStack.push(n);
             GraphNode<ThrowStmt> stmt = connectTo(n);
+            n.getExpression().accept(this, arg);
             stmt.addDefinedVariable(new NameExpr(ACTIVE_EXCEPTION_VARIABLE));
             populateExceptionSourceMap(new ExceptionSource(stmt, n.getExpression().calculateResolvedType()));
             clearHanging();

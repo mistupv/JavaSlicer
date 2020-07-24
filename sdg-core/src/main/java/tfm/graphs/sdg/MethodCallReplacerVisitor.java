@@ -33,6 +33,13 @@ public class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
     }
 
     @Override
+    public void visit(ThrowStmt n, Context arg) {
+        stmtStack.push(sdg.findNodeByASTNode(n).orElseThrow());
+        super.visit(n, arg);
+        stmtStack.pop();
+    }
+
+    @Override
     public void visit(DoStmt n, Context arg) {
         stmtStack.push(sdg.findNodeByASTNode(n).orElseThrow());
         super.visit(n, arg);
