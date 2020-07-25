@@ -325,16 +325,7 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         returnList.stream().filter(node -> !hangingNodes.contains(node)).forEach(hangingNodes::add);
 
         createAndConnectFormalOutNodes(methodDeclaration);
-        
-        // Create and connect formal-out nodes sequentially
-        for (Parameter param : methodDeclaration.getParameters()) {
-            // Do not generate out for primitives
-            if (param.getType().isPrimitiveType()) {
-                continue;
-            }
 
-            connectTo(addFormalOutGraphNode(param));
-        }
         // Create and connect the exit node
         connectTo(graph.addNode("Exit", new EmptyStmt(), TypeNodeFactory.fromType(NodeType.METHOD_EXIT)));
     }
