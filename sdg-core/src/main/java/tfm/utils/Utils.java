@@ -1,9 +1,6 @@
 package tfm.utils;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public class Utils {
 
@@ -15,5 +12,12 @@ public class Utils {
 
     public static <E> Set<E> emptySet() {
         return new HashSet<>(0);
+    }
+
+    public static <E> E setPop(Set<E> set) {
+        Iterator<E> it = set.iterator();
+        E e = it.next();
+        it.remove();
+        return e;
     }
 }

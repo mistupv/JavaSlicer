@@ -3,6 +3,7 @@ package tfm.arcs;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.io.Attribute;
 import tfm.arcs.cfg.ControlFlowArc;
+import tfm.arcs.pdg.ConditionalControlDependencyArc;
 import tfm.arcs.pdg.ControlDependencyArc;
 import tfm.arcs.pdg.DataDependencyArc;
 import tfm.arcs.sdg.CallArc;
@@ -25,7 +26,7 @@ public abstract class Arc extends DefaultEdge {
         this.label = label;
     }
 
-    /** @see tfm.arcs.cfg.ControlFlowArc */
+    /** @see ControlFlowArc */
     public final boolean isControlFlowArc() {
         return this instanceof ControlFlowArc;
     }
@@ -36,13 +37,17 @@ public abstract class Arc extends DefaultEdge {
         throw new UnsupportedOperationException("Not a ControlFlowArc");
     }
 
-    /** @see tfm.arcs.cfg.ControlFlowArc.NonExecutable */
+    /** @see ControlFlowArc.NonExecutable */
     public final boolean isExecutableControlFlowArc() {
-        return this instanceof ControlFlowArc &&
-                !(this instanceof ControlFlowArc.NonExecutable);
+        return isControlFlowArc() && !isNonExecutableControlFlowArc();
     }
 
-    /** @see tfm.arcs.pdg.ControlDependencyArc */
+    /** @see ControlFlowArc.NonExecutable */
+    public final boolean isNonExecutableControlFlowArc() {
+        return this instanceof ControlFlowArc.NonExecutable;
+    }
+
+    /** @see ControlDependencyArc */
     public final boolean isControlDependencyArc() {
         return this instanceof ControlDependencyArc;
     }
@@ -53,7 +58,7 @@ public abstract class Arc extends DefaultEdge {
         throw new UnsupportedOperationException("Not a ControlDependencyArc");
     }
 
-    /** @see tfm.arcs.pdg.DataDependencyArc */
+    /** @see DataDependencyArc */
     public final boolean isDataDependencyArc() {
         return this instanceof DataDependencyArc;
     }
@@ -103,6 +108,21 @@ public abstract class Arc extends DefaultEdge {
         if (isSummaryArc())
             return (SummaryArc) this;
         throw new UnsupportedOperationException("Not a SummaryArc");
+    }
+
+    /** @see ConditionalControlDependencyArc */
+    public final boolean isConditionalControlDependencyArc() {
+        return this instanceof ConditionalControlDependencyArc;
+    }
+
+    public final boolean isUnconditionalControlDependencyArc() {
+        return isControlDependencyArc() && !isConditionalControlDependencyArc();
+    }
+
+    public final ControlDependencyArc asConditionalControlDependencyArc() {
+        if (isConditionalControlDependencyArc())
+            return (ConditionalControlDependencyArc) this;
+        throw new UnsupportedOperationException("Not a ConditionalControlDependencyArc");
     }
 
     @Override

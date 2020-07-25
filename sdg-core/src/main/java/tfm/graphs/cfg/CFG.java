@@ -5,12 +5,17 @@ import tfm.arcs.Arc;
 import tfm.arcs.cfg.ControlFlowArc;
 import tfm.graphs.GraphWithRootNode;
 import tfm.nodes.GraphNode;
+import tfm.nodes.VariableAction;
 import tfm.nodes.type.NodeType;
 import tfm.utils.NodeNotFoundException;
 
 import java.util.HashSet;
-import java.util.Objects;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * The <b>Control Flow Graph</b> represents the statements of a method in
@@ -20,8 +25,6 @@ import java.util.Set;
  * @see ControlFlowArc
  */
 public class CFG extends GraphWithRootNode<MethodDeclaration> {
-    private boolean built = false;
-
     public CFG() {
         super();
     }
@@ -34,33 +37,50 @@ public class CFG extends GraphWithRootNode<MethodDeclaration> {
         super.addEdge(from, to, arc);
     }
 
-    public Set<GraphNode<?>> findLastDefinitionsFrom(GraphNode<?> startNode, String variable) {
+    public List<VariableAction.Definition> findLastDefinitionsFrom(GraphNode<?> startNode, VariableAction.Usage variable) {
         if (!this.containsVertex(startNode))
             throw new NodeNotFoundException(startNode, this);
-        return findLastDefinitionsFrom(new HashSet<>(), startNode.getId(), startNode, variable);
+        return findLastVarActionsFrom(startNode, variable, VariableAction::isDefinition);
     }
 
-    private Set<GraphNode<?>> findLastDefinitionsFrom(Set<Long> visited, long startNode, GraphNode<?> currentNode, String variable) {
-        visited.add(currentNode.getId());
+    public List<VariableAction.Declaration> findLastDeclarationsFrom(GraphNode<?> startNode, VariableAction.Definition variable) {
+        if (!this.containsVertex(startNode))
+            throw new NodeNotFoundException(startNode, this);
+        return findLastVarActionsFrom(startNode, variable, VariableAction::isDeclaration);
+    }
 
-        Set<GraphNode<?>> res = new HashSet<>();
+    protected <E extends VariableAction> List<E> findLastVarActionsFrom(GraphNode<?> startNode, VariableAction variable, Predicate<VariableAction> actionFilter) {
+        return findLastVarActionsFrom(new HashSet<>(), new LinkedList<>(), startNode, startNode, variable, actionFilter);
+    }
 
-        for (Arc arc : incomingEdgesOf(currentNode)) {
-            if (!arc.isExecutableControlFlowArc())
-                continue;
-            GraphNode<?> from = getEdgeSource(arc);
+    @SuppressWarnings("unchecked")
+    protected <E extends VariableAction> List<E> findLastVarActionsFrom(Set<GraphNode<?>> visited, List<E> result,
+                                                       GraphNode<?> start, GraphNode<?> currentNode, VariableAction var,
+                                                       Predicate<VariableAction> filter) {
+        // Base case
+        if (visited.contains(currentNode))
+            return result;
+        visited.add(currentNode);
 
-            if (!Objects.equals(startNode, from.getId()) && visited.contains(from.getId())) {
-                continue;
+        Stream<VariableAction> stream = currentNode.getVariableActions().stream();
+        if (start.equals(currentNode))
+            stream = stream.takeWhile(Predicate.not(var::equals));
+        List<VariableAction> list = stream.filter(var::matches).filter(filter).collect(Collectors.toList());
+        if (!list.isEmpty()) {
+            for (int i = list.size() - 1; i >= 0; i--) {
+                result.add((E) list.get(i));
+                if (!list.get(i).isOptional())
+                    break;
             }
-
-            if (from.getDefinedVariables().contains(variable)) {
-                res.add(from);
-            } else {
-                res.addAll(findLastDefinitionsFrom(visited, startNode, from, variable));
-            }
+            if (!list.get(0).isOptional())
+                return result;
         }
-        return res;
+
+        // Not found: traverse backwards!
+        for (Arc arc : incomingEdgesOf(currentNode))
+            if (arc.isExecutableControlFlowArc())
+                findLastVarActionsFrom(visited, result, start, getEdgeSource(arc), var, filter);
+        return result;
     }
 
     @Override
@@ -78,11 +98,6 @@ public class CFG extends GraphWithRootNode<MethodDeclaration> {
         if (vertexSet().stream().noneMatch(n -> n.getNodeType() == NodeType.METHOD_EXIT))
             throw new IllegalStateException("There is no exit node after building the graph");
         built = true;
-    }/**/
-
-    @Override
-    public boolean isBuilt() {
-        return built;
     }
 
     protected CFGBuilder newCFGBuilder() {

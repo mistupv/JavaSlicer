@@ -5,6 +5,7 @@ import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.expr.BooleanLiteralExpr;
 import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitor;
 import tfm.graphs.cfg.CFGBuilder;
@@ -34,7 +35,7 @@ import java.util.List;
  */
 public class ACFGBuilder extends CFGBuilder {
     /** Same as {@link ACFGBuilder#hangingNodes}, but to be connected as non-executable edges. */
-    private final List<GraphNode<?>> nonExecHangingNodes = new LinkedList<>();
+    protected final List<GraphNode<?>> nonExecHangingNodes = new LinkedList<>();
 
     protected ACFGBuilder(ACFG graph) {
         super(graph);
@@ -57,6 +58,7 @@ public class ACFGBuilder extends CFGBuilder {
     public void visit(IfStmt ifStmt, Void arg) {
         // *if* -> {then else} -> after
         GraphNode<?> cond = connectTo(ifStmt, String.format("if (%s)", ifStmt.getCondition()));
+        ifStmt.getCondition().accept(this, arg);
 
         // if -> {*then* else} -> after
         ifStmt.getThenStmt().accept(this, arg);
@@ -80,6 +82,7 @@ public class ACFGBuilder extends CFGBuilder {
     @Override
     public void visit(WhileStmt whileStmt, Void arg) {
         GraphNode<?> cond = connectTo(whileStmt, String.format("while (%s)", whileStmt.getCondition()));
+        whileStmt.getCondition().accept(this, arg);
         breakStack.push(new LinkedList<>());
         continueStack.push(new LinkedList<>());
 
@@ -101,6 +104,7 @@ public class ACFGBuilder extends CFGBuilder {
         continueStack.push(new LinkedList<>());
 
         GraphNode<?> cond = connectTo(doStmt, String.format("while (%s)", doStmt.getCondition()));
+        doStmt.getCondition().accept(this, arg);
 
         doStmt.getBody().accept(this, arg);
 
@@ -120,15 +124,22 @@ public class ACFGBuilder extends CFGBuilder {
         continueStack.push(new LinkedList<>());
 
         // Initialization
-        forStmt.getInitialization().forEach(this::connectTo);
+        forStmt.getInitialization().forEach(n -> {
+            connectTo(n);
+            n.accept(this, arg);
+        });
 
         // Condition
         Expression condition = forStmt.getCompare().orElse(new BooleanLiteralExpr(true));
         GraphNode<?> cond = connectTo(forStmt, String.format("for (;%s;)", condition));
+        condition.accept(this, arg);
 
         // Body and update expressions
         forStmt.getBody().accept(this, arg);
-        forStmt.getUpdate().forEach(this::connectTo);
+        forStmt.getUpdate().forEach(n -> {
+            connectTo(n);
+            n.accept(this, arg);
+        });
 
         // Condition if body contained anything
         hangingNodes.addAll(continueStack.pop());
@@ -147,6 +158,7 @@ public class ACFGBuilder extends CFGBuilder {
 
         GraphNode<?> cond = connectTo(forEachStmt,
                 String.format("for (%s : %s)", forEachStmt.getVariable(), forEachStmt.getIterable()));
+        forEachStmt.getIterable().accept(this, arg);
 
         forEachStmt.getBody().accept(this, arg);
 
@@ -165,6 +177,7 @@ public class ACFGBuilder extends CFGBuilder {
         switchEntriesStack.push(new LinkedList<>());
         breakStack.push(new LinkedList<>());
         GraphNode<?> cond = connectTo(switchStmt, String.format("switch (%s)", switchStmt.getSelector()));
+        switchStmt.getSelector().accept(this, arg);
         // expr --> each case (fallthrough by default, so case --> case too)
         for (SwitchEntryStmt entry : switchStmt.getEntries()) {
             entry.accept(this, arg); // expr && prev case --> case --> next case
@@ -228,6 +241,8 @@ public class ACFGBuilder extends CFGBuilder {
     @Override
     public void visit(ReturnStmt returnStmt, Void arg) {
         GraphNode<ReturnStmt> node = connectTo(returnStmt);
+        node.addDefinedVariable(new NameExpr(VARIABLE_NAME_OUTPUT));
+        returnStmt.getExpression().ifPresent(n -> n.accept(this, arg));
         returnList.add(node);
         clearHanging();
         nonExecHangingNodes.add(node);
@@ -240,15 +255,16 @@ public class ACFGBuilder extends CFGBuilder {
         if (!methodDeclaration.getBody().isPresent())
             throw new IllegalStateException("The method must have a body!");
 
-        graph.buildRootNode("ENTER " + methodDeclaration.getNameAsString(), methodDeclaration, TypeNodeFactory.fromType(NodeType.METHOD_ENTER));
+        graph.buildRootNode("ENTER " + methodDeclaration.getDeclarationAsString(false, false, false),
+                methodDeclaration, TypeNodeFactory.fromType(NodeType.METHOD_ENTER));
 
         hangingNodes.add(graph.getRootNode().get());
         for (Parameter param : methodDeclaration.getParameters())
-            connectTo(addFormalInGraphNode(param));
+            connectTo(addFormalInGraphNode(methodDeclaration, param));
         methodDeclaration.getBody().get().accept(this, arg);
         returnList.stream().filter(node -> !hangingNodes.contains(node)).forEach(hangingNodes::add);
         for (Parameter param : methodDeclaration.getParameters())
-            connectTo(addFormalOutGraphNode(param));
+            connectTo(addFormalOutGraphNode(methodDeclaration, param));
         nonExecHangingNodes.add(graph.getRootNode().get());
         connectTo(graph.addNode("Exit", new EmptyStmt(), TypeNodeFactory.fromType(NodeType.METHOD_EXIT)));
     }

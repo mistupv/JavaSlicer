@@ -31,18 +31,16 @@ public class PDGLog extends GraphLog<PDG> {
         Logger.log(graph.vertexSet().stream()
                 .sorted(Comparator.comparingLong(GraphNode::getId))
                 .map(node ->
-                        String.format("GraphNode { id: %s, instruction: %s, declared: %s, defined: %s, used: %s }",
+                        String.format("GraphNode { id: %s, instruction: %s, variables: %s}",
                                 node.getId(),
                                 node.getInstruction(),
-                                node.getDeclaredVariables(),
-                                node.getDefinedVariables(),
-                                node.getUsedVariables())
+                                node.getVariableActions())
                 ).collect(Collectors.joining(System.lineSeparator()))
         );
     }
 
     @Override
-    public void generateImages(String imageName, Format format) throws IOException {
+    public void generateImages(String imageName, String format) throws IOException {
         super.generateImages(imageName, format);
         if (cfgLog != null)
             cfgLog.generateImages(imageName, format);

@@ -23,7 +23,9 @@ public class ParameterInOutArc extends InterproceduralArc {
 
     @Override
     public boolean isInterproceduralOutputArc() {
-        return ((GraphNode<?>) getSource()).getNodeType() == NodeType.FORMAL_OUT &&
-                ((GraphNode<?>) getTarget()).getNodeType() == NodeType.ACTUAL_OUT;
+        return (((GraphNode<?>) getSource()).getNodeType() == NodeType.FORMAL_OUT &&
+                ((GraphNode<?>) getTarget()).getNodeType() == NodeType.ACTUAL_OUT) ||
+                (((GraphNode<?>) getSource()).getNodeType() == NodeType.METHOD_OUTPUT &&
+                ((GraphNode<?>) getTarget()).getNodeType() == NodeType.METHOD_CALL_RETURN);
     }
 }

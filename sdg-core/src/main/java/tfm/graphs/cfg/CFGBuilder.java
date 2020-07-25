@@ -3,20 +3,21 @@ package tfm.graphs.cfg;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
-import com.github.javaparser.ast.body.VariableDeclarator;
-import com.github.javaparser.ast.expr.*;
+import com.github.javaparser.ast.expr.BooleanLiteralExpr;
+import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.NameExpr;
+import com.github.javaparser.ast.expr.SimpleName;
 import com.github.javaparser.ast.stmt.*;
+import com.github.javaparser.ast.type.VoidType;
 import com.github.javaparser.ast.visitor.VoidVisitor;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
+import tfm.nodes.FormalIONode;
 import tfm.nodes.GraphNode;
 import tfm.nodes.TypeNodeFactory;
 import tfm.nodes.type.NodeType;
 import tfm.utils.ASTUtils;
 
 import java.util.*;
-
-import static tfm.nodes.type.NodeType.FORMAL_IN;
-import static tfm.nodes.type.NodeType.FORMAL_OUT;
 
 /**
  * Populates a {@link CFG}, given one and an AST root node.
@@ -35,6 +36,8 @@ import static tfm.nodes.type.NodeType.FORMAL_OUT;
  * </ol>
  */
 public class CFGBuilder extends VoidVisitorAdapter<Void> {
+    public static final String VARIABLE_NAME_OUTPUT = "-output-";
+
     /**
      * Stores the CFG representing the method analyzed.
      */
@@ -97,12 +100,14 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
     @Override
     public void visit(ExpressionStmt expressionStmt, Void arg) {
         connectTo(expressionStmt);
+        expressionStmt.getExpression().accept(this, arg);
     }
 
     @Override
     public void visit(IfStmt ifStmt, Void arg) {
         // *if* -> {then else} -> after
         GraphNode<?> cond = connectTo(ifStmt, String.format("if (%s)", ifStmt.getCondition()));
+        ifStmt.getCondition().accept(this, arg);
 
         // if -> {*then* else} -> after
         ifStmt.getThenStmt().accept(this, arg);
@@ -147,6 +152,7 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
     @Override
     public void visit(WhileStmt whileStmt, Void arg) {
         GraphNode<?> cond = connectTo(whileStmt, String.format("while (%s)", whileStmt.getCondition()));
+        whileStmt.getCondition().accept(this, arg);
         breakStack.push(new LinkedList<>());
         continueStack.push(new LinkedList<>());
 
@@ -166,6 +172,7 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         continueStack.push(new LinkedList<>());
 
         GraphNode<?> cond = connectTo(doStmt, String.format("while (%s)", doStmt.getCondition()));
+        doStmt.getCondition().accept(this, arg);
 
         doStmt.getBody().accept(this, arg);
 
@@ -183,15 +190,22 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         continueStack.push(new LinkedList<>());
 
         // Initialization
-        forStmt.getInitialization().forEach(this::connectTo);
+        forStmt.getInitialization().forEach(n -> {
+            connectTo(n);
+            n.accept(this, arg);
+        });
 
         // Condition
         Expression condition = forStmt.getCompare().orElse(new BooleanLiteralExpr(true));
         GraphNode<?> cond = connectTo(forStmt, String.format("for (;%s;)", condition));
+        condition.accept(this, arg);
 
         // Body and update expressions
         forStmt.getBody().accept(this, arg);
-        forStmt.getUpdate().forEach(this::connectTo);
+        forStmt.getUpdate().forEach(n -> {
+            connectTo(n);
+            n.accept(this, arg);
+        });
 
         // Condition if body contained anything
         hangingNodes.addAll(continueStack.pop());
@@ -208,6 +222,7 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
 
         GraphNode<?> cond = connectTo(forEachStmt,
                 String.format("for (%s : %s)", forEachStmt.getVariable(), forEachStmt.getIterable()));
+        forEachStmt.getIterable().accept(this, arg);
 
         forEachStmt.getBody().accept(this, arg);
 
@@ -224,12 +239,8 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
     @Override
     public void visit(SwitchEntryStmt entryStmt, Void arg) {
         // Case header (prev -> case EXPR)
-        GraphNode<SwitchEntryStmt> node;
-        if (entryStmt.getLabel().isPresent()) {
-            node = connectTo(entryStmt, "case " + entryStmt.getLabel().get());
-        } else {
-            node = connectTo(entryStmt, "default");
-        }
+        GraphNode<SwitchEntryStmt> node = connectTo(entryStmt, entryStmt.getLabel().isPresent() ?
+                "case " + entryStmt.getLabel().get() : "default");
         switchEntriesStack.peek().add(node);
         // Case body (case EXPR --> body)
         entryStmt.getStatements().accept(this, arg);
@@ -242,6 +253,7 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         switchEntriesStack.push(new LinkedList<>());
         breakStack.push(new LinkedList<>());
         GraphNode<?> cond = connectTo(switchStmt, String.format("switch (%s)", switchStmt.getSelector()));
+        switchStmt.getSelector().accept(this, arg);
         // expr --> each case (fallthrough by default, so case --> case too)
         for (SwitchEntryStmt entry : switchStmt.getEntries()) {
             entry.accept(this, arg); // expr && prev case --> case --> next case
@@ -282,6 +294,10 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
     @Override
     public void visit(ReturnStmt returnStmt, Void arg) {
         GraphNode<ReturnStmt> node = connectTo(returnStmt);
+        returnStmt.getExpression().ifPresent(n -> {
+            n.accept(this, arg);
+            node.addDefinedVariable(new NameExpr(VARIABLE_NAME_OUTPUT));
+        });
         returnList.add(node);
         clearHanging();
     }
@@ -291,49 +307,53 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         // Sanity checks
         if (graph.getRootNode().isPresent())
             throw new IllegalStateException("CFG is only allowed for one method, not multiple!");
-        if (!methodDeclaration.getBody().isPresent())
+        if (methodDeclaration.getBody().isEmpty())
             throw new IllegalStateException("The method must have a body! Abstract methods have no CFG");
 
         // Create the root node
         graph.buildRootNode(
-                "ENTER " + methodDeclaration.getNameAsString(),
+                "ENTER " + methodDeclaration.getDeclarationAsString(false, false, false),
                 methodDeclaration,
                 TypeNodeFactory.fromType(NodeType.METHOD_ENTER));
         hangingNodes.add(graph.getRootNode().get());
         // Create and connect formal-in nodes sequentially
         for (Parameter param : methodDeclaration.getParameters())
-            connectTo(addFormalInGraphNode(param));
+            connectTo(addFormalInGraphNode(methodDeclaration, param));
         // Visit the body of the method
         methodDeclaration.getBody().get().accept(this, arg);
         // Append all return statements (without repetition)
         returnList.stream().filter(node -> !hangingNodes.contains(node)).forEach(hangingNodes::add);
 
-        // Create and connect formal-out nodes sequentially
-        for (Parameter param : methodDeclaration.getParameters()) {
-            // Do not generate out for primitives
-            if (param.getType().isPrimitiveType()) {
-                continue;
-            }
+        createAndConnectFormalOutNodes(methodDeclaration);
 
-            connectTo(addFormalOutGraphNode(param));
-        }
         // Create and connect the exit node
         connectTo(graph.addNode("Exit", new EmptyStmt(), TypeNodeFactory.fromType(NodeType.METHOD_EXIT)));
     }
 
-    protected GraphNode<ExpressionStmt> addFormalInGraphNode(Parameter param) {
-        ExpressionStmt exprStmt = new ExpressionStmt(new VariableDeclarationExpr(new VariableDeclarator(
-                param.getType(),
-                param.getNameAsString(),
-                new NameExpr(param.getNameAsString() + "_in"))));
-        return graph.addNode(exprStmt.toString(), exprStmt, TypeNodeFactory.fromType(FORMAL_IN));
+    protected void createAndConnectFormalOutNodes(MethodDeclaration methodDeclaration) {
+        createAndConnectFormalOutNodes(methodDeclaration, true);
     }
 
-    protected GraphNode<ExpressionStmt> addFormalOutGraphNode(Parameter param) {
-        ExpressionStmt exprStmt = new ExpressionStmt(new VariableDeclarationExpr(new VariableDeclarator(
-                param.getType(),
-                param.getNameAsString() + "_out",
-                new NameExpr(param.getNameAsString()))));
-        return graph.addNode(exprStmt.toString(), exprStmt, TypeNodeFactory.fromType(FORMAL_OUT));
+    /** If the method declaration has a return type, create an "OUTPUT" node and connect it. */
+    protected void createAndConnectFormalOutNodes(MethodDeclaration methodDeclaration, boolean createOutput) {
+        for (Parameter param : methodDeclaration.getParameters())
+            connectTo(addFormalOutGraphNode(methodDeclaration, param));
+        if (createOutput && !methodDeclaration.getType().equals(new VoidType())) {
+            GraphNode<?> outputNode = graph.addNode("output", new EmptyStmt(), TypeNodeFactory.fromType(NodeType.METHOD_OUTPUT));
+            outputNode.addUsedVariable(new NameExpr(VARIABLE_NAME_OUTPUT));
+            connectTo(outputNode);
+        }
+    }
+
+    protected FormalIONode addFormalInGraphNode(MethodDeclaration methodDeclaration, Parameter param) {
+        FormalIONode node = FormalIONode.createFormalIn(methodDeclaration, param);
+        graph.addNode(node);
+        return node;
+    }
+
+    protected FormalIONode addFormalOutGraphNode(MethodDeclaration methodDeclaration, Parameter param) {
+        FormalIONode node = FormalIONode.createFormalOut(methodDeclaration, param);
+        graph.addNode(node);
+        return node;
     }
 }

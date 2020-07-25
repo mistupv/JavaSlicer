@@ -3,9 +3,9 @@ package tfm.slicing;
 import tfm.arcs.Arc;
 import tfm.graphs.Graph;
 import tfm.nodes.GraphNode;
+import tfm.utils.Utils;
 
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -41,7 +41,7 @@ public class ClassicSlicingAlgorithm implements SlicingAlgorithm {
         Set<GraphNode<?>> visited = new HashSet<>();
 
         while (!toVisit.isEmpty()) {
-            GraphNode<?> node = removeFirst(toVisit);
+            GraphNode<?> node = Utils.setPop(toVisit);
             // Avoid duplicate traversal
             if (visited.contains(node))
                 continue;
@@ -57,12 +57,5 @@ public class ClassicSlicingAlgorithm implements SlicingAlgorithm {
         }
 
         visited.forEach(slice::add);
-    }
-
-    protected static <E> E removeFirst(Set<E> set) {
-        Iterator<E> i = set.iterator();
-        E e = i.next();
-        i.remove();
-        return e;
     }
 }

@@ -4,11 +4,14 @@ import com.github.javaparser.ast.body.MethodDeclaration;
 import tfm.arcs.Arc;
 import tfm.graphs.sdg.SDG;
 import tfm.nodes.GraphNode;
+import tfm.nodes.SyntheticNode;
 import tfm.nodes.type.NodeType;
 import tfm.utils.Utils;
 
+import java.util.Collection;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -18,14 +21,18 @@ public class NaiveSummaryArcsBuilder extends SummaryArcsBuilder {
         super(sdg);
     }
 
+    @SuppressWarnings("unchecked")
+    protected Collection<GraphNode<MethodDeclaration>> findAllMethodDeclarations() {
+        return sdg.vertexSet().stream()
+                .filter(Predicate.not((SyntheticNode.class::isInstance)))
+                .filter(n -> n.getAstNode() instanceof MethodDeclaration)
+                .map(n -> (GraphNode<MethodDeclaration>) n)
+                .collect(Collectors.toSet());
+    }
+
     @Override
     public void visit() {
-        for (MethodDeclaration methodDeclaration : sdg.getMethodDeclarations()) {
-            Optional<GraphNode<MethodDeclaration>> optionalMethodDeclarationNode = sdg.findNodeByASTNode(methodDeclaration);
-            assert optionalMethodDeclarationNode.isPresent();
-
-            GraphNode<MethodDeclaration> methodDeclarationNode = optionalMethodDeclarationNode.get();
-
+        for (GraphNode<MethodDeclaration> methodDeclarationNode : findAllMethodDeclarations()) {
             Set<GraphNode<?>> formalOutNodes = sdg.outgoingEdgesOf(methodDeclarationNode).stream()
                     .filter(arc -> sdg.getEdgeTarget(arc).getNodeType().is(NodeType.FORMAL_OUT))
                     .map(arc -> (GraphNode<?>) sdg.getEdgeTarget(arc))

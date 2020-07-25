@@ -10,6 +10,7 @@ import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSol
 import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 import org.apache.commons.cli.*;
+import tfm.graphs.exceptionsensitive.ESSDG;
 import tfm.graphs.sdg.SDG;
 import tfm.slicing.FileLineSlicingCriterion;
 import tfm.slicing.Slice;
@@ -82,6 +83,7 @@ public class Slicer {
                 .desc("The directory where the sliced source code should be placed. By default, it is placed at " +
                         DEFAULT_OUTPUT_DIR)
                 .build());
+        OPTIONS.addOption("es", "exception-sensitive", false, "Enable exception-sensitive analysis");
         OPTIONS.addOption(Option
                 .builder("h").longOpt("help")
                 .desc("Shows this text")
@@ -94,13 +96,14 @@ public class Slicer {
     private int scLine;
     private final List<String> scVars = new ArrayList<>();
     private final List<Integer> scVarOccurrences = new ArrayList<>();
+    private final CommandLine cliOpts;
 
     public Slicer(String... cliArgs) throws ParseException {
-        CommandLine cl = new DefaultParser().parse(OPTIONS, cliArgs);
-        if (cl.hasOption('h'))
+        cliOpts = new DefaultParser().parse(OPTIONS, cliArgs);
+        if (cliOpts.hasOption('h'))
             throw new ParseException(OPTIONS.toString());
-        if (cl.hasOption('c')) {
-            Matcher matcher = SC_PATTERN.matcher(cl.getOptionValue("criterion"));
+        if (cliOpts.hasOption('c')) {
+            Matcher matcher = SC_PATTERN.matcher(cliOpts.getOptionValue("criterion"));
             if (!matcher.matches())
                 throw new ParseException("Invalid format for slicing criterion, see --help for more details");
             setScFile(matcher.group("file"));
@@ -113,24 +116,24 @@ public class Slicer {
                 else
                     setScVars(vars.split(","));
             }
-        } else if (cl.hasOption('f') && cl.hasOption('l')) {
-            setScFile(cl.getOptionValue('f'));
-            setScLine((Integer) cl.getParsedOptionValue("l"));
-            if (cl.hasOption('v')) {
-                if (cl.hasOption('n'))
-                    setScVars(cl.getOptionValues('v'), cl.getOptionValues('n'));
+        } else if (cliOpts.hasOption('f') && cliOpts.hasOption('l')) {
+            setScFile(cliOpts.getOptionValue('f'));
+            setScLine((Integer) cliOpts.getParsedOptionValue("l"));
+            if (cliOpts.hasOption('v')) {
+                if (cliOpts.hasOption('n'))
+                    setScVars(cliOpts.getOptionValues('v'), cliOpts.getOptionValues('n'));
                 else
-                    setScVars(cl.getOptionValues('v'));
+                    setScVars(cliOpts.getOptionValues('v'));
             }
         } else {
             throw new ParseException("Slicing criterion not specified: either use \"-c\" or \"-f\" and \"l\".");
         }
 
-        if (cl.hasOption('o'))
-            outputDir = (File) cl.getParsedOptionValue("o");
+        if (cliOpts.hasOption('o'))
+            outputDir = (File) cliOpts.getParsedOptionValue("o");
 
-        if (cl.hasOption('i')) {
-            for (String str : cl.getOptionValues('i')) {
+        if (cliOpts.hasOption('i')) {
+            for (String str : cliOpts.getOptionValues('i')) {
                 File dir = new File(str);
                 if (!dir.isDirectory())
                     throw new ParseException("One of the include directories is not a directory or isn't accesible: " + str);
@@ -218,7 +221,8 @@ public class Slicer {
         } catch (FileNotFoundException e) {
             throw new ParseException(e.getMessage());
         }
-        SDG sdg = new SDG();
+
+        SDG sdg = cliOpts.hasOption("exception-sensitive") ? new ESSDG() : new SDG();
         sdg.build(units);
 
         // Slice the SDG

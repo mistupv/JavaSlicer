@@ -2,6 +2,7 @@ package tfm.utils;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.nodeTypes.NodeWithName;
@@ -14,10 +15,10 @@ public class Context {
 
     private CompilationUnit currentCU;
     private ClassOrInterfaceDeclaration currentClass;
-    private MethodDeclaration currentMethod;
+    private CallableDeclaration<?> currentMethod;
 
     public Context() {
-
+        this(null, null, null);
     }
 
     public Context(CompilationUnit cu) {
@@ -48,7 +49,7 @@ public class Context {
         return Optional.ofNullable(currentClass);
     }
 
-    public Optional<MethodDeclaration> getCurrentMethod() {
+    public Optional<CallableDeclaration<?>> getCurrentMethod() {
         return Optional.ofNullable(currentMethod);
     }
 
@@ -60,7 +61,7 @@ public class Context {
         this.currentClass = currentClass;
     }
 
-    public void setCurrentMethod(MethodDeclaration currentMethod) {
+    public void setCurrentMethod(CallableDeclaration<?> currentMethod) {
         this.currentMethod = currentMethod;
     }
 
