@@ -1,9 +1,8 @@
 package tfm.nodes;
 
+/** A singleton class that provides unique ids for {@link GraphNode}s. */
 public class IdHelper {
-
     private static final int START_ID = 0;
-
     private static final IdHelper INSTANCE = new IdHelper();
 
     private long nextId;
@@ -12,16 +11,11 @@ public class IdHelper {
         nextId = START_ID;
     }
 
-    static IdHelper getInstance() {
-        return INSTANCE;
-    }
-
     synchronized long getNextId() {
         return nextId++;
     }
 
-    /** DO NOT USE!!! */
-    public static synchronized void reset() {
-        getInstance().nextId = START_ID;
+    static IdHelper getInstance() {
+        return INSTANCE;
     }
 }

@@ -1,13 +1,18 @@
 package tfm.graphs.pdg;
 
-import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.CallableDeclaration;
+import tfm.arcs.Arc;
 import tfm.arcs.pdg.ControlDependencyArc;
 import tfm.arcs.pdg.DataDependencyArc;
 import tfm.graphs.GraphWithRootNode;
 import tfm.graphs.cfg.CFG;
 import tfm.nodes.GraphNode;
 import tfm.nodes.VariableAction;
-import tfm.nodes.type.NodeType;
+import tfm.nodes.io.ActualIONode;
+import tfm.nodes.io.CallNode;
+
+import java.util.List;
+import java.util.Set;
 
 /**
  * The <b>Program Dependence Graph</b> represents the statements of a method in
@@ -16,15 +21,14 @@ import tfm.nodes.type.NodeType;
  * the {@link Builder PDGBuilder}.
  * The variations of the PDG are represented as child types.
  */
-public class PDG extends GraphWithRootNode<MethodDeclaration> {
-    protected CFG cfg;
+public class PDG extends GraphWithRootNode<CallableDeclaration<?>> {
+    protected final CFG cfg;
 
     public PDG() {
         this(new CFG());
     }
 
     public PDG(CFG cfg) {
-        super();
         this.cfg = cfg;
     }
 
@@ -33,14 +37,7 @@ public class PDG extends GraphWithRootNode<MethodDeclaration> {
     }
 
     public void addDataDependencyArc(VariableAction src, VariableAction tgt) {
-        DataDependencyArc arc;
-        if (src instanceof VariableAction.Definition && tgt instanceof VariableAction.Usage)
-            arc = new DataDependencyArc((VariableAction.Definition) src, (VariableAction.Usage) tgt);
-        else if (src instanceof VariableAction.Declaration && tgt instanceof VariableAction.Definition)
-            arc = new DataDependencyArc((VariableAction.Declaration) src, (VariableAction.Definition) tgt);
-        else
-            throw new UnsupportedOperationException("Unsupported combination of VariableActions");
-        addEdge(src.getGraphNode(), tgt.getGraphNode(), arc);
+        addEdge(src.getGraphNode(), tgt.getGraphNode(), new DataDependencyArc(src, tgt));
     }
 
     public CFG getCfg() {
@@ -48,73 +45,104 @@ public class PDG extends GraphWithRootNode<MethodDeclaration> {
     }
 
     @Override
-    public void build(MethodDeclaration method) {
-        createBuilder().build(method);
+    public void build(CallableDeclaration<?> declaration) {
+        createBuilder().build(declaration);
         built = true;
     }
 
+    /** Create a new PDG builder. Child classes that wish to alter the creation of the graph
+     * should create a new PDG builder and override this method. */
     protected Builder createBuilder() {
         return new Builder();
     }
 
     /**
-     * Populates a {@link PDG}, given a complete {@link CFG}, an empty {@link PDG} and an AST root node.
-     * For now it only accepts {@link MethodDeclaration} as root, as it can only receive a single CFG.
-     * <br/>
-     * <b>Usage:</b>
-     * <ol>
-     *     <li>Create an empty {@link CFG}.</li>
-     *     <li>Create an empty {@link PDG} (optionally passing the {@link CFG} as argument).</li>
-     *     <li>Create a new {@link Builder}, passing both graphs as arguments.</li>
-     *     <li>Accept the builder as a visitor of the {@link MethodDeclaration} you want to analyse using
-     *     {@link com.github.javaparser.ast.Node#accept(com.github.javaparser.ast.visitor.VoidVisitor, Object) Node#accept(VoidVisitor, Object)}:
-     *     {@code methodDecl.accept(builder, null)}</li>
-     *     <li>Once the previous step is finished, the complete PDG is saved in
-     *     the object created in the second step. The builder should be discarded
-     *     and not reused.</li>
-     * </ol>
+     * Populates a PDG, given an empty PDG, an AST declaration and, optionally, a complete {@link CFG}.
+     * It can only accept a single {@link CallableDeclaration}, and can't be re-used. <br/>
+     * Entry-point: {@link #build(CallableDeclaration)}
      */
     public class Builder {
         protected Builder() {
             assert PDG.this.getCfg() != null;
         }
 
-        public void build(MethodDeclaration methodDeclaration) {
-            if (methodDeclaration.getBody().isEmpty())
-                throw new IllegalStateException("Method needs to have a body");
-            buildAndCopyCFG(methodDeclaration);
-            buildControlDependency();
-            buildDataDependency();
+        /**
+         * Populates the PDG with the correct control and data dependencies.
+         * If {@link VariableAction.Movable movable variable actions} are present,
+         * they will be processed and moved to their real nodes. The CFG of the PDG object
+         * will be built as a side-effect, if it hasn't been already.
+         */
+        public void build(CallableDeclaration<?> declaration) {
+            buildAndCopyCFG(declaration); // 4.1
+            buildControlDependency();     // 4.2
+            buildDataDependency();        // 4.2
+            expandCalls();                // 4.3
+            assert incomingEdgesOf(cfg.getExitNode()).stream().noneMatch(Arc::isDataDependencyArc);
+            removeVertex(cfg.getExitNode());
         }
 
-        protected void buildAndCopyCFG(MethodDeclaration methodDeclaration) {
+        /** Builds the CFG, if necessary, and copies all elements to the PDG. */
+        protected void buildAndCopyCFG(CallableDeclaration<?> declaration) {
             if (!cfg.isBuilt())
-                cfg.build(methodDeclaration);
-            cfg.vertexSet().stream()
-                    .filter(node -> node.getNodeType() != NodeType.METHOD_EXIT)
-                    .forEach(PDG.this::addVertex);
-            assert cfg.getRootNode().isPresent();
-            PDG.this.setRootNode(cfg.getRootNode().get());
+                cfg.build(declaration);
+            cfg.vertexSet().forEach(PDG.this::addVertex);
+            PDG.this.setRootNode(cfg.getRootNode());
         }
 
+        /** Computes all the control dependencies between nodes of this graph. */
         protected void buildControlDependency() {
             new ControlDependencyBuilder(cfg, PDG.this).build();
         }
 
+        /** Computes all the data dependencies between {@link VariableAction variable actions} of this graph. */
         protected void buildDataDependency() {
-            for (GraphNode<?> node : vertexSet()) {
-                for (VariableAction varAct : node.getVariableActions()) {
-                    if (varAct.isUsage()) {
-                        VariableAction.Usage use = (VariableAction.Usage) varAct;
-                        for (VariableAction.Definition def : cfg.findLastDefinitionsFrom(node, use))
-                            addDataDependencyArc(def, use);
-                    } else if (varAct.isDefinition()) {
-                        VariableAction.Definition def = (VariableAction.Definition) varAct;
-                        for (VariableAction.Declaration dec : cfg.findLastDeclarationsFrom(node, def))
-                            if (def.getGraphNode() != dec.getGraphNode())
-                                addDataDependencyArc(dec, def);
+            for (GraphNode<?> node : vertexSet())
+                for (VariableAction varAct : node.getVariableActions())
+                    if (varAct.isUsage())
+                        cfg.findLastDefinitionsFrom(varAct).forEach(def -> addDataDependencyArc(def, varAct));
+                    else if (varAct.isDefinition() && !varAct.isSynthetic())
+                        cfg.findDeclarationFor(varAct).ifPresent(dec -> addDataDependencyArc(dec, varAct));
+        }
+
+        /**
+         * Creates nodes for connectable calls, and moves all {@link VariableAction.Movable movable
+         * variable actions} to their proper destinations, adding them to the graph and connecting
+         * them via control dependency to the node they were located at.
+         */
+        protected void expandCalls() {
+            for (GraphNode<?> graphNode : Set.copyOf(vertexSet())) {
+                CallNode callNode = null;
+                for (VariableAction action : List.copyOf(graphNode.getVariableActions())) {
+                    if (action instanceof VariableAction.CallMarker) {
+                        callNode = updateCallNode(graphNode, (VariableAction.CallMarker) action);
+                    } else if (action instanceof VariableAction.Movable) {
+                        var movable = (VariableAction.Movable) action;
+                        movable.move(PDG.this);
+                        connectRealNode(graphNode, callNode, movable.getRealNode());
                     }
                 }
+                assert callNode == null;
+            }
+        }
+
+        /** Compute the call node, if entering the marker. Additionally, it places the node
+         * in the graph and makes it control-dependent on its container. */
+        protected CallNode updateCallNode(GraphNode<?> graphNode, VariableAction.CallMarker marker) {
+            if (!marker.isEnter())
+                return null;
+            var callNode = CallNode.create(marker.getCall());
+            addVertex(callNode);
+            addControlDependencyArc(graphNode, callNode);
+            return callNode;
+        }
+
+        /** Connects the real node to the proper parent, control-dependent-wise. */
+        protected void connectRealNode(GraphNode<?> graphNode, CallNode callNode, GraphNode<?> realNode) {
+            if (realNode instanceof ActualIONode || realNode instanceof CallNode.Return) {
+                assert callNode != null;
+                addControlDependencyArc(callNode, realNode);
+            } else {
+                addControlDependencyArc(graphNode == cfg.getExitNode() ? rootNode : graphNode, realNode);
             }
         }
     }

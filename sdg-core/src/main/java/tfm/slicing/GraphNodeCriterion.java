@@ -7,6 +7,7 @@ import tfm.nodes.GraphNode;
 
 import java.util.Optional;
 
+/** A criterion that locates nodes by {@link GraphNode}. */
 public class GraphNodeCriterion extends SlicingCriterion {
     private final GraphNode<?> node;
 

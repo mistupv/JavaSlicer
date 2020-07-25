@@ -8,10 +8,11 @@ import com.github.javaparser.symbolsolver.JavaSymbolSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 import org.apache.commons.cli.*;
+import tfm.graphs.augmented.ASDG;
+import tfm.graphs.augmented.PSDG;
 import tfm.graphs.cfg.CFG;
 import tfm.graphs.exceptionsensitive.ESSDG;
 import tfm.graphs.sdg.SDG;
-import tfm.nodes.GraphNode;
 import tfm.slicing.NodeIdSlicingCriterion;
 import tfm.slicing.Slice;
 import tfm.slicing.SlicingCriterion;
@@ -26,22 +27,27 @@ public class PHPSlice {
 
     static {
         OPTIONS.addOption(Option
-                .builder("f")
+                .builder("f").longOpt("file")
                 .hasArg().argName("CriterionFile.java").type(File.class)
                 .required()
                 .desc("The file that contains the slicing criterion.")
                 .build());
         OPTIONS.addOption(Option
-                .builder("i")
+                .builder("i").longOpt("node-id")
                 .hasArg().argName("node_id")
                 .required()
                 .desc("The slicing criterion, in the form of a node id (a positive integer).")
                 .build());
         OPTIONS.addOption(Option
-                .builder("o")
+                .builder("o").longOpt("output-dir")
                 .hasArg().argName("output_file")
                 .required()
                 .desc("The folder where the slice and the graphs should be placed")
+                .build());
+        OPTIONS.addOption(Option
+                .builder("t").longOpt("type")
+                .hasArg().argName("graph_type")
+                .desc("The type of graph to be built. Available options are SDG, ASDG, PSDG, ESSDG.")
                 .build());
         OPTIONS.addOption("es", "exception-sensitive", false, "Enable exception-sensitive analysis");
         OPTIONS.addOption(Option
@@ -94,7 +100,15 @@ public class PHPSlice {
             throw new ParseException(e.getMessage());
         }
 
-        SDG sdg = cliOpts.hasOption("exception-sensitive") ? new ESSDG() : new SDG();
+        SDG sdg;
+        switch (cliOpts.getOptionValue("type")) {
+            case "SDG":   sdg = new SDG();   break;
+            case "ASDG":  sdg = new ASDG();  break;
+            case "PSDG":  sdg = new PSDG();  break;
+            case "ESSDG": sdg = new ESSDG(); break;
+            default:
+                throw new IllegalArgumentException("Unknown type of graph. Available graphs are SDG, ASDG, PSDG, ESSDG");
+        }
         sdg.build(units);
 
         SlicingCriterion sc = new NodeIdSlicingCriterion(0, "");
@@ -127,7 +141,7 @@ public class PHPSlice {
         for (CFG cfg : sdg.getCFGs()) {
             CFGLog log = new CFGLog(cfg);
             log.setDirectory(imageDir);
-            log.generateImages("root" + cfg.getRootNode().map(GraphNode::getId).orElse(-1L), "svg");
+            log.generateImages("root" + cfg.getRootNode().getId(), "svg");
         }
     }
 

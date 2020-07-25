@@ -1,16 +1,16 @@
-package tfm.nodes;
+package tfm.nodes.exceptionsensitive;
 
-import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.resolution.types.ResolvedType;
-import tfm.nodes.type.NodeType;
 
 import java.util.Objects;
 
+/** A node that summarizes the exceptions that may reach the end of a declaration. */
 public class ExceptionExitNode extends ExitNode {
     protected final ResolvedType exceptionType;
 
-    public ExceptionExitNode(MethodDeclaration astNode, ResolvedType exceptionType) {
-        super(NodeType.METHOD_EXCEPTION_EXIT, exceptionType.describe() + " exit", astNode);
+    public ExceptionExitNode(CallableDeclaration<?> astNode, ResolvedType exceptionType) {
+        super(exceptionType.describe() + " exit", astNode);
         this.exceptionType = Objects.requireNonNull(exceptionType);
     }
 

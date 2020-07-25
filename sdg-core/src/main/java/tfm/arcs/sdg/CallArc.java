@@ -5,6 +5,10 @@ import org.jgrapht.io.DefaultAttribute;
 
 import java.util.Map;
 
+/**
+ * An interprocedural arc that connects a call site with its
+ * corresponding declaration. It is considered an interprocedural input.
+ */
 public class CallArc extends InterproceduralArc {
     @Override
     public Map<String, Attribute> getDotAttributes() {

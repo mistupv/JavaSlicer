@@ -1,42 +1,52 @@
 package tfm.graphs.exceptionsensitive;
 
-import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.body.Parameter;
+import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
+import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.type.Type;
-import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
+import com.github.javaparser.resolution.Resolvable;
+import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
 import com.github.javaparser.resolution.types.ResolvedReferenceType;
 import com.github.javaparser.resolution.types.ResolvedType;
 import tfm.arcs.cfg.ControlFlowArc;
 import tfm.graphs.augmented.ACFG;
 import tfm.graphs.augmented.ACFGBuilder;
-import tfm.graphs.augmented.ControlDependencyBuilder;
+import tfm.graphs.augmented.PPControlDependencyBuilder;
 import tfm.graphs.cfg.CFGBuilder;
-import tfm.nodes.*;
-import tfm.nodes.type.NodeType;
+import tfm.nodes.GraphNode;
+import tfm.nodes.exceptionsensitive.*;
+import tfm.nodes.io.MethodExitNode;
+import tfm.utils.ASTUtils;
 import tfm.utils.Logger;
 
 import java.util.*;
 
+/**
+ * An exception-sensitive version of the CFG. It builds upon the ACFG, and adds support
+ * for exception-related instructions, such as {@link ThrowStmt throw}, {@link TryStmt try},
+ * {@link CatchClause catch} and calls to declarations that may throw exceptions. <br/>
+ * Limitations: {@code finally} is not handled, unchecked exceptions may present problems,
+ * and multiple calls with exceptions per CFG node are not considered.
+ */
 public class ESCFG extends ACFG {
-    protected final static String ACTIVE_EXCEPTION_VARIABLE = "-activeException-";
+    protected static final String ACTIVE_EXCEPTION_VARIABLE = "-activeException-";
 
     @Override
     protected CFGBuilder newCFGBuilder() {
         return new Builder();
     }
 
-    protected ExceptionExitNode addExceptionExitNode(MethodDeclaration method, ResolvedType type) {
+    protected ExceptionExitNode addExceptionExitNode(CallableDeclaration<?> method, ResolvedType type) {
         ExceptionExitNode node = new ExceptionExitNode(method, type);
-        addNode(node);
+        addVertex(node);
         return node;
     }
 
-    protected ExceptionReturnNode addExceptionReturnNode(MethodCallExpr call, ResolvedType type) {
-        ExceptionReturnNode node = new ExceptionReturnNode(call, type);
-        addNode(node);
+    protected ExceptionReturnNode addExceptionReturnNode(Resolvable<? extends ResolvedMethodLikeDeclaration> call, ResolvedType type) {
+        ExceptionReturnNode node = ExceptionReturnNode.create(call, type);
+        addVertex(node);
         return node;
     }
 
@@ -99,60 +109,55 @@ public class ESCFG extends ACFG {
         }
 
         @Override
-        public void visit(MethodDeclaration methodDeclaration, Void arg) {
-            if (getRootNode().isPresent())
-                throw new IllegalStateException("CFG is only allowed for one method, not multiple!");
-            if (methodDeclaration.getBody().isEmpty())
-                throw new IllegalStateException("The method must have a body!");
+        protected void visitCallableDeclaration(CallableDeclaration<?> callableDeclaration, Void arg) {
+            buildRootNode(callableDeclaration);
+            hangingNodes.add(getRootNode());
 
-            buildRootNode("ENTER " + methodDeclaration.getDeclarationAsString(false, false, false),
-                    methodDeclaration, TypeNodeFactory.fromType(NodeType.METHOD_ENTER));
-
-            hangingNodes.add(getRootNode().get());
-            for (Parameter param : methodDeclaration.getParameters())
-                connectTo(addFormalInGraphNode(methodDeclaration, param));
-            methodDeclaration.getBody().get().accept(this, arg);
+            ASTUtils.getCallableBody(callableDeclaration).accept(this, arg);
             returnList.stream().filter(node -> !hangingNodes.contains(node)).forEach(hangingNodes::add);
-            if (exceptionSourceMap.isEmpty()) {
-                createAndConnectFormalOutNodes(methodDeclaration);
-            } else {
+            // NEW vs ACFG
+            if (!exceptionSourceMap.isEmpty()) {
                 // Normal exit
-                NormalExitNode normalExit = new NormalExitNode(methodDeclaration);
-                addNode(normalExit);
+                NormalExitNode normalExit = new NormalExitNode(callableDeclaration);
+                addVertex(normalExit);
                 connectTo(normalExit);
-                createAndConnectFormalOutNodes(methodDeclaration);
+                addMethodOutput(callableDeclaration, normalExit);
                 List<GraphNode<?>> lastNodes = new LinkedList<>(hangingNodes);
                 clearHanging();
                 // Exception exit
-                Collection<ExceptionExitNode> exceptionExits = processExceptionSources(methodDeclaration);
+                Collection<ExceptionExitNode> exceptionExits = processExceptionSources(callableDeclaration);
                 for (ExceptionExitNode node : exceptionExits) {
                     node.addUsedVariable(new NameExpr(ACTIVE_EXCEPTION_VARIABLE));
                     hangingNodes.add(node);
-                    createAndConnectFormalOutNodes(methodDeclaration, false);
                     lastNodes.addAll(hangingNodes);
                     clearHanging();
                 }
                 hangingNodes.addAll(lastNodes);
             }
-            ExitNode exit = new ExitNode(methodDeclaration);
-            addNode(exit);
-            nonExecHangingNodes.addAll(exitNonExecHangingNodes);
-            nonExecHangingNodes.add(getRootNode().get());
+            nonExecHangingNodes.add(getRootNode());
+
+            MethodExitNode exit = new MethodExitNode(callableDeclaration);
+            addVertex(exit);
+            if (exceptionSourceMap.isEmpty()) // NEW vs ACFG
+                addMethodOutput(callableDeclaration, exit);
+            nonExecHangingNodes.addAll(exitNonExecHangingNodes); // NEW vs ACFG
             connectTo(exit);
 
-            processPendingNormalResultNodes();
+            processPendingNormalResultNodes(); // NEW vs ACFG
         }
 
-        protected Collection<ExceptionExitNode> processExceptionSources(MethodDeclaration method) {
+        /** Converts the remaining exception sources into a collection of exception exit nodes.
+         * Each exception source is connected to at least one of the exception exit nodes. */
+        protected Collection<ExceptionExitNode> processExceptionSources(CallableDeclaration<?> declaration) {
             if (!tryStack.isEmpty())
                 throw new IllegalStateException("Can't process exception sources inside a Try statement.");
             Map<ResolvedType, ExceptionExitNode> exceptionExitMap = new HashMap<>();
-            for (ResolvedType type : exceptionSourceMap.keySet()) {
+            for (var entry : exceptionSourceMap.entrySet()) {
                 // 1. Create "T exit" if it does not exist
-                if (!exceptionExitMap.containsKey(type))
-                    exceptionExitMap.put(type, addExceptionExitNode(method, type));
-                ExceptionExitNode ee = exceptionExitMap.get(type);
-                for (ExceptionSource es : exceptionSourceMap.get(type))
+                if (!exceptionExitMap.containsKey(entry.getKey()))
+                    exceptionExitMap.put(entry.getKey(), addExceptionExitNode(declaration, entry.getKey()));
+                ExceptionExitNode ee = exceptionExitMap.get(entry.getKey());
+                for (ExceptionSource es : entry.getValue())
                     // 2. Connect exception source to "T exit"
                     addEdge(es.source, ee, es.isActive() ? new ControlFlowArc() : new ControlFlowArc.NonExecutable());
             }
@@ -170,19 +175,21 @@ public class ESCFG extends ACFG {
                 createNonExecArcFor(entry.getKey(), entry.getValue());
         }
 
+        // TODO: improve accuracy, if there are multiple, select the one that is post-dominated by the others.
+        // TODO: improve accuracy and speed by implementing the Roman Chariots problem.
+        /** Creates the non-executable arc from "normal return" node to its target, given a set of its sibling return nodes. */
         protected void createNonExecArcFor(NormalReturnNode node, Set<ReturnNode> returnNodes) {
-            ControlDependencyBuilder cdBuilder = new ControlDependencyBuilder(ESCFG.this, null);
-            vertexSet().stream()
-                    .sorted(Comparator.comparingLong(GraphNode::getId))
+            PPControlDependencyBuilder cdBuilder = new PPControlDependencyBuilder(ESCFG.this, null);
+            vertexSet().stream().sorted()
                     .filter(candidate -> {
                         for (ReturnNode retNode : returnNodes)
-                            if (!cdBuilder.postdominates(retNode, candidate))
+                            if (!cdBuilder.postDominates(retNode, candidate))
                                 return false;
                         return true;
                     })
                     .findFirst()
                     .ifPresentOrElse(
-                            n -> addNonExecutableControlFlowEdge(node, n),
+                            n -> addNonExecutableControlFlowArc(node, n),
                             () -> {throw new IllegalStateException("A common post-dominator cannot be found for a normal exit!");});
         }
 
@@ -220,9 +227,10 @@ public class ESCFG extends ACFG {
         // ================= Exception sources =================
         // =====================================================
 
+        /** Save an exception source to a map under all the exception's possible types. */
         protected void populateExceptionSourceMap(ExceptionSource source) {
             for (ResolvedType type : source.exceptions.keySet()) {
-                exceptionSourceMap.computeIfAbsent(type, (t) -> new LinkedList<>());
+                exceptionSourceMap.computeIfAbsent(type, t -> new LinkedList<>());
                 exceptionSourceMap.get(type).add(source);
             }
         }
@@ -241,18 +249,35 @@ public class ESCFG extends ACFG {
 
         @Override
         public void visit(MethodCallExpr n, Void arg) {
-            ResolvedMethodDeclaration resolved = n.resolve();
+            visitCall(n);
+        }
+
+        @Override
+        public void visit(ObjectCreationExpr n, Void arg) {
+            visitCall(n);
+        }
+
+        @Override
+        public void visit(ExplicitConstructorInvocationStmt n, Void arg) {
+            connectTo(n);
+            visitCall(n);
+        }
+
+        /** Process a call that may throw exceptions. Generates normal and return nodes, and
+         * registers the appropriate exception source. */
+        protected void visitCall(Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
+            ResolvedMethodLikeDeclaration resolved = call.resolve();
             if (resolved.getNumberOfSpecifiedExceptions() == 0)
                 return;
 
             Set<ReturnNode> returnNodes = new HashSet<>();
 
             // Normal return
-            NormalReturnNode normalReturn = new NormalReturnNode(n);
-            addNode(normalReturn);
+            NormalReturnNode normalReturn = NormalReturnNode.create(call);
+            addVertex(normalReturn);
             GraphNode<?> stmtNode = findNodeByASTNode(stmtStack.peek()).orElseThrow();
             assert hangingNodes.size() == 1 && hangingNodes.get(0) == stmtNode;
-            assert nonExecHangingNodes.size() == 0;
+            assert nonExecHangingNodes.isEmpty();
             returnNodes.add(normalReturn);
             connectTo(normalReturn);
             clearHanging();
@@ -260,7 +285,7 @@ public class ESCFG extends ACFG {
             // Exception return
             for (ResolvedType type : resolved.getSpecifiedExceptions()) {
                 hangingNodes.add(stmtNode);
-                ExceptionReturnNode exceptionReturn = addExceptionReturnNode(n, type);
+                ExceptionReturnNode exceptionReturn = addExceptionReturnNode(call, type);
                 exceptionReturn.addDefinedVariable(new NameExpr(ACTIVE_EXCEPTION_VARIABLE));
                 populateExceptionSourceMap(new ExceptionSource(exceptionReturn, type));
                 returnNodes.add(exceptionReturn);

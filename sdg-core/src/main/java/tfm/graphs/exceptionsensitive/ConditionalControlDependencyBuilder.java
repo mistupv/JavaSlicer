@@ -2,12 +2,14 @@ package tfm.graphs.exceptionsensitive;
 
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.stmt.CatchClause;
 import tfm.arcs.Arc;
-import tfm.nodes.ExceptionReturnNode;
 import tfm.nodes.GraphNode;
-import tfm.nodes.NormalReturnNode;
-import tfm.nodes.ReturnNode;
+import tfm.nodes.exceptionsensitive.ExceptionReturnNode;
+import tfm.nodes.exceptionsensitive.NormalReturnNode;
+import tfm.nodes.exceptionsensitive.ReturnNode;
 import tfm.utils.ASTUtils;
 import tfm.utils.Utils;
 
@@ -23,9 +25,7 @@ import java.util.Set;
  * here ({@link #getBlockInstructs(CatchClause) getBlockInstructs/1}, {@link
  * #getTryBlockInstructs(CatchClause) getTryBlockInstructs/1}, {@link
  * #isExceptionSource(GraphNode) isExceptionSource/1}), except {@link
- * ESSDG#isPseudoPredicate(GraphNode) isPseudoPredicate/1}.
- *
- * <br/>
+ * ESSDG#isPseudoPredicate(GraphNode) isPseudoPredicate/1}. <br/>
  * <b>[SAS2020]</b>: dinsa://Areas/Program Slicing/Trabajos/Slicing Exceptions/Papers/SAS 2020
  * @see tfm.arcs.pdg.ConditionalControlDependencyArc
  */
@@ -38,10 +38,8 @@ public class ConditionalControlDependencyBuilder {
         this.pdg = Objects.requireNonNull(pdg);
     }
 
-    /**
-     * Adds the {@link tfm.arcs.pdg.ControlDependencyArc CCD arcs}. This method should only be called
-     * once per {@link ESPDG}, as multiple executions may create duplicate arcs.
-     */
+    /** Adds the {@link tfm.arcs.pdg.ConditionalControlDependencyArc CCD arcs}. This method should only be called
+     * once per {@link ESPDG}, as multiple executions may create duplicate arcs. */
     @SuppressWarnings("unchecked")
     public void build() {
         for (GraphNode<?> node : pdg.vertexSet()) {
@@ -97,7 +95,7 @@ public class ConditionalControlDependencyBuilder {
             if (node instanceof NormalReturnNode)
                 return false;
         }
-        return !new ExceptionSourceSearcher().search(node.getAstNode()).isEmpty();
+        return !new ExceptionSourceSearcher().search(node).isEmpty();
     }
 
     /**
@@ -149,7 +147,7 @@ public class ConditionalControlDependencyBuilder {
         }
 
         // Some elements are never going to match nodes: remove Expression except MethodCallExpr
-        result.removeIf(n -> n instanceof Expression && !((Expression) n).isMethodCallExpr());
+        result.removeIf(n -> n instanceof Expression && !(n instanceof MethodCallExpr) && !(n instanceof ObjectCreationExpr));
         return result;
     }
 }

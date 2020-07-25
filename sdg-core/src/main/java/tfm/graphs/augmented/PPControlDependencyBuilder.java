@@ -1,17 +1,21 @@
 package tfm.graphs.augmented;
 
 import tfm.arcs.Arc;
+import tfm.graphs.pdg.ControlDependencyBuilder;
 import tfm.nodes.GraphNode;
 
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class ControlDependencyBuilder extends tfm.graphs.pdg.ControlDependencyBuilder {
-    public ControlDependencyBuilder(ACFG cfg, PPDG pdg) {
+/** A builder for control dependencies in graphs based on the {@link PPDG}.
+ *  @see ControlDependencyBuilder */
+public class PPControlDependencyBuilder extends ControlDependencyBuilder {
+    public PPControlDependencyBuilder(ACFG cfg, PPDG pdg) {
         super(cfg, pdg);
     }
 
-    protected boolean postdominates(GraphNode<?> a, GraphNode<?> b, Set<GraphNode<?>> visited) {
+    @Override
+    protected boolean postDominates(GraphNode<?> a, GraphNode<?> b, Set<GraphNode<?>> visited) {
         // Stop w/ success if a == b or a has already been visited
         if (a.equals(b) || visited.contains(a))
             return true;
@@ -24,7 +28,7 @@ public class ControlDependencyBuilder extends tfm.graphs.pdg.ControlDependencyBu
         // Find all possible paths starting from a, if ALL find b, then true, else false
         visited.add(a);
         for (Arc out : outgoing) {
-            if (!postdominates(cfg.getEdgeTarget(out), b, visited))
+            if (!postDominates(cfg.getEdgeTarget(out), b, visited))
                 return false;
         }
         return true;

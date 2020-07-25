@@ -1,27 +1,34 @@
 package tfm.graphs.exceptionsensitive;
 
-import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.type.ReferenceType;
-import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
+import com.github.javaparser.resolution.Resolvable;
+import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
 import com.github.javaparser.resolution.types.ResolvedReferenceType;
 import com.github.javaparser.resolution.types.ResolvedType;
-import tfm.graphs.sdg.MethodCallReplacerVisitor;
-import tfm.nodes.*;
+import tfm.graphs.CallGraph;
+import tfm.graphs.sdg.CallConnector;
+import tfm.nodes.SyntheticNode;
+import tfm.nodes.exceptionsensitive.*;
+import tfm.nodes.io.CallNode;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class ExceptionSensitiveMethodCallReplacerVisitor extends MethodCallReplacerVisitor {
-    public ExceptionSensitiveMethodCallReplacerVisitor(ESSDG sdg) {
+/** An exception-sensitive call connector, which additionally connects exit nodes
+ * to their corresponding return nodes.
+ * @see tfm.arcs.sdg.ReturnArc */
+public class ExceptionSensitiveCallConnector extends CallConnector {
+    public ExceptionSensitiveCallConnector(ESSDG sdg) {
         super(sdg);
     }
 
     @Override
-    public void visit(MethodCallExpr methodCallExpr, Void arg) {
-        if (methodCallExpr.resolve().getNumberOfSpecifiedExceptions() > 0)
-            handleExceptionReturnArcs(methodCallExpr);
-        super.visit(methodCallExpr, arg);
+    protected void connectCall(CallNode callNode, CallGraph callGraph) {
+        var callExpr = callNode.getCallASTNode();
+        if (callGraph.getCallTarget(callExpr).getThrownExceptions().size() > 0)
+            handleExceptionReturnArcs(callExpr, callGraph);
+        super.connectCall(callNode, callGraph);
     }
 
     /** Creates the following connections:
@@ -31,20 +38,21 @@ public class ExceptionSensitiveMethodCallReplacerVisitor extends MethodCallRepla
      * </ul>
      * @param call The method call to be connected to its method declaration.
      */
-    protected void handleExceptionReturnArcs(MethodCallExpr call) {
+    protected void handleExceptionReturnArcs(Resolvable<? extends ResolvedMethodLikeDeclaration> call, CallGraph callGraph) {
         Set<SyntheticNode<?>> synthNodes = sdg.vertexSet().stream()
                 .filter(SyntheticNode.class::isInstance)
                 .map(n -> (SyntheticNode<?>) n)
                 .collect(Collectors.toSet());
-        ResolvedMethodDeclaration resolvedDecl = call.resolve();
-        MethodDeclaration decl = resolvedDecl.toAst().orElseThrow();
+        CallableDeclaration<?> decl = callGraph.getCallTarget(call);
+        if (decl == null)
+            throw new IllegalArgumentException("Unknown call!");
 
         connectNormalNodes(synthNodes, call, decl);
         connectExceptionNodes(synthNodes, call, decl);
     }
 
     /** Connects normal exit nodes to their corresponding return node. */
-    protected void connectNormalNodes(Set<SyntheticNode<?>> synthNodes, MethodCallExpr call, MethodDeclaration decl) {
+    protected void connectNormalNodes(Set<SyntheticNode<?>> synthNodes, Resolvable<? extends ResolvedMethodLikeDeclaration> call, CallableDeclaration<?> decl) {
         ReturnNode normalReturn = (ReturnNode) synthNodes.stream()
                 .filter(NormalReturnNode.class::isInstance)
                 .filter(n -> n.getAstNode() == call)
@@ -62,7 +70,7 @@ public class ExceptionSensitiveMethodCallReplacerVisitor extends MethodCallRepla
      * in the method declaration and exit nodes are generated from the exception sources
      * that appear in the method. This creates a mismatch that is solved in {@link #connectRemainingExceptionNodes(Map, Set)}
      */
-    protected void connectExceptionNodes(Set<SyntheticNode<?>> synthNodes, MethodCallExpr call, MethodDeclaration decl) {
+    protected void connectExceptionNodes(Set<SyntheticNode<?>> synthNodes, Resolvable<? extends ResolvedMethodLikeDeclaration> call, CallableDeclaration<?> decl) {
         Map<ResolvedType, ExceptionReturnNode> exceptionReturnMap = new HashMap<>();
         Set<ExceptionExitNode> eeNodes = synthNodes.stream()
                 .filter(ExceptionExitNode.class::isInstance)
@@ -103,13 +111,12 @@ public class ExceptionSensitiveMethodCallReplacerVisitor extends MethodCallRepla
                         continue eeFor;
                     }
                     // Skip RuntimeException, unless Throwable or Exception are present as ER nodes
-                    if (type.getQualifiedName().equals("java.lang.RuntimeException") && !hasThrowable && !hasException)
-                        continue;
+                    boolean skip1 = type.getQualifiedName().equals("java.lang.RuntimeException") && !hasThrowable && !hasException;
                     // Skip Error, unless Throwable is present as EE node
-                    if (type.getQualifiedName().equals("java.lang.Error") && !hasThrowable)
-                        continue;
+                    boolean skip2 = type.getQualifiedName().equals("java.lang.Error") && !hasThrowable;
                     // Object has no ancestors, the startVisit has ended
-                    if (!type.getQualifiedName().equals("java.lang.Object"))
+                    boolean skip3 = type.getQualifiedName().equals("java.lang.Object");
+                    if (!skip1 && !skip2 && !skip3)
                         newTypeList.addAll(type.asReferenceType().getDirectAncestors());
                 }
                 typeList = newTypeList;

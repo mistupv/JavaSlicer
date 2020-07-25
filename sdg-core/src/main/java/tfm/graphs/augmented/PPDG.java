@@ -2,6 +2,8 @@ package tfm.graphs.augmented;
 
 import tfm.graphs.pdg.PDG;
 
+/** A pseudo-predicate PDG, equivalent to an APDG that is built using the {@link PPControlDependencyBuilder
+ * pseudo-predicate control dependency algorithm} instead of the classic one. */
 public class PPDG extends APDG {
     public PPDG() {
         this(new ACFG());
@@ -16,6 +18,9 @@ public class PPDG extends APDG {
         return new Builder();
     }
 
+    /** Populates a PPDG.
+     * @see APDG.Builder
+     * @see PPControlDependencyBuilder */
     public class Builder extends APDG.Builder {
         protected Builder() {
             super();
@@ -23,7 +28,7 @@ public class PPDG extends APDG {
 
         @Override
         protected void buildControlDependency() {
-            new ControlDependencyBuilder((ACFG) cfg, PPDG.this).build();
+            new PPControlDependencyBuilder((ACFG) cfg, PPDG.this).build();
         }
     }
 }

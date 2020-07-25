@@ -16,9 +16,13 @@ import com.github.javaparser.ast.visitor.Visitable;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/** Given an AST tree and a slice, removes or prunes all nodes that are not
+ *  included in the slice. Some nodes are included if they are present in the slice
+ *  or of any of their children are (as is the case with {@link CompilationUnit}s). */
 public class SlicePruneVisitor extends ModifierVisitor<Set<Node>> {
     // ========== Utility methods ==========
 
+    /** Place a valid placeholder in this node's body, if any. */
     protected void fillBody(Node n) {
         if (!(n instanceof NodeWithBody))
             return;
@@ -166,6 +170,21 @@ public class SlicePruneVisitor extends ModifierVisitor<Set<Node>> {
 
     @Override
     public Visitable visit(ExpressionStmt n, Set<Node> arg) {
+        return arg.contains(n) ? n : null;
+    }
+
+    @Override
+    public Visitable visit(ExplicitConstructorInvocationStmt n, Set<Node> arg) {
+        return arg.contains(n) ? n : null;
+    }
+
+    @Override
+    public Visitable visit(TryStmt n, Set<Node> arg) {
+        return arg.contains(n) ? n : null;
+    }
+
+    @Override
+    public Visitable visit(CatchClause n, Set<Node> arg) {
         return arg.contains(n) ? n : null;
     }
 }

@@ -4,7 +4,6 @@ import tfm.arcs.Arc;
 import tfm.arcs.cfg.ControlFlowArc;
 import tfm.graphs.cfg.CFG;
 import tfm.nodes.GraphNode;
-import tfm.nodes.type.NodeType;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -15,10 +14,10 @@ import java.util.Set;
  * It has a polynomial complexity (between cubed and n**4) with respect to the number of nodes in the CFG.
  * It uses the following definition of control dependence:
  * <br/>
- * A node <i>b</i> is control dependent on another node <i>a</i> if and only if <i>b</i> postdominates
+ * A node <i>b</i> is control dependent on another node <i>a</i> if and only if <i>b</i> post-dominates
  * one but not all of the successors of <i>a</i>.
  * <br/>
- * A node <i>b</i> postdominates another node <i>a</i> if and only if <i>b</i> appears in every path
+ * A node <i>b</i> post-dominates another node <i>a</i> if and only if <i>b</i> appears in every path
  * from <i>a</i> to the "Exit" node.
  * <br/>
  * There exist better, cheaper approaches that have linear complexity w.r.t. the number of edges in the CFG.
@@ -34,10 +33,12 @@ public class ControlDependencyBuilder {
         this.pdg = pdg;
     }
 
+    /** Adds the {@link tfm.arcs.pdg.ControlDependencyArc CCD arcs}. This method should only be called
+     * once per {@link PDG}, as multiple executions may create duplicate arcs. */
     public void build() {
         assert cfg.isBuilt();
-        GraphNode<?> enterNode = cfg.getRootNode().orElseThrow();
-        GraphNode<?> exitNode = cfg.findNodeBy(n -> n.getNodeType() == NodeType.METHOD_EXIT).orElseThrow();
+        GraphNode<?> enterNode = cfg.getRootNode();
+        GraphNode<?> exitNode = cfg.getExitNode();
 
         Arc enterExitArc = null;
         if (!cfg.containsEdge(enterNode, exitNode)) {
@@ -58,6 +59,7 @@ public class ControlDependencyBuilder {
             cfg.removeEdge(enterExitArc);
     }
 
+    /** Whether the first argument has a control-flow effect on the execution of the second argument. */
     public boolean hasControlDependence(GraphNode<?> a, GraphNode<?> b) {
         int yes = 0;
         Set<Arc> arcs = cfg.outgoingEdgesOf(a);
@@ -65,17 +67,20 @@ public class ControlDependencyBuilder {
         if (arcs.size() < 2)
             return false;
         for (Arc arc : arcs)
-            if (postdominates(cfg.getEdgeTarget(arc), b))
+            if (postDominates(cfg.getEdgeTarget(arc), b))
                 yes++;
         int no = arcs.size() - yes;
         return yes > 0 && no > 0;
     }
 
-    public boolean postdominates(GraphNode<?> a, GraphNode<?> b) {
-        return postdominates(a, b, new HashSet<>());
+    /** Whether the second argument post-dominates the first, i.e. whether {@code b} appears in all
+     *  paths from {@code a} to the Exit node. */
+    public boolean postDominates(GraphNode<?> a, GraphNode<?> b) {
+        return postDominates(a, b, new HashSet<>());
     }
 
-    protected boolean postdominates(GraphNode<?> a, GraphNode<?> b, Set<GraphNode<?>> visited) {
+    /** @see #postDominates(GraphNode, GraphNode) */
+    protected boolean postDominates(GraphNode<?> a, GraphNode<?> b, Set<GraphNode<?>> visited) {
         // Stop w/ success if a == b or a has already been visited
         if (a.equals(b) || visited.contains(a))
             return true;
@@ -86,7 +91,7 @@ public class ControlDependencyBuilder {
         // Find all possible paths starting from a, if ALL find b, then true, else false
         visited.add(a);
         for (Arc out : outgoing) {
-            if (!postdominates(cfg.getEdgeTarget(out), b, visited))
+            if (!postDominates(cfg.getEdgeTarget(out), b, visited))
                 return false;
         }
         return true;

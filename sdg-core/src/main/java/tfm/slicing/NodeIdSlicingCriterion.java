@@ -7,16 +7,13 @@ import tfm.nodes.GraphNode;
 
 import java.util.Optional;
 
+/** A criterion that locates nodes by numerical id. */
 public class NodeIdSlicingCriterion extends SlicingCriterion {
     protected final long id;
 
     public NodeIdSlicingCriterion(long id, String variable) {
         super(variable);
         this.id = id;
-    }
-
-    public long getId() {
-        return id;
     }
 
     @Override

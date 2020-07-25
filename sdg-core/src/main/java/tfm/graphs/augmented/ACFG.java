@@ -18,8 +18,8 @@ import tfm.nodes.GraphNode;
  * @see tfm.arcs.cfg.ControlFlowArc.NonExecutable
  */
 public class ACFG extends CFG {
-    public void addNonExecutableControlFlowEdge(GraphNode<?> from, GraphNode<?> to) {
-        addControlFlowEdge(from, to, new ControlFlowArc.NonExecutable());
+    public void addNonExecutableControlFlowArc(GraphNode<?> from, GraphNode<?> to) {
+        addControlFlowArc(from, to, new ControlFlowArc.NonExecutable());
     }
 
     @Override
@@ -27,7 +27,7 @@ public class ACFG extends CFG {
         return new ACFGBuilder(this);
     }
 
-    /**
+    /** TODO: the definition and check of pseudo-predicate for the PPDG is better as 2 outgoing, 1 non-executable
      * Discerns whether a node contained in this graph is a pseudo-predicate or not.
      * Pseudo-predicates have one (and only one) outgoing non-executable control flow arc.
      */

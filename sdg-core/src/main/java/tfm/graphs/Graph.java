@@ -5,7 +5,6 @@ import org.jgrapht.graph.DirectedPseudograph;
 import org.jgrapht.io.DOTExporter;
 import tfm.arcs.Arc;
 import tfm.nodes.GraphNode;
-import tfm.nodes.NodeFactory;
 import tfm.nodes.SyntheticNode;
 import tfm.utils.ASTUtils;
 
@@ -14,56 +13,50 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+/** A generic base graph with some utility methods to more easily create and locate nodes. */
 public abstract class Graph extends DirectedPseudograph<GraphNode<?>, Arc> {
-
     protected Graph() {
         super(null, null, false);
     }
 
-    /**
-     * Adds the given node to the graph.
-     *
-     * @param node the node to add to the graph
-     */
-    public <ASTNode extends Node> void addNode(GraphNode<ASTNode> node) {
-        this.addVertex(node);
+    /** Creates and adds to the graph a normal node with the given label and AST. */
+    public <T extends Node> GraphNode<T> addVertex(String label, T astNode) {
+        GraphNode<T> node = new GraphNode<>(label, astNode);
+        addVertex(node);
+        return node;
     }
 
-    public <ASTNode extends Node> GraphNode<ASTNode> addNode(String instruction, ASTNode node) {
-        return this.addNode(instruction, node, GraphNode.DEFAULT_FACTORY);
-    }
-
-    public <ASTNode extends Node> GraphNode<ASTNode> addNode(String instruction, ASTNode node, NodeFactory nodeFactory) {
-        GraphNode<ASTNode> newNode = nodeFactory.graphNode(instruction, node);
-
-        this.addNode(newNode);
-
-        return newNode;
-    }
-
+    /** Search for a node in this graph, given its AST node. If multiple nodes exist, due to some
+     *  of them being synthetic, the non-synthetic one will be returned. <br/>
+     *  @throws IllegalStateException If there are multiple non-synthetic nodes in this graph
+     *                                representing the given AST node. */
     @SuppressWarnings("unchecked")
-    public <ASTNode extends Node> Optional<GraphNode<ASTNode>> findNodeByASTNode(ASTNode astNode) {
+    public <T extends Node> Optional<GraphNode<T>> findNodeByASTNode(T astNode) {
         Set<GraphNode<?>> set = findAllNodes(n -> ASTUtils.equalsWithRangeInCU(n.getAstNode(), astNode));
         if (set.isEmpty())
             return Optional.empty();
         if (set.size() == 1)
-            return Optional.of((GraphNode<ASTNode>) set.iterator().next());
+            return Optional.of((GraphNode<T>) set.iterator().next());
         set.removeIf(SyntheticNode.class::isInstance);
         if (set.isEmpty())
             return Optional.empty();
         if (set.size() == 1)
-            return Optional.of((GraphNode<ASTNode>) set.iterator().next());
+            return Optional.of((GraphNode<T>) set.iterator().next());
         throw new IllegalStateException("There may only be one real node representing each AST node in the graph!");
     }
 
+    /** Search for a node in the graph given its id. */
     public Optional<GraphNode<?>> findNodeById(long id) {
         return findNodeBy(n -> n.getId() == id);
     }
 
+    /** Search for a node in the graph given a predicate it must pass.
+     *  If multiple nodes match the predicate, the first one found is returned. */
     public Optional<GraphNode<?>> findNodeBy(Predicate<GraphNode<?>> p) {
         return vertexSet().stream().filter(p).findFirst();
     }
 
+    /** Search for all nodes that match the given predicate. */
     public Set<GraphNode<?>> findAllNodes(Predicate<GraphNode<?>> p) {
         return vertexSet().stream().filter(p).collect(Collectors.toSet());
     }
@@ -75,14 +68,16 @@ public abstract class Graph extends DirectedPseudograph<GraphNode<?>, Arc> {
                 .collect(Collectors.joining(System.lineSeparator()));
     }
 
-    public boolean isEmpty() {
-        return this.vertexSet().isEmpty();
-    }
-
+    /** Obtain an appropriate DOT exporter for graphs based on this class. */
     public DOTExporter<GraphNode<?>, Arc> getDOTExporter() {
         return new DOTExporter<>(
-                graphNode -> String.valueOf(graphNode.getId()),
-                n -> n.getId() + ": " + n.getInstruction(),
+                n -> String.valueOf(n.getId()),
+                n -> {
+                    String s = n.getId() + ": " + n.getLabel();
+                    if (!n.getVariableActions().isEmpty())
+                        s += "\n" + n.getVariableActions().stream().map(Object::toString).reduce((a, b) -> a + "," + b).orElse("--");
+                    return s;
+                },
                 Arc::getLabel,
                 null,
                 Arc::getDotAttributes);

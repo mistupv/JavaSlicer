@@ -9,6 +9,7 @@ import tfm.nodes.GraphNode;
 import java.io.File;
 import java.util.Optional;
 
+/** A slicing criterion that allows the selection of a file and line. */
 public class FileLineSlicingCriterion extends LineNumberCriterion {
     protected final File file;
 
@@ -25,6 +26,7 @@ public class FileLineSlicingCriterion extends LineNumberCriterion {
         return optCu.get().findFirst(Statement.class, this::matchesLine).flatMap(graph::findNodeByASTNode);
     }
 
+    /** Locates the compilation unit that corresponds to this criterion's file. */
     protected Optional<CompilationUnit> findCompilationUnit(NodeList<CompilationUnit> cus) {
         for (CompilationUnit cu : cus) {
             Optional<CompilationUnit.Storage> optStorage = cu.getStorage();

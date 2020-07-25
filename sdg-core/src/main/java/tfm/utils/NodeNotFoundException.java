@@ -4,6 +4,7 @@ import tfm.graphs.Graph;
 import tfm.nodes.GraphNode;
 import tfm.slicing.SlicingCriterion;
 
+/** An exception produced when an node cannot be located. */
 public class NodeNotFoundException extends RuntimeException {
 
     public NodeNotFoundException(SlicingCriterion slicingCriterion) {

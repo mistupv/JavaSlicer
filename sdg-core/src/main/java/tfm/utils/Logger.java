@@ -5,6 +5,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 
+/** A static logging utility that can be redirected to multiple {@link PrintStream}s. */
 public class Logger {
     protected static final List<PrintStream> printStreams = new LinkedList<>();
 
@@ -47,5 +48,9 @@ public class Logger {
 
     public static void format(String message, Object... args) {
         log(String.format(message, args));
+    }
+
+    private Logger() {
+        throw new UnsupportedOperationException("This is a static, utility class");
     }
 }
