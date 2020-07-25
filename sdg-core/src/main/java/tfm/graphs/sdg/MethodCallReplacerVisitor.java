@@ -59,10 +59,12 @@ public class MethodCallReplacerVisitor extends GraphNodeContentVisitor<Void> {
         for (int i = 0; i < parameters.size(); i++) {
             Parameter parameter = parameters.get(i);
             Expression argument;
+
             if (!parameter.isVarArgs()) {
                 argument = arguments.get(i);
             } else {
                 NodeList<Expression> varArgs = new NodeList<>(arguments.subList(i, arguments.size()));
+
                 argument = new ArrayCreationExpr(
                         parameter.getType(),
                         new NodeList<>(new ArrayCreationLevel(varArgs.size())),

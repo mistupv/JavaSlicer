@@ -1,7 +1,6 @@
 package tfm.graphs.sdg.sumarcs;
 
 import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.stmt.ExpressionStmt;
 import tfm.arcs.Arc;
 import tfm.graphs.sdg.SDG;
 import tfm.nodes.GraphNode;
@@ -34,19 +33,19 @@ public class NaiveSummaryArcsBuilder extends SummaryArcsBuilder {
     @Override
     public void visit() {
         for (GraphNode<MethodDeclaration> methodDeclarationNode : findAllMethodDeclarations()) {
-            Set<GraphNode<ExpressionStmt>> formalOutNodes = sdg.outgoingEdgesOf(methodDeclarationNode).stream()
-                    .filter(arc -> sdg.getEdgeTarget(arc).getNodeType() == NodeType.FORMAL_OUT)
-                    .map(arc -> (GraphNode<ExpressionStmt>) sdg.getEdgeTarget(arc))
+            Set<GraphNode<?>> formalOutNodes = sdg.outgoingEdgesOf(methodDeclarationNode).stream()
+                    .filter(arc -> sdg.getEdgeTarget(arc).getNodeType().is(NodeType.FORMAL_OUT))
+                    .map(arc -> (GraphNode<?>) sdg.getEdgeTarget(arc))
                     .collect(Collectors.toSet());
 
-            for (GraphNode<ExpressionStmt> formalOutNode : formalOutNodes) {
-                Set<GraphNode<ExpressionStmt>> reachableFormalInNodes = this.findReachableFormalInNodes(formalOutNode);
+            for (GraphNode<?> formalOutNode : formalOutNodes) {
+                Set<GraphNode<?>> reachableFormalInNodes = this.findReachableFormalInNodes(formalOutNode);
 
-                Set<GraphNode<ExpressionStmt>> actualInNodes = reachableFormalInNodes.stream().flatMap(this::getActualInsStream).collect(Collectors.toSet());
-                Set<GraphNode<ExpressionStmt>> actualOutNodes = this.getActualOuts(formalOutNode);
+                Set<GraphNode<?>> actualInNodes = reachableFormalInNodes.stream().flatMap(this::getActualInsStream).collect(Collectors.toSet());
+                Set<GraphNode<?>> actualOutNodes = this.getActualOuts(formalOutNode);
 
-                for (GraphNode<ExpressionStmt> actualOutNode : actualOutNodes) {
-                    for (GraphNode<ExpressionStmt> actualInNode : actualInNodes) {
+                for (GraphNode<?> actualOutNode : actualOutNodes) {
+                    for (GraphNode<?> actualInNode : actualInNodes) {
                         if (this.belongToSameMethodCall(actualInNode, actualOutNode)) {
                             sdg.addSummaryArc(actualInNode, actualOutNode);
                         }
@@ -56,17 +55,17 @@ public class NaiveSummaryArcsBuilder extends SummaryArcsBuilder {
         }
     }
 
-    private Set<GraphNode<ExpressionStmt>> findReachableFormalInNodes(GraphNode<ExpressionStmt> formalOutNode) {
+    private Set<GraphNode<?>> findReachableFormalInNodes(GraphNode<?> formalOutNode) {
         return this.doFindReachableFormalInNodes(formalOutNode, Utils.emptySet());
     }
 
-    private Set<GraphNode<ExpressionStmt>> doFindReachableFormalInNodes(GraphNode<?> root, Set<Long> visited) {
+    private Set<GraphNode<?>> doFindReachableFormalInNodes(GraphNode<?> root, Set<Long> visited) {
         visited.add(root.getId());
 
-        Set<GraphNode<ExpressionStmt>> res = Utils.emptySet();
+        Set<GraphNode<?>> res = Utils.emptySet();
 
-        if (root.getNodeType() == NodeType.FORMAL_IN) {
-            res.add((GraphNode<ExpressionStmt>) root);
+        if (root.getNodeType().is(NodeType.FORMAL_IN)) {
+            res.add(root);
         } else {
             for (Arc arc : sdg.incomingEdgesOf(root)) {
                 GraphNode<?> nextNode = sdg.getEdgeSource(arc);
@@ -84,33 +83,34 @@ public class NaiveSummaryArcsBuilder extends SummaryArcsBuilder {
         return res;
     }
 
-    private Stream<GraphNode<ExpressionStmt>> getActualInsStream(GraphNode<ExpressionStmt> formalIn) {
+    private Stream<GraphNode<?>> getActualInsStream(GraphNode<?> formalIn) {
         return sdg.incomingEdgesOf(formalIn).stream()
                 .filter(Arc::isParameterInOutArc)
-                .filter(arc -> sdg.getEdgeSource(arc).getNodeType() == NodeType.ACTUAL_IN)
-                .map(arc -> (GraphNode<ExpressionStmt>) sdg.getEdgeSource(arc));
+                .filter(arc -> sdg.getEdgeSource(arc).getNodeType().is(NodeType.ACTUAL_IN))
+                .map(arc -> sdg.getEdgeSource(arc));
     }
 
-    private Set<GraphNode<ExpressionStmt>> getActualOuts(GraphNode<ExpressionStmt> formalOut) {
+    private Set<GraphNode<?>> getActualOuts(GraphNode<?> formalOut) {
         return sdg.outgoingEdgesOf(formalOut).stream()
                 .filter(Arc::isParameterInOutArc)
-                .filter(arc -> sdg.getEdgeTarget(arc).getNodeType() == NodeType.ACTUAL_OUT)
-                .map(arc -> (GraphNode<ExpressionStmt>) sdg.getEdgeTarget(arc))
+                .filter(arc -> sdg.getEdgeTarget(arc).getNodeType().is(NodeType.ACTUAL_OUT))
+                .map(arc -> (GraphNode<?>) sdg.getEdgeTarget(arc))
                 .collect(Collectors.toSet());
     }
 
-    private boolean belongToSameMethodCall(GraphNode<ExpressionStmt> actualIn, GraphNode<ExpressionStmt> actualOut) {
-        Optional<GraphNode<ExpressionStmt>> optionalInCallNode = this.getCallNode(actualIn);
-        Optional<GraphNode<ExpressionStmt>> optionalOutCallNode = this.getCallNode(actualOut);
+    private boolean belongToSameMethodCall(GraphNode<?> actualIn, GraphNode<?> actualOut) {
+        Optional<GraphNode<?>> optionalInCallNode = this.getCallNode(actualIn);
+        Optional<GraphNode<?>> optionalOutCallNode = this.getCallNode(actualOut);
 
         return optionalInCallNode.isPresent() && optionalOutCallNode.isPresent()
                 && optionalInCallNode.get() == optionalOutCallNode.get();
     }
 
-    private Optional<GraphNode<ExpressionStmt>> getCallNode(GraphNode<ExpressionStmt> actualInOrOut) {
+    private Optional<GraphNode<?>> getCallNode(GraphNode<?> actualInOrOut) {
         return sdg.incomingEdgesOf(actualInOrOut).stream()
-                .filter(arc -> sdg.getEdgeSource(arc).getNodeType() == NodeType.METHOD_CALL)
-                .map(arc -> (GraphNode<ExpressionStmt>) sdg.getEdgeSource(arc))
-                .findFirst();
+                .filter(arc -> sdg.getEdgeSource(arc).getNodeType().is(NodeType.METHOD_CALL))
+                .map(arc -> sdg.getEdgeSource(arc))
+                .findFirst()
+                .map(node -> (GraphNode<?>) node);
     }
 }

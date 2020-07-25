@@ -33,5 +33,21 @@ public enum NodeType {
     /** A node representing the return value of a non-void method call. */
     METHOD_CALL_RETURN,
     /** A node representing the return value of a non-void method declaration. */
-    METHOD_OUTPUT
+    METHOD_OUTPUT;
+
+    public boolean is(NodeType type) {
+        if (this == type) {
+            return true;
+        }
+
+        if (this == METHOD_CALL_RETURN) {
+            return type == ACTUAL_OUT;
+        }
+
+        if (this == METHOD_OUTPUT) {
+            return type == FORMAL_OUT;
+        }
+
+        return false;
+    }
 }
