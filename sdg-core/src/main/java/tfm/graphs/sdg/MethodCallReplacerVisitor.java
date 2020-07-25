@@ -105,10 +105,6 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
         MethodDeclaration methodDeclaration = methodDeclarationNode.getAstNode();
 
-        Optional<CFG> optionalCFG = sdg.getMethodCFG(methodDeclaration);
-        assert optionalCFG.isPresent();
-        CFG methodCFG = optionalCFG.get();
-
         GraphNode<MethodCallExpr> methodCallNode = sdg.addNode("CALL " + methodCallExpr.toString(), methodCallExpr, TypeNodeFactory.fromType(NodeType.METHOD_CALL));
 
         sdg.addControlDependencyArc(originalMethodCallNode, methodCallNode);
@@ -171,32 +167,8 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
 
             // Out expression
 
-            OutNodeVariableVisitor shouldHaveOutNodeVisitor = new OutNodeVariableVisitor();
-            Set<String> variablesForOutNode = new HashSet<>();
-            argument.accept(shouldHaveOutNodeVisitor, variablesForOutNode);
-
-            // Here, variablesForOutNode may have 1 variable or more depending on the expression
-
-            Logger.log("MethodCallReplacerVisitor", String.format("Variables for out node: %s", variablesForOutNode));
-            if (variablesForOutNode.isEmpty()) {
-                /*
-                    If the argument is not a variable or it is not declared in the scope,
-                    then there is no OUT node
-                 */
-                Logger.log("MethodCallReplacerVisitor", String.format("Expression '%s' should not have out node", argument.toString()));
-                continue;
-            } else if (variablesForOutNode.size() == 1) {
-                String variable = variablesForOutNode.iterator().next();
-
-                List<GraphNode<?>> declarations = sdg.findDeclarationsOfVariable(variable, originalMethodCallNode);
-
-                Logger.log("MethodCallReplacerVisitor", String.format("Declarations of variable: '%s': %s", variable, declarations));
-
-                if (declarations.isEmpty()) {
-                    Logger.log("MethodCallReplacerVisitor", String.format("Expression '%s' should not have out node", argument.toString()));
-                    continue;
-                }
-            } else {
+            // If argument is primitive or not a variable, do not generate out nodes
+            if (parameter.getType().isPrimitiveType() || !argument.isNameExpr()) {
                 continue;
             }
 
@@ -265,10 +237,6 @@ class MethodCallReplacerVisitor extends VoidVisitorAdapter<Context> {
         sdg.addParameterInOutArc(declarationOutputNode, callReturnNode);
 
         Logger.log("MethodCallReplacerVisitor", String.format("%s | Method '%s' called", methodCallExpr, methodDeclaration.getNameAsString()));
-    }
-
-    private void argumentAsNameExpr(GraphNode<ExpressionStmt> methodCallNode) {
-
     }
 
     @Override

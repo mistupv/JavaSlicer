@@ -93,7 +93,7 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
         this.addEdge(from, to, new ParameterInOutArc());
     }
 
-    public void addSummaryArc(GraphNode<ExpressionStmt> from, GraphNode<ExpressionStmt> to) {
+    public void addSummaryArc(GraphNode<?> from, GraphNode<?> to) {
         this.addEdge(from, to, new SummaryArc());
     }
 
