@@ -2,7 +2,6 @@ package tfm.graphs.sdg.sumarcs;
 
 import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.expr.MethodCallExpr;
 import tfm.arcs.Arc;
 import tfm.arcs.sdg.CallArc;
 import tfm.graphs.CallGraph;
@@ -16,11 +15,18 @@ import tfm.utils.Utils;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public abstract class AnalysisSummaryArcsBuilder extends SummaryArcsBuilder {
+/**
+ * Performs a fixed point analysis over the call graph of a given SDG
+ */
+public class AnalysisSummaryArcsBuilder extends SummaryArcsBuilder {
 
     private static class SummaryArcPair {
         FormalIONode in;
-        FormalIONode out;
+        GraphNode<?> out; // out node is either FormalIONode or METHOD_OUTPUT
+
+        SummaryArcPair(FormalIONode in, GraphNode<?> out) {
+            this.in = in; this.out = out;
+        }
     }
 
     private final SDG sdg;
@@ -50,7 +56,6 @@ public abstract class AnalysisSummaryArcsBuilder extends SummaryArcsBuilder {
         return vertexDataMap.get(vertex);
     }
 
-    // Al acabar, los summary edges estan colocados
     @Override
     public void visit() {
         assert !built;
@@ -86,8 +91,6 @@ public abstract class AnalysisSummaryArcsBuilder extends SummaryArcsBuilder {
 
         GraphNode<MethodDeclaration> methodDeclarationNode = optionalMethodDeclarationNode.get();
 
-        // Copiar los summaries que hay en 'vertexDataMap' a todas las llamadas a metodo contenidas en este vertices (ver outgoingEdges)
-
         // Get call arcs from this declaration
         Set<CallArc> methodCallExprNodes = sdg.incomingEdgesOf(methodDeclarationNode).stream()
                 .filter(Arc::isCallArc)
@@ -99,18 +102,29 @@ public abstract class AnalysisSummaryArcsBuilder extends SummaryArcsBuilder {
 
             for (SummaryArcPair summaryArcPair : vertexDataMap.getOrDefault(declaration, Utils.emptySet())) {
                 FormalIONode inFormalNode = summaryArcPair.in;
-                FormalIONode outFormalNode = summaryArcPair.out;
+                GraphNode<?> outFormalNode = summaryArcPair.out;
 
                 Optional<ActualIONode> optionalIn = sdg.outgoingEdgesOf(methodCallNode).stream()
-                        .filter(arc -> (sdg.getEdgeTarget(arc)).getNodeType() == NodeType.ACTUAL_IN)
+                        .filter(arc -> (sdg.getEdgeTarget(arc)).getNodeType().is(NodeType.ACTUAL_IN))
                         .map(arc -> (ActualIONode) sdg.getEdgeTarget(arc))
                         .filter(actualIONode -> actualIONode.matchesFormalIO(inFormalNode))
                         .findFirst();
 
-                Optional<ActualIONode> optionalOut = sdg.outgoingEdgesOf(methodCallNode).stream()
-                        .filter(arc -> (sdg.getEdgeTarget(arc)).getNodeType() == NodeType.ACTUAL_OUT)
-                        .map(arc -> (ActualIONode) sdg.getEdgeTarget(arc))
-                        .filter(actualIONode -> actualIONode.matchesFormalIO(outFormalNode))
+                Optional<? extends GraphNode<?>> optionalOut = sdg.outgoingEdgesOf(methodCallNode).stream()
+                        .map(sdg::getEdgeTarget)
+                        .filter(node -> node.getNodeType().is(NodeType.ACTUAL_OUT))
+                        .filter(actualNode -> {
+                            if (actualNode instanceof ActualIONode) {
+                                return outFormalNode instanceof FormalIONode
+                                    && ((ActualIONode) actualNode).matchesFormalIO((FormalIONode) outFormalNode);
+                            }
+                            // otherwise, actualNode must be METHOD_CALL_RETURN
+                            if (actualNode.getNodeType() != NodeType.METHOD_CALL_RETURN) {
+                                return false;
+                            }
+
+                            return outFormalNode.getNodeType() == NodeType.METHOD_CALL_NORMAL_RETURN;
+                        })
                         .findFirst();
 
                 if (optionalIn.isEmpty() || optionalOut.isEmpty()) {
@@ -123,8 +137,57 @@ public abstract class AnalysisSummaryArcsBuilder extends SummaryArcsBuilder {
     }
 
     protected Set<SummaryArcPair> computeSummaryArcs(CallableDeclaration<?> declaration) {
-        // Para cada formal-out, hacer slice intraprocedural. Anotar los formal-in incluidos. IMPORTANTE, SUMMARY SON INTRAPROC.
-        // TODO
-        return null;
+        Optional<GraphNode<MethodDeclaration>> optionalMethodDeclarationNode = sdg.findNodeByASTNode(declaration.asMethodDeclaration());
+
+        if (optionalMethodDeclarationNode.isEmpty()) {
+            return Utils.emptySet();
+        }
+
+        GraphNode<MethodDeclaration> methodDeclarationNode = optionalMethodDeclarationNode.get();
+
+        // Get formal out nodes from declaration
+        Set<GraphNode<?>> formalOutNodes = sdg.outgoingEdgesOf(methodDeclarationNode).stream()
+                .filter(Arc::isControlDependencyArc)
+                .map(sdg::getEdgeTarget)
+                .filter(node -> node.getNodeType().is(NodeType.FORMAL_OUT))
+                .collect(Collectors.toSet());
+
+        Set<SummaryArcPair> res = new HashSet<>();
+
+        for (GraphNode<?> formalOutNode : formalOutNodes) {
+            for (FormalIONode formalInNode : findReachableFormalInNodes(formalOutNode)) {
+                res.add(new SummaryArcPair(formalInNode, formalOutNode));
+            }
+        }
+
+        return res;
+    }
+
+    private Set<FormalIONode> findReachableFormalInNodes(GraphNode<?> formalOutNode) {
+        return this.doFindReachableFormalInNodes(formalOutNode, Utils.emptySet());
+    }
+
+    private Set<FormalIONode> doFindReachableFormalInNodes(GraphNode<?> root, Set<Long> visited) {
+        visited.add(root.getId());
+
+        Set<FormalIONode> res = Utils.emptySet();
+
+        if (root.getNodeType().is(NodeType.FORMAL_IN)) {
+            res.add((FormalIONode) root);
+        } else {
+            for (Arc arc : sdg.incomingEdgesOf(root)) {
+                GraphNode<?> nextNode = sdg.getEdgeSource(arc);
+
+                if (visited.contains(nextNode.getId())) {
+                    continue;
+                }
+
+                if (arc.isDataDependencyArc() || arc.isControlDependencyArc() || arc.isSummaryArc()) {
+                    res.addAll(this.doFindReachableFormalInNodes(nextNode, visited));
+                }
+            }
+        }
+
+        return res;
     }
 }
