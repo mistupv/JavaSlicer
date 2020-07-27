@@ -123,7 +123,7 @@ public class AnalysisSummaryArcsBuilder extends SummaryArcsBuilder {
                                 return false;
                             }
 
-                            return outFormalNode.getNodeType() == NodeType.METHOD_CALL_NORMAL_RETURN;
+                            return outFormalNode.getNodeType() == NodeType.METHOD_OUTPUT;
                         })
                         .findFirst();
 
