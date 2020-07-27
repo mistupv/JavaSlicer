@@ -20,19 +20,34 @@ import java.util.stream.Collectors;
  */
 public class AnalysisSummaryArcsBuilder extends SummaryArcsBuilder {
 
-    private static class SummaryArcPair {
+    private static class FormalNodesPair {
         FormalIONode in;
-        GraphNode<?> out; // out node is either FormalIONode or METHOD_OUTPUT
+        GraphNode<?> out; // out node is either FormalIONode or METHOD_OUTPUT type
 
-        SummaryArcPair(FormalIONode in, GraphNode<?> out) {
+        FormalNodesPair(FormalIONode in, GraphNode<?> out) {
             this.in = in; this.out = out;
+        }
+
+        public String toString() {
+            return String.format("FormalNodesPair{in: %d, out: %d}", in.getId(), out.getId());
+        }
+
+        public boolean equals(Object o) {
+            if (o == this) return true;
+            if (!(o instanceof FormalNodesPair)) return false;
+            FormalNodesPair pair = (FormalNodesPair) o;
+            return Objects.equals(in, pair.in) && Objects.equals(out, pair.out);
+        }
+
+        public int hashCode() {
+            return Objects.hash(in, out);
         }
     }
 
     private final SDG sdg;
     private final CallGraph callGraph;
 
-    protected Map<CallableDeclaration<?>, Set<SummaryArcPair>> vertexDataMap = new HashMap<>();
+    protected Map<CallableDeclaration<?>, Set<FormalNodesPair>> vertexDataMap = new HashMap<>();
     protected boolean built = false;
 
     public AnalysisSummaryArcsBuilder(SDG sdg) {
@@ -52,7 +67,7 @@ public class AnalysisSummaryArcsBuilder extends SummaryArcsBuilder {
         this.callGraph = callGraph;
     }
 
-    public Set<SummaryArcPair> getResult(MethodDeclaration vertex) {
+    public Set<FormalNodesPair> getResult(MethodDeclaration vertex) {
         return vertexDataMap.get(vertex);
     }
 
@@ -65,7 +80,7 @@ public class AnalysisSummaryArcsBuilder extends SummaryArcsBuilder {
             List<CallableDeclaration<?>> newWorkList = new LinkedList<>();
             for (CallableDeclaration<?> vertex : workList) {
                 updateVertex(vertex);
-                Set<SummaryArcPair> newValue = computeSummaryArcs(vertex); // now with new arcs!!!
+                Set<FormalNodesPair> newValue = computeSummaryArcs(vertex); // now with new arcs!!!
                 if (!Objects.equals(vertexDataMap.get(vertex), newValue)) {
                     vertexDataMap.put(vertex, newValue);
                     newWorkList.addAll(callGraph.incomingEdgesOf(vertex).stream()
@@ -100,7 +115,7 @@ public class AnalysisSummaryArcsBuilder extends SummaryArcsBuilder {
         for (CallArc callArc : methodCallExprNodes) {
             GraphNode<?> methodCallNode = sdg.getEdgeSource(callArc);
 
-            for (SummaryArcPair summaryArcPair : vertexDataMap.getOrDefault(declaration, Utils.emptySet())) {
+            for (FormalNodesPair summaryArcPair : vertexDataMap.getOrDefault(declaration, Utils.emptySet())) {
                 FormalIONode inFormalNode = summaryArcPair.in;
                 GraphNode<?> outFormalNode = summaryArcPair.out;
 
@@ -118,12 +133,9 @@ public class AnalysisSummaryArcsBuilder extends SummaryArcsBuilder {
                                 return outFormalNode instanceof FormalIONode
                                     && ((ActualIONode) actualNode).matchesFormalIO((FormalIONode) outFormalNode);
                             }
-                            // otherwise, actualNode must be METHOD_CALL_RETURN
-                            if (actualNode.getNodeType() != NodeType.METHOD_CALL_RETURN) {
-                                return false;
-                            }
-
-                            return outFormalNode.getNodeType() == NodeType.METHOD_OUTPUT;
+                            // otherwise, actualNode must be METHOD_CALL_RETURN and outFormalNode METHOD_OUTPUT
+                            return actualNode.getNodeType().is(NodeType.METHOD_CALL_RETURN)
+                                && outFormalNode.getNodeType().is(NodeType.METHOD_OUTPUT);
                         })
                         .findFirst();
 
@@ -136,7 +148,7 @@ public class AnalysisSummaryArcsBuilder extends SummaryArcsBuilder {
         }
     }
 
-    protected Set<SummaryArcPair> computeSummaryArcs(CallableDeclaration<?> declaration) {
+    protected Set<FormalNodesPair> computeSummaryArcs(CallableDeclaration<?> declaration) {
         Optional<GraphNode<MethodDeclaration>> optionalMethodDeclarationNode = sdg.findNodeByASTNode(declaration.asMethodDeclaration());
 
         if (optionalMethodDeclarationNode.isEmpty()) {
@@ -152,11 +164,11 @@ public class AnalysisSummaryArcsBuilder extends SummaryArcsBuilder {
                 .filter(node -> node.getNodeType().is(NodeType.FORMAL_OUT))
                 .collect(Collectors.toSet());
 
-        Set<SummaryArcPair> res = new HashSet<>();
+        Set<FormalNodesPair> res = new HashSet<>();
 
         for (GraphNode<?> formalOutNode : formalOutNodes) {
             for (FormalIONode formalInNode : findReachableFormalInNodes(formalOutNode)) {
-                res.add(new SummaryArcPair(formalInNode, formalOutNode));
+                res.add(new FormalNodesPair(formalInNode, formalOutNode));
             }
         }
 
