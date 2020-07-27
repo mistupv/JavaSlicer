@@ -5,6 +5,7 @@ import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
+import tfm.arcs.Arc;
 import tfm.arcs.pdg.ControlDependencyArc;
 import tfm.arcs.pdg.DataDependencyArc;
 import tfm.arcs.sdg.CallArc;
@@ -13,6 +14,7 @@ import tfm.arcs.sdg.SummaryArc;
 import tfm.graphs.Buildable;
 import tfm.graphs.Graph;
 import tfm.graphs.cfg.CFG;
+import tfm.graphs.sdg.sumarcs.AnalysisSummaryArcsBuilder;
 import tfm.graphs.sdg.sumarcs.NaiveSummaryArcsBuilder;
 import tfm.nodes.GraphNode;
 import tfm.nodes.VariableAction;
@@ -21,7 +23,10 @@ import tfm.slicing.Slice;
 import tfm.slicing.Sliceable;
 import tfm.slicing.SlicingCriterion;
 import tfm.utils.Context;
+import tfm.utils.Logger;
 
+import java.io.StringWriter;
+import java.io.Writer;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -48,8 +53,9 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
         nodeList.accept(createBuilder(), new Context());
         Set<GraphNode<?>> vertices = Set.copyOf(vertexSet());
         vertices.forEach(n -> new MethodCallReplacerVisitor(this).startVisit(n));
-        new NaiveSummaryArcsBuilder(this).visit();
         compilationUnits = nodeList;
+        // new NaiveSummaryArcsBuilder(this).visit();
+         new AnalysisSummaryArcsBuilder(this).visit();
         built = true;
     }
 
