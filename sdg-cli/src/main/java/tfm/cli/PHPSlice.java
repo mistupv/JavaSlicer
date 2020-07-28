@@ -13,6 +13,7 @@ import tfm.graphs.augmented.PSDG;
 import tfm.graphs.cfg.CFG;
 import tfm.graphs.exceptionsensitive.ESSDG;
 import tfm.graphs.sdg.SDG;
+import tfm.slicing.FileLineSlicingCriterion;
 import tfm.slicing.NodeIdSlicingCriterion;
 import tfm.slicing.Slice;
 import tfm.slicing.SlicingCriterion;
@@ -115,7 +116,7 @@ public class PHPSlice {
         Slice slice = new Slice();
         if (scId != 0) {
             // Slice the SDG
-            sc = new NodeIdSlicingCriterion(scId, "");
+            sc = new FileLineSlicingCriterion(scFile, scId);
             slice = sdg.slice(sc);
 
             // Convert the slice to code and output the result to `outputDir`
