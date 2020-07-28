@@ -57,8 +57,8 @@ public class InterproceduralDefinitionFinder extends InterproceduralActionFinder
     }
 
     @Override
-    protected Set<StoredAction<VariableAction.Definition>> initialValue(CallableDeclaration<?> declaration) {
-        CFG cfg = cfgMap.get(declaration);
+    protected Set<StoredAction<VariableAction.Definition>> initialValue(CallGraph.Vertex vertex) {
+        CFG cfg = cfgMap.get(vertex.getDeclaration());
         if (cfg == null)
             return Collections.emptySet();
         return cfg.vertexSet().stream()

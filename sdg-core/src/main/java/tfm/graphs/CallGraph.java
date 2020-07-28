@@ -17,11 +17,10 @@ import org.jgrapht.graph.DirectedPseudograph;
 import org.jgrapht.io.DOTExporter;
 import tfm.graphs.cfg.CFG;
 import tfm.nodes.GraphNode;
+import tfm.utils.ASTUtils;
 import tfm.utils.NodeNotFoundException;
 
-import java.util.Deque;
-import java.util.LinkedList;
-import java.util.Map;
+import java.util.*;
 
 /**
  * A directed graph which displays the available method declarations as nodes and their
@@ -35,8 +34,9 @@ import java.util.Map;
  * to {@link ObjectCreationExpr object creation} and {@link ExplicitConstructorInvocationStmt
  * explicit constructor invokation} ({@code this()}, {@code super()}).
  */
-public class CallGraph extends DirectedPseudograph<CallableDeclaration<?>, CallGraph.Edge<?>> implements Buildable<NodeList<CompilationUnit>> {
+public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.Edge<?>> implements Buildable<NodeList<CompilationUnit>> {
     private final Map<CallableDeclaration<?>, CFG> cfgMap;
+    private final Map<CallableDeclaration<?>, Vertex> vertexDeclarationMap = new IdentityHashMap<>();
 
     private boolean built = false;
 
@@ -50,6 +50,8 @@ public class CallGraph extends DirectedPseudograph<CallableDeclaration<?>, CallG
         return edgeSet().stream()
                 .filter(e -> e.getCall() == call)
                 .map(this::getEdgeTarget)
+                .map(Vertex::getDeclaration)
+                .map(CallableDeclaration.class::cast)
                 .findFirst()
                 .orElse(null);
     }
@@ -73,16 +75,27 @@ public class CallGraph extends DirectedPseudograph<CallableDeclaration<?>, CallG
         arg.accept(new VoidVisitorAdapter<Void>() {
             @Override
             public void visit(MethodDeclaration n, Void arg) {
-                addVertex(n);
+                addDeclaration(n);
                 super.visit(n, arg);
             }
 
             @Override
             public void visit(ConstructorDeclaration n, Void arg) {
-                addVertex(n);
+                addDeclaration(n);
                 super.visit(n, arg);
             }
         }, null);
+    }
+
+    protected void addDeclaration(CallableDeclaration<?> n) {
+        Vertex v = new Vertex(n);
+        vertexDeclarationMap.put(n, v);
+        addVertex(v);
+    }
+
+    protected boolean addEdge(CallableDeclaration<?> source, CallableDeclaration<?> target, Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
+        Edge<?> edge = new Edge<>(call, findGraphNode(call, source));
+        return addEdge(vertexDeclarationMap.get(source), vertexDeclarationMap.get(target), edge);
     }
 
     /** Find the calls to methods and constructors (edges) in the given list of compilation units. */
@@ -112,19 +125,19 @@ public class CallGraph extends DirectedPseudograph<CallableDeclaration<?>, CallG
             // =============== Method calls ===============
             @Override
             public void visit(MethodCallExpr n, Void arg) {
-                n.resolve().toAst().ifPresent(decl -> addEdge(declStack.peek(), decl, new Edge<>(n, findGraphNode(n, declStack.peek()))));
+                n.resolve().toAst().ifPresent(decl -> addEdge(declStack.peek(), decl, n));
                 super.visit(n, arg);
             }
 
             @Override
             public void visit(ObjectCreationExpr n, Void arg) {
-                n.resolve().toAst().ifPresent(decl -> addEdge(declStack.peek(), decl, new Edge<>(n, findGraphNode(n, declStack.peek()))));
+                n.resolve().toAst().ifPresent(decl -> addEdge(declStack.peek(), decl, n));
                 super.visit(n, arg);
             }
 
             @Override
             public void visit(ExplicitConstructorInvocationStmt n, Void arg) {
-                n.resolve().toAst().ifPresent(decl -> addEdge(declStack.peek(), decl, new Edge<>(n, findGraphNode(n, declStack.peek()))));
+                n.resolve().toAst().ifPresent(decl -> addEdge(declStack.peek(), decl, n));
                 super.visit(n, arg);
             }
         }, null);
@@ -146,6 +159,37 @@ public class CallGraph extends DirectedPseudograph<CallableDeclaration<?>, CallG
                 decl -> decl.getDeclarationAsString(false, false, false),
                 e -> e.getCall().toString()
         );
+    }
+
+    /** A vertex containing the declaration it represents. It only exists because
+     *  JGraphT relies heavily on equals comparison, which may not be correct in declarations. */
+    public static class Vertex {
+        protected final CallableDeclaration<?> declaration;
+
+        public Vertex(CallableDeclaration<?> declaration) {
+            assert declaration instanceof ConstructorDeclaration || declaration instanceof MethodDeclaration;
+            this.declaration = declaration;
+        }
+
+        /** The declaration represented by this node. */
+        public CallableDeclaration<?> getDeclaration() {
+            return declaration;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(declaration, declaration.getRange());
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof Vertex && ASTUtils.equalsWithRangeInCU(((Vertex) obj).declaration, declaration);
+        }
+
+        @Override
+        public String toString() {
+            return super.toString();
+        }
     }
 
     /** An edge containing the call it represents, and the graph node that contains it. */

@@ -15,9 +15,9 @@ import java.util.stream.Collectors;
 public abstract class BackwardDataFlowAnalysis<V, E, D> {
     /** The graph on which this algorithm iterates. */
     protected final AbstractGraph<V, E> graph;
-
     /** A mapping of the latest value computed per node. */
-    protected Map<V, D> vertexDataMap = new HashMap<>();
+    protected final Map<V, D> vertexDataMap = new HashMap<>();
+
     protected boolean built = false;
 
     public BackwardDataFlowAnalysis(AbstractGraph<V, E> graph) {
@@ -34,7 +34,7 @@ public abstract class BackwardDataFlowAnalysis<V, E, D> {
             List<V> newWorkList = new LinkedList<>();
             for (V vertex : workList) {
                 Set<V> mayAffectVertex = graph.outgoingEdgesOf(vertex).stream()
-                        .map(graph::getEdgeTarget).collect(Collectors.toSet());
+                        .map(graph::getEdgeTarget).collect(Collectors.toCollection(() -> Collections.newSetFromMap(new IdentityHashMap<>())));
                 D newValue = compute(vertex, mayAffectVertex);
                 if (!Objects.equals(vertexDataMap.get(vertex), newValue)) {
                     vertexDataMap.put(vertex, newValue);
@@ -43,7 +43,6 @@ public abstract class BackwardDataFlowAnalysis<V, E, D> {
             }
             workList = newWorkList;
         }
-        vertexDataMap = Collections.unmodifiableMap(vertexDataMap);
         built = true;
     }
 

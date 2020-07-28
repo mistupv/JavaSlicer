@@ -1,7 +1,6 @@
 package tfm.graphs.sdg;
 
 import com.github.javaparser.ast.body.CallableDeclaration;
-import org.jgrapht.graph.AbstractGraph;
 import tfm.graphs.BackwardDataFlowAnalysis;
 import tfm.graphs.CallGraph;
 import tfm.nodes.SyntheticNode;
@@ -13,27 +12,26 @@ import tfm.nodes.io.OutputNode;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class SummaryArcAnalyzer extends BackwardDataFlowAnalysis<CallableDeclaration<?>, CallGraph.Edge<?>, Map<SyntheticNode<CallableDeclaration<?>>, Set<FormalIONode>>> {
+public class SummaryArcAnalyzer extends BackwardDataFlowAnalysis<CallGraph.Vertex, CallGraph.Edge<?>, Map<SyntheticNode<CallableDeclaration<?>>, Set<FormalIONode>>> {
     protected final SDG sdg;
 
-    public SummaryArcAnalyzer(SDG sdg, AbstractGraph<CallableDeclaration<?>, CallGraph.Edge<?>> graph) {
+    public SummaryArcAnalyzer(SDG sdg, CallGraph graph) {
         super(graph);
         this.sdg = sdg;
-        this.vertexDataMap = new IdentityHashMap<>(); // CallableDeclarations can't be reliably be compared with equals.
     }
 
     @Override
-    protected Map<SyntheticNode<CallableDeclaration<?>>, Set<FormalIONode>> compute(CallableDeclaration<?> declaration, Set<CallableDeclaration<?>> predecessors) {
-        saveDeclaration(declaration);
-        return initialValue(declaration);
+    protected Map<SyntheticNode<CallableDeclaration<?>>, Set<FormalIONode>> compute(CallGraph.Vertex vertex, Set<CallGraph.Vertex> predecessors) {
+        saveDeclaration(vertex);
+        return initialValue(vertex);
     }
 
     @Override
-    protected Map<SyntheticNode<CallableDeclaration<?>>, Set<FormalIONode>> initialValue(CallableDeclaration<?> declaration) {
-        var value = vertexDataMap.get(declaration);
+    protected Map<SyntheticNode<CallableDeclaration<?>>, Set<FormalIONode>> initialValue(CallGraph.Vertex vertex) {
+        var value = vertexDataMap.get(vertex);
         if (value == null) {
             value = new HashMap<>();
-            for (var formalOut : getFormalOutNodes(declaration))
+            for (var formalOut : getFormalOutNodes(vertex.getDeclaration()))
                 value.put(formalOut, new HashSet<>());
         }
         value.replaceAll((key, oldValue) -> computeFormalIn(key));
@@ -62,9 +60,9 @@ public class SummaryArcAnalyzer extends BackwardDataFlowAnalysis<CallableDeclara
                 .collect(Collectors.toSet());
     }
 
-    protected void saveDeclaration(CallableDeclaration<?> declaration) {
-        var result = vertexDataMap.get(declaration);
-        for (CallGraph.Edge<?> edge : graph.incomingEdgesOf(declaration)) {
+    protected void saveDeclaration(CallGraph.Vertex vertex) {
+        var result = vertexDataMap.get(vertex);
+        for (CallGraph.Edge<?> edge : graph.incomingEdgesOf(vertex)) {
             for (var entry : result.entrySet()) {
                 var actualOutOpt = getActualOut(edge, entry.getKey());
                 if (actualOutOpt.isEmpty())

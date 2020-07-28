@@ -23,13 +23,12 @@ import java.util.function.Consumer;
  * declarations define, use or declare which variables, interprocedurally.
  * @param <A> The action to be searched for
  */
-public abstract class InterproceduralActionFinder<A extends VariableAction> extends BackwardDataFlowAnalysis<CallableDeclaration<?>, CallGraph.Edge<?>, Set<InterproceduralActionFinder.StoredAction<A>>> {
+public abstract class InterproceduralActionFinder<A extends VariableAction> extends BackwardDataFlowAnalysis<CallGraph.Vertex, CallGraph.Edge<?>, Set<InterproceduralActionFinder.StoredAction<A>>> {
     protected final Map<CallableDeclaration<?>, CFG> cfgMap;
 
     public InterproceduralActionFinder(CallGraph callGraph, Map<CallableDeclaration<?>, CFG> cfgMap) {
         super(callGraph);
         this.cfgMap = cfgMap;
-        this.vertexDataMap = new IdentityHashMap<>(); // CallableDeclarations can't be reliably be compared with equals.
     }
 
     // ===========================================================
@@ -39,19 +38,19 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
     /** Entry-point to the class. Performs the analysis and then saves the results to the CFG nodes. */
     public void save() {
         if (!built) analyze();
-        cfgMap.keySet().forEach(this::saveDeclaration);
+        graph.vertexSet().forEach(this::saveDeclaration);
     }
 
     /** Save the current set of actions associated to the given declaration. It will avoid saving
      *  duplicates by default, so this method may be called multiple times safely. */
-    protected void saveDeclaration(CallableDeclaration<?> declaration) {
-        Set<StoredAction<A>> storedActions = vertexDataMap.get(declaration);
+    protected void saveDeclaration(CallGraph.Vertex vertex) {
+        Set<StoredAction<A>> storedActions = vertexDataMap.get(vertex);
 
         // FORMAL: per declaration (1)
         for (StoredAction<A> sa : storedActions)
-            sa.storeFormal(a -> sandBoxedHandler(declaration, a, this::handleFormalAction));
+            sa.storeFormal(a -> sandBoxedHandler(vertex.getDeclaration(), a, this::handleFormalAction));
         // ACTUAL: per call (n)
-        for (CallGraph.Edge<?> edge : graph.incomingEdgesOf(declaration))
+        for (CallGraph.Edge<?> edge : graph.incomingEdgesOf(vertex))
             storedActions.stream().sorted(new ParameterFieldSorter(edge))
                     .forEach(sa -> sa.storeActual(edge, (e, a) -> sandBoxedHandler(e, a, this::handleActualAction)));
     }
@@ -76,7 +75,7 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
      * is false, primitive parameters will be skipped, as their value cannot be redefined.*/
     protected Expression extractArgument(VariableAction action, CallGraph.Edge<?> edge, boolean input) {
         ResolvedValueDeclaration resolved = action.getNameExpr().resolve();
-        CallableDeclaration<?> callTarget = graph.getEdgeTarget(edge);
+        CallableDeclaration<?> callTarget = graph.getEdgeTarget(edge).getDeclaration();
         if (resolved.isParameter()) {
             ResolvedParameterDeclaration p = resolved.asParameter();
             if (!input && p.getType().isPrimitive())
@@ -91,10 +90,10 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
     }
 
     @Override
-    protected Set<StoredAction<A>> compute(CallableDeclaration<?> declaration, Set<CallableDeclaration<?>> calledDeclarations) {
-        saveDeclaration(declaration);
-        Set<StoredAction<A>> newValue = new HashSet<>(vertexDataMap.get(declaration));
-        newValue.addAll(initialValue(declaration));
+    protected Set<StoredAction<A>> compute(CallGraph.Vertex vertex, Set<CallGraph.Vertex> predecessors) {
+        saveDeclaration(vertex);
+        Set<StoredAction<A>> newValue = new HashSet<>(vertexDataMap.get(vertex));
+        newValue.addAll(initialValue(vertex));
         return newValue;
     }
 
@@ -120,8 +119,8 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
                 r1 = o1.getAction().getNameExpr().resolve();
                 r2 = o2.getAction().getNameExpr().resolve();
                 if (r1.isParameter() && r2.isParameter())
-                    return -Integer.compare(ASTUtils.getMatchingParameterIndex(graph.getEdgeTarget(edge), r1.asParameter()),
-                            ASTUtils.getMatchingParameterIndex(graph.getEdgeTarget(edge), r2.asParameter()));
+                    return -Integer.compare(ASTUtils.getMatchingParameterIndex(graph.getEdgeTarget(edge).getDeclaration(), r1.asParameter()),
+                            ASTUtils.getMatchingParameterIndex(graph.getEdgeTarget(edge).getDeclaration(), r2.asParameter()));
                 else if (r1.isField() && r2.isField())
                     return 0;
                 else if (r1.isParameter() && r2.isField())

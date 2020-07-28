@@ -48,8 +48,8 @@ public class InterproceduralUsageFinder extends InterproceduralActionFinder<Vari
     }
 
     @Override
-    protected Set<StoredAction<VariableAction.Usage>> initialValue(CallableDeclaration<?> declaration) {
-        CFG cfg = cfgMap.get(declaration);
+    protected Set<StoredAction<VariableAction.Usage>> initialValue(CallGraph.Vertex vertex) {
+        CFG cfg = cfgMap.get(vertex.getDeclaration());
         if (cfg == null)
             return Collections.emptySet();
         return cfg.vertexSet().stream()
