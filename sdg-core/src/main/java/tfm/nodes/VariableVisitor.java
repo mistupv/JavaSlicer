@@ -1,7 +1,9 @@
 package tfm.nodes;
 
+import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.*;
+import com.github.javaparser.ast.stmt.CatchClause;
 import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
 import com.github.javaparser.ast.stmt.ForEachStmt;
 import com.github.javaparser.resolution.Resolvable;
@@ -141,6 +143,16 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         }
     }
 
+    @Override
+    public void visit(CatchClause n, Action arg) {
+        n.getParameter().accept(this, arg.or(Action.DECLARATION));
+    }
+
+    @Override
+    public void visit(Parameter n, Action arg) {
+        declConsumer.accept(new NameExpr(n.getName().getId()), graphNode);
+        defConsumer.accept(new NameExpr(n.getName().getId()), graphNode);
+    }
     // =======================================================================
     // ================================ CALLS ================================
     // =======================================================================
