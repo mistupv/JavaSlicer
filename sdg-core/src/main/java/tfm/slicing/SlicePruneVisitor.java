@@ -180,11 +180,15 @@ public class SlicePruneVisitor extends ModifierVisitor<Set<Node>> {
 
     @Override
     public Visitable visit(TryStmt n, Set<Node> arg) {
-        return arg.contains(n) ? n : null;
+        boolean keep = arg.contains(n);
+        super.visit(n, arg);
+        return keep ? n : null;
     }
 
     @Override
     public Visitable visit(CatchClause n, Set<Node> arg) {
-        return arg.contains(n) ? n : null;
+        boolean keep = arg.contains(n);
+        super.visit(n, arg);
+        return keep ? n : null;
     }
 }
