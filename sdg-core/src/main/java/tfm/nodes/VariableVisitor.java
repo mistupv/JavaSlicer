@@ -22,6 +22,9 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     public enum Action {
         DECLARATION, DEFINITION, USE;
 
+        /** Whether the action is performed in all executions of the node. */
+        private boolean always = true;
+
         /** Join multiple actions into one. */
         public Action or(Action action) {
             if (action == DECLARATION || this == DECLARATION)
@@ -30,30 +33,32 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
                 return DEFINITION;
             return USE;
         }
+
+        public void setAlways(boolean always) {
+            this.always = always;
+        }
     }
 
     /** A default action to be used as a placeholder when a {@code null} action is received. */
-    protected static final BiConsumer<NameExpr, GraphNode<?>> BLANK_CONSUMER = (a, b) -> {};
+    protected static final BiConsumer<GraphNode<?>, NameExpr> BLANK_CONSUMER = (a, b) -> {};
 
     /** The action to perform when a declaration is found. */
-    protected final BiConsumer<NameExpr, GraphNode<?>> declConsumer;
+    protected final BiConsumer<GraphNode<?>, NameExpr> declConsumer;
     /** The action to perform when a definition is found. */
-    protected final BiConsumer<NameExpr, GraphNode<?>> defConsumer;
+    protected final BiConsumer<GraphNode<?>, NameExpr> defConsumer;
     /** The action to perform when a usage is found. */
-    protected final BiConsumer<NameExpr, GraphNode<?>> useConsumer;
+    protected final BiConsumer<GraphNode<?>, NameExpr> useConsumer;
 
     /** A variable visitor that will add each action to the list of actions of the graph node.
      *  The entry-point for this graph MUST be {@link #startVisit(GraphNode)} or {@link #startVisit(GraphNode, Action)} */
     public VariableVisitor() {
-        this((name, node) -> node.addDeclaredVariable(name),
-                (name, node) -> node.addDefinedVariable(name),
-                (name, node) -> node.addUsedVariable(name));
+        this(GraphNode::addDeclaredVariable, GraphNode::addDefinedVariable, GraphNode::addUsedVariable);
     }
 
-    /** A variable visitor that will perform the given actions when a variable is found.
-     *  A node can accept this visitor, but calls will be ignored if the entry-point is
-     *  not {@link #startVisit(GraphNode)} or {@link #startVisit(GraphNode, Action)} */
-    public VariableVisitor(BiConsumer<NameExpr, GraphNode<?>> declConsumer, BiConsumer<NameExpr, GraphNode<?>> defConsumer, BiConsumer<NameExpr, GraphNode<?>> useConsumer) {
+    /** A variable visitor that will perform the given actions when a variable is found. A node can accept this visitor,
+     *  but calls will be ignored if the entry-point is not {@link #startVisit(GraphNode)} or {@link #startVisit(GraphNode, Action)}.
+     *  The arguments are the actions to be performed when an action is found in the corresponding node. */
+    public VariableVisitor(BiConsumer<GraphNode<?>, NameExpr> declConsumer, BiConsumer<GraphNode<?>, NameExpr> defConsumer, BiConsumer<GraphNode<?>, NameExpr> useConsumer) {
         this.declConsumer = Objects.requireNonNullElse(declConsumer, BLANK_CONSUMER);
         this.defConsumer = Objects.requireNonNullElse(defConsumer, BLANK_CONSUMER);
         this.useConsumer = Objects.requireNonNullElse(useConsumer, BLANK_CONSUMER);
@@ -68,13 +73,13 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     public void visit(NameExpr n, Action action) {
         switch (action) {
             case DECLARATION:
-                declConsumer.accept(n, graphNode);
+                declConsumer.accept(graphNode, n);
                 break;
             case DEFINITION:
-                defConsumer.accept(n, graphNode);
+                defConsumer.accept(graphNode, n);
                 break;
             case USE:
-                useConsumer.accept(n, graphNode);
+                useConsumer.accept(graphNode, n);
                 break;
             default:
                 throw new UnsupportedOperationException();
@@ -100,6 +105,32 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
             variable.getNameAsExpression().accept(this, Action.DECLARATION);
             variable.getNameAsExpression().accept(this, Action.DEFINITION);
         }
+    }
+
+    @Override
+    public void visit(ConditionalExpr n, Action arg) {
+        n.getCondition().accept(this, arg);
+        boolean always = arg.always;
+        arg.setAlways(false);
+        n.getThenExpr().accept(this, arg);
+        n.getElseExpr().accept(this, arg);
+        arg.setAlways(always);
+    }
+
+    @Override
+    public void visit(BinaryExpr n, Action arg) {
+        n.getLeft().accept(this, arg);
+        switch (n.getOperator()) {
+            case OR:
+            case AND:
+                boolean always = arg.always;
+                arg.setAlways(false);
+                n.getRight().accept(this, arg);
+                arg.setAlways(always);
+            default:
+                n.getRight().accept(this, arg);
+        }
+        super.visit(n, arg);
     }
 
     @Override
@@ -150,8 +181,8 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
 
     @Override
     public void visit(Parameter n, Action arg) {
-        declConsumer.accept(new NameExpr(n.getName().getId()), graphNode);
-        defConsumer.accept(new NameExpr(n.getName().getId()), graphNode);
+        declConsumer.accept(graphNode, new NameExpr(n.getName().getId()));
+        defConsumer.accept(graphNode, new NameExpr(n.getName().getId()));
     }
     // =======================================================================
     // ================================ CALLS ================================
@@ -162,28 +193,29 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
 
     @Override
     public void visit(ObjectCreationExpr n, Action arg) {
-        if (!visitCall(n, arg))
+        if (visitCall(n, arg))
             super.visit(n, arg);
     }
 
     @Override
     public void visit(ExplicitConstructorInvocationStmt n, Action arg) {
-        if (!visitCall(n, arg))
+        if (visitCall(n, arg))
             super.visit(n, arg);
     }
 
     @Override
     public void visit(MethodCallExpr n, Action arg) {
-        if (!visitCall(n, arg))
+        if (visitCall(n, arg))
             super.visit(n, arg);
     }
 
+    /** Tries to resolve and add the corresponding call markers. */
     protected boolean visitCall(Resolvable<? extends ResolvedMethodLikeDeclaration> call, Action arg) {
         if (ASTUtils.getResolvedAST(call.resolve()).isEmpty() || graphNode == null)
-            return false;
+            return true;
         graphNode.addCallMarker(call, true);
         ASTUtils.getResolvableScope(call).ifPresent(s -> s.accept(this, arg));
         graphNode.addCallMarker(call, false);
-        return true;
+        return false;
     }
 }

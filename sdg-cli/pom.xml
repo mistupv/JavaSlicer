@@ -6,7 +6,7 @@
 
     <groupId>tfm</groupId>
     <artifactId>sdg-cli</artifactId>
-    <version>1.0.3</version>
+    <version>1.0.4</version>
 
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
@@ -27,7 +27,7 @@
         <dependency>
             <groupId>tfm</groupId>
             <artifactId>sdg-core</artifactId>
-            <version>1.2.3</version>
+            <version>1.2.4</version>
         </dependency>
     </dependencies>
 </project>
