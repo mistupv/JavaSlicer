@@ -1,3 +1,3 @@
 Manifest-Version: 1.0
-Main-Class: tfm.cli.Slicer
+Main-Class: es.upv.mist.slicing.cli.Slicer
 

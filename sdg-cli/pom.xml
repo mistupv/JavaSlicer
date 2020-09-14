@@ -23,7 +23,7 @@
                     <archive>
                         <manifest>
                             <addClasspath>true</addClasspath>
-                            <mainClass>tfm.cli.Slicer</mainClass>
+                            <mainClass>es.upv.mist.slicing.cli.Slicer</mainClass>
                         </manifest>
                     </archive>
                     <descriptorRefs>

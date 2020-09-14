@@ -1,6 +1,6 @@
 package tfm.programs.pdg;
 
-import tfm.utils.Logger;
+import es.upv.mist.slicing.utils.Logger;
 
 public class Example1 {
 
