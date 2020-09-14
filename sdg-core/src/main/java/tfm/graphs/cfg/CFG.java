@@ -1,18 +1,15 @@
 package tfm.graphs.cfg;
 
-import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.CallableDeclaration;
 import tfm.arcs.Arc;
 import tfm.arcs.cfg.ControlFlowArc;
 import tfm.graphs.GraphWithRootNode;
 import tfm.nodes.GraphNode;
 import tfm.nodes.VariableAction;
-import tfm.nodes.type.NodeType;
+import tfm.nodes.io.MethodExitNode;
 import tfm.utils.NodeNotFoundException;
 
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -24,82 +21,119 @@ import java.util.stream.Stream;
  * The variations of the CFG are implemented as child classes.
  * @see ControlFlowArc
  */
-public class CFG extends GraphWithRootNode<MethodDeclaration> {
-    public CFG() {
-        super();
+public class CFG extends GraphWithRootNode<CallableDeclaration<?>> {
+    protected GraphNode<?> exitNode;
+
+    /** Obtains the declaration on which this CFG is based. */
+    public CallableDeclaration<?> getDeclaration() {
+        assert rootNode != null;
+        return rootNode.getAstNode();
     }
 
-    public void addControlFlowEdge(GraphNode<?> from, GraphNode<?> to) {
-        addControlFlowEdge(from, to, new ControlFlowArc());
+    public GraphNode<?> getExitNode() {
+        if (exitNode == null)
+            throw new IllegalStateException("There is no exit node!");
+        return exitNode;
     }
 
-    protected void addControlFlowEdge(GraphNode<?> from, GraphNode<?> to, ControlFlowArc arc) {
-        super.addEdge(from, to, arc);
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), exitNode);
     }
 
-    public List<VariableAction.Definition> findLastDefinitionsFrom(GraphNode<?> startNode, VariableAction.Usage variable) {
-        if (!this.containsVertex(startNode))
-            throw new NodeNotFoundException(startNode, this);
-        return findLastVarActionsFrom(startNode, variable, VariableAction::isDefinition);
+    @Override
+    public boolean equals(Object obj) {
+        return super.equals(obj) && obj instanceof CFG && Objects.equals(exitNode, ((CFG) obj).exitNode);
     }
 
-    public List<VariableAction.Declaration> findLastDeclarationsFrom(GraphNode<?> startNode, VariableAction.Definition variable) {
-        if (!this.containsVertex(startNode))
-            throw new NodeNotFoundException(startNode, this);
-        return findLastVarActionsFrom(startNode, variable, VariableAction::isDeclaration);
+    public void addControlFlowArc(GraphNode<?> from, GraphNode<?> to) {
+        addControlFlowArc(from, to, new ControlFlowArc());
     }
 
-    protected <E extends VariableAction> List<E> findLastVarActionsFrom(GraphNode<?> startNode, VariableAction variable, Predicate<VariableAction> actionFilter) {
-        return findLastVarActionsFrom(new HashSet<>(), new LinkedList<>(), startNode, startNode, variable, actionFilter);
+    protected void addControlFlowArc(GraphNode<?> from, GraphNode<?> to, ControlFlowArc arc) {
+        addEdge(from, to, arc);
     }
 
-    @SuppressWarnings("unchecked")
-    protected <E extends VariableAction> List<E> findLastVarActionsFrom(Set<GraphNode<?>> visited, List<E> result,
-                                                       GraphNode<?> start, GraphNode<?> currentNode, VariableAction var,
-                                                       Predicate<VariableAction> filter) {
+    /** Obtain the definitions that may have reached the given variable action. */
+    public List<VariableAction> findLastDefinitionsFrom(VariableAction variable) {
+        return findLastVarActionsFrom(variable, VariableAction::isDefinition);
+    }
+
+    /** Obtain the declaration of a given variable action, if any. */
+    public Optional<VariableAction> findDeclarationFor(VariableAction variable) {
+        List<VariableAction> declarations = findLastVarActionsFrom(variable, VariableAction::isDeclaration);
+        assert declarations.size() <= 1;
+        return Optional.ofNullable(declarations.isEmpty() ? null : declarations.get(0));
+    }
+
+    /** Check whether or not there is a definition in all paths from the argument to the start of the graph. */
+    public boolean isCompletelyDefined(VariableAction.Usage usage) {
+        return findLastVarActionsFrom(new HashSet<>(), new LinkedList<>(), usage.getGraphNode(), usage, VariableAction::isDefinition);
+    }
+
+    /** Obtain a list of actions that can reach the variable, and match the variable and filter. */
+    protected List<VariableAction> findLastVarActionsFrom(VariableAction variable, Predicate<VariableAction> actionFilter) {
+        if (!this.containsVertex(variable.getGraphNode()))
+            throw new NodeNotFoundException(variable.getGraphNode(), this);
+        List<VariableAction> list = new LinkedList<>();
+        findLastVarActionsFrom(new HashSet<>(), list, variable.getGraphNode(), variable, actionFilter);
+        return list;
+    }
+
+    protected boolean findLastVarActionsFrom(Set<GraphNode<?>> visited, List<VariableAction> result,
+                                             GraphNode<?> currentNode, VariableAction var,
+                                             Predicate<VariableAction> filter) {
         // Base case
         if (visited.contains(currentNode))
-            return result;
+            return true;
         visited.add(currentNode);
 
         Stream<VariableAction> stream = currentNode.getVariableActions().stream();
-        if (start.equals(currentNode))
-            stream = stream.takeWhile(Predicate.not(var::equals));
+        if (var.getGraphNode().equals(currentNode))
+            stream = stream.takeWhile(va -> va != var);
         List<VariableAction> list = stream.filter(var::matches).filter(filter).collect(Collectors.toList());
         if (!list.isEmpty()) {
             for (int i = list.size() - 1; i >= 0; i--) {
-                result.add((E) list.get(i));
+                result.add(list.get(i));
                 if (!list.get(i).isOptional())
                     break;
             }
             if (!list.get(0).isOptional())
-                return result;
+                return true;
         }
 
         // Not found: traverse backwards!
+        boolean allBranches = !incomingEdgesOf(currentNode).isEmpty();
         for (Arc arc : incomingEdgesOf(currentNode))
             if (arc.isExecutableControlFlowArc())
-                findLastVarActionsFrom(visited, result, start, getEdgeSource(arc), var, filter);
-        return result;
+                allBranches &= findLastVarActionsFrom(visited, result, getEdgeSource(arc), var, filter);
+        return allBranches;
+    }
+
+    /** Create and set the root node of this CFG, given a callable declaration. */
+    public void buildRootNode(CallableDeclaration<?> rootNodeAst) {
+        super.buildRootNode("ENTER " + rootNodeAst.getDeclarationAsString(false, false, false), rootNodeAst);
     }
 
     @Override
     public boolean removeVertex(GraphNode<?> graphNode) {
         // Cannot remove exit node
         // Enter node's removal is checked in super#removeVertex(GraphNode)
-        if (graphNode.getNodeType() == NodeType.METHOD_EXIT)
+        if (graphNode == exitNode)
             return false;
         return super.removeVertex(graphNode);
     }
 
     @Override
-    public void build(MethodDeclaration method) {
-        method.accept(newCFGBuilder(), null);
-        if (vertexSet().stream().noneMatch(n -> n.getNodeType() == NodeType.METHOD_EXIT))
-            throw new IllegalStateException("There is no exit node after building the graph");
+    public void build(CallableDeclaration<?> declaration) {
+        declaration.accept(newCFGBuilder(), null);
+        exitNode = vertexSet().stream().filter(MethodExitNode.class::isInstance).findFirst()
+                .orElseThrow(() -> new IllegalStateException("Built graph has no exit node!"));
         built = true;
     }
 
+    /** Create a new CFGBuilder. Child classes that wish to alter the creation of the graph
+     * should create a new CFGBuilder and override this method. */
     protected CFGBuilder newCFGBuilder() {
         return new CFGBuilder(this);
     }

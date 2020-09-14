@@ -1,14 +1,20 @@
 package tfm.slicing;
 
 import tfm.arcs.Arc;
-import tfm.graphs.exceptionsensitive.ESSDG;
+import tfm.graphs.augmented.PSDG;
 import tfm.nodes.GraphNode;
 
 public class PseudoPredicateSlicingAlgorithm extends ClassicSlicingAlgorithm {
     protected GraphNode<?> slicingCriterion;
 
-    public PseudoPredicateSlicingAlgorithm(ESSDG graph) {
+    public PseudoPredicateSlicingAlgorithm(PSDG graph) {
         super(graph);
+    }
+
+    @Override
+    public Slice traverseProcedure(GraphNode<?> slicingCriterion) {
+        this.slicingCriterion = slicingCriterion;
+        return super.traverseProcedure(slicingCriterion);
     }
 
     @Override
@@ -27,9 +33,14 @@ public class PseudoPredicateSlicingAlgorithm extends ClassicSlicingAlgorithm {
         return super.ignorePass2(arc) || ignorePseudoPredicate(arc);
     }
 
+    @Override
+    public boolean ignoreProcedure(Arc arc) {
+        return super.ignoreProcedure(arc) || ignorePseudoPredicate(arc);
+    }
+
     protected boolean ignorePseudoPredicate(Arc arc) {
         GraphNode<?> target = graph.getEdgeTarget(arc);
-        return ((ESSDG) graph).isPseudoPredicate(target)
+        return ((PSDG) graph).isPseudoPredicate(target)
                 && arc.isControlDependencyArc()
                 && target != slicingCriterion;
     }

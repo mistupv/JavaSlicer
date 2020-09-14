@@ -10,14 +10,14 @@ import tfm.utils.Logger;
 
 import java.util.Optional;
 
+/** A criterion that locates nodes by line. It may only be used in single-declaration graphs. */
 public class LineNumberCriterion extends SlicingCriterion {
     protected static final Position DEFAULT_POSITION = new Position(0, 0);
 
-    protected int lineNumber;
+    protected final int lineNumber;
 
     public LineNumberCriterion(int lineNumber, String variable) {
         super(variable);
-
         this.lineNumber = lineNumber;
     }
 
@@ -49,6 +49,7 @@ public class LineNumberCriterion extends SlicingCriterion {
         return Optional.empty();
     }
 
+    /** Check if a node matches the criterion's line. */
     protected boolean matchesLine(Node node) {
         return node.getBegin().orElse(DEFAULT_POSITION).line == lineNumber;
     }

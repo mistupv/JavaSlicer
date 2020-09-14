@@ -10,6 +10,8 @@ import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSol
 import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 import org.apache.commons.cli.*;
+import tfm.graphs.augmented.ASDG;
+import tfm.graphs.augmented.PSDG;
 import tfm.graphs.exceptionsensitive.ESSDG;
 import tfm.graphs.sdg.SDG;
 import tfm.slicing.FileLineSlicingCriterion;
@@ -83,7 +85,11 @@ public class Slicer {
                 .desc("The directory where the sliced source code should be placed. By default, it is placed at " +
                         DEFAULT_OUTPUT_DIR)
                 .build());
-        OPTIONS.addOption("es", "exception-sensitive", false, "Enable exception-sensitive analysis");
+        OPTIONS.addOption(Option
+                .builder("t").longOpt("type")
+                .hasArg().argName("graph_type")
+                .desc("The type of graph to be built. Available options are SDG, ASDG, PSDG, ESSDG.")
+                .build());
         OPTIONS.addOption(Option
                 .builder("h").longOpt("help")
                 .desc("Shows this text")
@@ -222,7 +228,15 @@ public class Slicer {
             throw new ParseException(e.getMessage());
         }
 
-        SDG sdg = cliOpts.hasOption("exception-sensitive") ? new ESSDG() : new SDG();
+        SDG sdg;
+        switch (cliOpts.getOptionValue("type")) {
+            case "SDG":   sdg = new SDG();   break;
+            case "ASDG":  sdg = new ASDG();  break;
+            case "PSDG":  sdg = new PSDG();  break;
+            case "ESSDG": sdg = new ESSDG(); break;
+            default:
+                throw new IllegalArgumentException("Unknown type of graph. Available graphs are SDG, ASDG, PSDG, ESSDG");
+        }
         sdg.build(units);
 
         // Slice the SDG

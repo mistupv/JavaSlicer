@@ -4,8 +4,8 @@ import org.jgrapht.io.DOTExporter;
 import tfm.arcs.Arc;
 import tfm.graphs.Graph;
 import tfm.nodes.GraphNode;
-import tfm.utils.FileUtil;
 import tfm.utils.Logger;
+import tfm.utils.Utils;
 
 import java.io.*;
 
@@ -99,7 +99,7 @@ public abstract class GraphLog<G extends Graph> {
 
     public void openVisualRepresentation() throws IOException {
         if (!generated) generateImages();
-        FileUtil.open(getImageFile());
+        Utils.openFileForUser(getImageFile());
     }
 
     public File getImageFile() {

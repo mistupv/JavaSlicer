@@ -1,15 +1,11 @@
 package tfm.cli;
 
 import tfm.graphs.pdg.PDG;
-import tfm.nodes.GraphNode;
-import tfm.utils.Logger;
 
 import java.io.IOException;
-import java.util.Comparator;
-import java.util.stream.Collectors;
 
 public class PDGLog extends GraphLog<PDG> {
-    private CFGLog cfgLog;
+    private final CFGLog cfgLog;
 
     public PDGLog() {
         this(null);
@@ -21,22 +17,6 @@ public class PDGLog extends GraphLog<PDG> {
         if (graph != null && graph.getCfg() != null)
             cfgLog = new CFGLog(graph.getCfg());
         else cfgLog = null;
-    }
-
-    @Override
-    public void log() throws IOException {
-        super.log();
-
-        Logger.log("Nodes with variable info");
-        Logger.log(graph.vertexSet().stream()
-                .sorted(Comparator.comparingLong(GraphNode::getId))
-                .map(node ->
-                        String.format("GraphNode { id: %s, instruction: %s, variables: %s}",
-                                node.getId(),
-                                node.getInstruction(),
-                                node.getVariableActions())
-                ).collect(Collectors.joining(System.lineSeparator()))
-        );
     }
 
     @Override

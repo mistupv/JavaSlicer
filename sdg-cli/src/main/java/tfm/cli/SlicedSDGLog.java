@@ -32,7 +32,7 @@ public class SlicedSDGLog extends SDGLog {
         return new DOTExporter<>(
                 n -> String.valueOf(n.getId()),
                 n -> {
-                    String s = n.getId() + ": " + n.getInstruction();
+                    String s = n.getId() + ": " + n.getLabel();
                     if (!n.getVariableActions().isEmpty())
                         s += "\n" + n.getVariableActions().stream().map(Object::toString).reduce((a, b) -> a + "," + b).orElse("--");
                     return s;

@@ -7,8 +7,10 @@ import tfm.graphs.pdg.PDG;
 import tfm.graphs.sdg.SDG;
 import tfm.nodes.VariableAction;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.BiPredicate;
 
 /**
  * An arc used in the {@link PDG} and {@link SDG},
@@ -16,48 +18,51 @@ import java.util.Objects;
  * There is data dependency between two nodes if and only if (1) the source <it>may</it>
  * declare a variable, (2) the destination <it>may</it> use it, and (3) there is a
  * path between the nodes where the variable is not redefined.
+ * <br/>
+ * Data dependency arcs are specific to a DEC-DEF or DEF-USE combination, and can
+ * be easily identified by source or target {@link VariableAction}.
  */
 public class DataDependencyArc extends Arc {
-    protected final VariableAction source;
-    protected final VariableAction target;
+    /** Valid combinations of variable actions. */
+    private static final List<BiPredicate<VariableAction, VariableAction>> VALID_VA_COMBOS =
+            List.of((a, b) -> a.isDefinition() && b.isUsage(), (a, b) -> a.isDeclaration() && b.isDefinition());
 
-    public DataDependencyArc(VariableAction.Definition source, VariableAction.Usage target) {
-        super(source.getVariable());
-        this.source = source;
-        this.target = target;
+    protected final VariableAction sourceVar;
+    protected final VariableAction targetVar;
+
+    public DataDependencyArc(VariableAction sourceVar, VariableAction targetVar) {
+        super(sourceVar.getVariable());
+        if (VALID_VA_COMBOS.stream().noneMatch(p -> p.test(sourceVar, targetVar)))
+            throw new IllegalArgumentException("Illegal combination of actions: " + sourceVar + ", " + targetVar);
+        this.sourceVar = sourceVar;
+        this.targetVar = targetVar;
     }
 
-    public DataDependencyArc(VariableAction.Declaration source, VariableAction.Definition target) {
-        super(source.getVariable());
-        this.source = source;
-        this.target = target;
+    public VariableAction getSourceVar() {
+        return sourceVar;
     }
 
-    public VariableAction getSource() {
-        return source;
-    }
-
-    public VariableAction getTarget() {
-        return target;
+    public VariableAction getTargetVar() {
+        return targetVar;
     }
 
     @Override
     public boolean equals(Object o) {
         return super.equals(o)
                 && o instanceof DataDependencyArc
-                && Objects.equals(source, ((DataDependencyArc) o).source)
-                && Objects.equals(target, ((DataDependencyArc) o).target);
+                && sourceVar == ((DataDependencyArc) o).sourceVar
+                && targetVar == ((DataDependencyArc) o).targetVar;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), source, target);
+        return Objects.hash(super.hashCode(), sourceVar, targetVar);
     }
 
     @Override
     public Map<String, Attribute> getDotAttributes() {
         Map<String, Attribute> map = super.getDotAttributes();
-        map.put("color", DefaultAttribute.createAttribute(target.isDefinition() ? "pink" : "red"));
+        map.put("color", DefaultAttribute.createAttribute(targetVar.isDefinition() ? "pink" : "red"));
         return map;
     }
 }

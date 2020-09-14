@@ -4,6 +4,7 @@ import tfm.arcs.Arc;
 import tfm.arcs.pdg.ConditionalControlDependencyArc.CC1;
 import tfm.arcs.pdg.ConditionalControlDependencyArc.CC2;
 import tfm.arcs.pdg.ControlDependencyArc;
+import tfm.arcs.sdg.InterproceduralArc;
 import tfm.graphs.exceptionsensitive.ESSDG;
 import tfm.nodes.GraphNode;
 import tfm.utils.Utils;
@@ -13,8 +14,20 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-// It doesn't inherit from PPSlicingAlgorithm because it's more difficult that way,
-// plus the PPDG is inherently wrong (see SAS2020 paper on exceptions).
+/**
+ * An exception-sensitive slicing algorithm, which follows these rules:
+ * <ol>
+ *     <li>SDG: two-pass traversal, first ignoring interprocedural outputs, then interprocedural inputs.</li>
+ *     <li>PPDG*: pseudo-predicate nodes that are included only due to control-dependency arcs should
+ *          not keep traversing control-dependency arcs.</li>
+ *     <li>CCD: a node reached by a CC1 or CC2 arc is not included in the slice until it has either been
+ *          reached by an unconditional dependency or by the opposite (CC2 or CC1, respectively) arc.</li>
+ *     <li>CCD: a node included only due to conditional-control-dependency should not keep traversing any arc.</li>
+ *     <li>CCD (apply only if none of the previous allow for a new node and this does): CC1 arcs are
+ *          transitively traversed, even when the intermediate nodes are not (yet) included in the slice.</li>
+ *          TODO: last rule hasn't been completely included, the parenthesis is not implemented.
+ * </ol>
+ */
 public class ExceptionSensitiveSlicingAlgorithm implements SlicingAlgorithm {
     /** Return values for handlers. A node can either be skipped, traversed or not handled.
      * In the second case, the handler is responsible of modifying the state of the algorithm.
@@ -55,6 +68,15 @@ public class ExceptionSensitiveSlicingAlgorithm implements SlicingAlgorithm {
     }
 
     @Override
+    public Slice traverseProcedure(GraphNode<?> slicingCriterion) {
+        this.slicingCriterion = slicingCriterion;
+        reached.add(slicingCriterion);
+        sdgSkipCheck = InterproceduralArc.class::isInstance;
+        pass();
+        return createSlice();
+    }
+
+    @Override
     public Slice traverse(GraphNode<?> slicingCriterion) {
         this.slicingCriterion = slicingCriterion;
         reached.add(slicingCriterion);
@@ -66,6 +88,7 @@ public class ExceptionSensitiveSlicingAlgorithm implements SlicingAlgorithm {
         return createSlice();
     }
 
+    /** Generate a slice object from the sets of visited and partly visited nodes. */
     protected Slice createSlice() {
         Slice slice = new Slice();
         // Removes nodes that have only been visited by one kind of conditional control dependence
@@ -76,6 +99,7 @@ public class ExceptionSensitiveSlicingAlgorithm implements SlicingAlgorithm {
         return slice;
     }
 
+    /** Perform a round of traversal, until no new nodes can be added. */
     protected void pass() {
         while (!reached.isEmpty()) {
             GraphNode<?> node = Utils.setPop(reached);
@@ -108,6 +132,7 @@ public class ExceptionSensitiveSlicingAlgorithm implements SlicingAlgorithm {
         }
     }
 
+    /** The default handler, which traverses unconditionally the arc. */
     protected int handleDefault(Arc arc) {
         GraphNode<?> src = graph.getEdgeSource(arc);
         traversedArcs.add(arc);
@@ -116,10 +141,12 @@ public class ExceptionSensitiveSlicingAlgorithm implements SlicingAlgorithm {
         return TRAVERSED;
     }
 
+    /** A handler that discards any arc that has already been processed. */
     protected int handleRepeats(Arc arc) {
         return traversedArcs.contains(arc) ? SKIPPED : NOT_HANDLED;
     }
 
+    /** A handler that skips control dependency arcs that shall not be traversed due to the PPDG* rule. */
     protected int ppdgSkipCheck(Arc arc) {
         GraphNode<?> node = graph.getEdgeTarget(arc);
         return !node.equals(slicingCriterion)
@@ -129,6 +156,7 @@ public class ExceptionSensitiveSlicingAlgorithm implements SlicingAlgorithm {
                 ? SKIPPED : NOT_HANDLED;
     }
 
+    /** A handler that skips arcs when a node has only been reached by CCD. */
     protected int handleExceptionSensitive(Arc arc) {
         GraphNode<?> node = graph.getEdgeTarget(arc);
         // Visit only CC1 if only CC1 has visited it
@@ -141,10 +169,12 @@ public class ExceptionSensitiveSlicingAlgorithm implements SlicingAlgorithm {
         return NOT_HANDLED;
     }
 
+    /** Check if a node hasn't been reached or it only has been reached by arcs of a given class. */
     protected boolean hasOnlyBeenReachedBy(GraphNode<?> node, Class<? extends Arc> type) {
         return reachedStream(node).allMatch(a -> a.getClass().equals(type));
     }
 
+    /** Obtain a stream of arcs that have reached the given node. */
     protected Stream<Arc> reachedStream(GraphNode<?> node) {
         return traversedArcs.stream().filter(arc -> graph.getEdgeSource(arc).equals(node));
     }

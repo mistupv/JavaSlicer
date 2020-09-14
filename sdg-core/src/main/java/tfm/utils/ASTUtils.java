@@ -1,61 +1,37 @@
 package tfm.utils;
 
-import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
-import com.github.javaparser.ast.NodeList;
-import com.github.javaparser.ast.stmt.*;
+import com.github.javaparser.ast.body.CallableDeclaration;
+import com.github.javaparser.ast.body.ConstructorDeclaration;
+import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.expr.ObjectCreationExpr;
+import com.github.javaparser.ast.stmt.BlockStmt;
+import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
+import com.github.javaparser.ast.stmt.SwitchEntryStmt;
+import com.github.javaparser.ast.stmt.SwitchStmt;
+import com.github.javaparser.resolution.Resolvable;
+import com.github.javaparser.resolution.declarations.ResolvedConstructorDeclaration;
+import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
+import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
+import com.github.javaparser.resolution.declarations.ResolvedParameterDeclaration;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Predicate;
 
+/** JavaParser-related utility functions. */
 public class ASTUtils {
-
-    public static BlockStmt blockWrapper(Statement statement) {
-        if (statement.isBlockStmt())
-            return statement.asBlockStmt();
-
-        return new BlockStmt(new NodeList<>(statement));
-    }
-
-    public static boolean isLoop(Statement statement) {
-        return statement.isWhileStmt()
-                || statement.isDoStmt()
-                || statement.isForStmt()
-                || statement.isForEachStmt();
-    }
-
-    public static Statement findFirstAncestorStatementFrom(Statement statement, Predicate<Statement> predicate) {
-        if (predicate.test(statement)) {
-            return statement;
-        }
-
-        if (!statement.getParentNode().isPresent()) {
-            return new EmptyStmt();
-        }
-
-        return findFirstAncestorStatementFrom((Statement) statement.getParentNode().get(), predicate);
-    }
-
-    /**
-     * Clones an entire AST by cloning the root node of the given node
-     * @param node - a node of the AST
-     * @return the root node of the cloned AST
-     */
-    public static Node cloneAST(Node node) {
-        return node.findRootNode().clone();
+    private ASTUtils() {
+        throw new UnsupportedOperationException("This is a static, utility class");
     }
 
     public static boolean isContained(Node upper, Node contained) {
-        Optional<Node> optionalParent = contained.getParentNode();
-
-        if (!optionalParent.isPresent()) {
+        Optional<Node> parent = contained.getParentNode();
+        if (parent.isEmpty())
             return false;
-        }
-
-        Node parent = optionalParent.get();
-
-        return Objects.equals(parent, upper) || isContained(upper, parent);
+        return equalsWithRangeInCU(upper, parent.get()) || isContained(upper, parent.get());
     }
 
     public static boolean switchHasDefaultCase(SwitchStmt stmt) {
@@ -64,7 +40,7 @@ public class ASTUtils {
 
     public static SwitchEntryStmt switchGetDefaultCase(SwitchStmt stmt) {
         for (SwitchEntryStmt entry : stmt.getEntries())
-            if (!entry.getLabel().isPresent())
+            if (entry.getLabel().isEmpty())
                 return entry;
         return null;
     }
@@ -74,17 +50,71 @@ public class ASTUtils {
     }
 
     public static boolean equalsWithRangeInCU(Node n1, Node n2) {
-        // Find the compilation unit of each node
-        Optional<CompilationUnit> optionalCompilationUnit1 = n1.findCompilationUnit();
-        Optional<CompilationUnit> optionalCompilationUnit2 = n2.findCompilationUnit();
+        return n1.findCompilationUnit().equals(n2.findCompilationUnit())
+                && equalsWithRange(n1, n2);
+    }
 
-        // If they are inside the same compilation unit, compare with range
-        if (optionalCompilationUnit1.isPresent() && optionalCompilationUnit2.isPresent()) {
-            return Objects.equals(optionalCompilationUnit1.get(), optionalCompilationUnit2.get())
-                    && equalsWithRange(n1, n2);
-        }
+    public static boolean resolvableIsVoid(Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
+        var resolved = call.resolve();
+        if (resolved instanceof ResolvedMethodDeclaration)
+            return ((ResolvedMethodDeclaration) resolved).getReturnType().isVoid();
+        if (resolved instanceof ResolvedConstructorDeclaration)
+            return false;
+        throw new IllegalArgumentException("Call didn't resolve to either method or constructor!");
+    }
 
-        // If not, just compare with range
-        return equalsWithRange(n1, n2);
+    public static int getMatchingParameterIndex(CallableDeclaration<?> declaration, ResolvedParameterDeclaration param) {
+        var parameters = declaration.getParameters();
+        for (int i = 0; i < parameters.size(); i++)
+            if (resolvedParameterEquals(param, parameters.get(i).resolve()))
+                return i;
+        throw new IllegalArgumentException("Expression resolved to a parameter, but could not be found!");
+    }
+
+    public static int getMatchingParameterIndex(ResolvedMethodLikeDeclaration declaration, ResolvedParameterDeclaration param) {
+        for (int i = 0; i < declaration.getNumberOfParams(); i++)
+            if (resolvedParameterEquals(declaration.getParam(i), param))
+                return i;
+        throw new IllegalArgumentException("Expression resolved to a parameter, but could not be found!");
+    }
+
+    protected static boolean resolvedParameterEquals(ResolvedParameterDeclaration p1, ResolvedParameterDeclaration p2) {
+        return p2.getType().equals(p1.getType()) && p2.getName().equals(p1.getName());
+    }
+
+    public static List<Expression> getResolvableArgs(Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
+        if (call instanceof MethodCallExpr)
+            return ((MethodCallExpr) call).getArguments();
+        if (call instanceof ObjectCreationExpr)
+            return ((ObjectCreationExpr) call).getArguments();
+        if (call instanceof ExplicitConstructorInvocationStmt)
+            return ((ExplicitConstructorInvocationStmt) call).getArguments();
+        throw new IllegalArgumentException("Call wasn't of a compatible type!");
+    }
+
+    public static BlockStmt getCallableBody(CallableDeclaration<?> callableDeclaration) {
+        if (callableDeclaration instanceof MethodDeclaration)
+            return ((MethodDeclaration) callableDeclaration).getBody().orElseThrow(() -> new IllegalStateException("Graph creation is not allowed for abstract or native methods!"));
+        if (callableDeclaration instanceof ConstructorDeclaration)
+            return ((ConstructorDeclaration) callableDeclaration).getBody();
+        throw new IllegalStateException("The method must have a body!");
+    }
+
+    public static Optional<Expression> getResolvableScope(Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
+        if (call instanceof MethodCallExpr)
+            return ((MethodCallExpr) call).getScope();
+        if (call instanceof ObjectCreationExpr)
+            return ((ObjectCreationExpr) call).getScope();
+        if (call instanceof ExplicitConstructorInvocationStmt)
+            return Optional.empty();
+        throw new IllegalArgumentException("Call wasn't of a compatible type!");
+    }
+
+    public static Optional<? extends CallableDeclaration<?>> getResolvedAST(ResolvedMethodLikeDeclaration resolvedDeclaration) {
+        if (resolvedDeclaration instanceof ResolvedMethodDeclaration)
+            return ((ResolvedMethodDeclaration) resolvedDeclaration).toAst();
+        if (resolvedDeclaration instanceof ResolvedConstructorDeclaration)
+            return ((ResolvedConstructorDeclaration) resolvedDeclaration).toAst();
+        throw new IllegalStateException("AST node of invalid type");
     }
 }

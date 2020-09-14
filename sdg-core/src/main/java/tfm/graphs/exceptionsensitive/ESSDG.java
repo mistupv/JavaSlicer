@@ -1,74 +1,51 @@
 package tfm.graphs.exceptionsensitive;
 
-import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.NodeList;
 import tfm.arcs.sdg.ReturnArc;
-import tfm.graphs.augmented.ACFG;
+import tfm.graphs.CallGraph;
+import tfm.graphs.augmented.PSDG;
 import tfm.graphs.cfg.CFG;
 import tfm.graphs.pdg.PDG;
-import tfm.graphs.sdg.SDG;
-import tfm.graphs.sdg.SDGBuilder;
-import tfm.graphs.sdg.sumarcs.NaiveSummaryArcsBuilder;
-import tfm.nodes.ExitNode;
-import tfm.nodes.GraphNode;
-import tfm.nodes.ReturnNode;
-import tfm.nodes.SyntheticNode;
-import tfm.nodes.type.NodeType;
+import tfm.nodes.exceptionsensitive.ExitNode;
+import tfm.nodes.exceptionsensitive.ReturnNode;
 import tfm.slicing.ExceptionSensitiveSlicingAlgorithm;
-import tfm.slicing.Slice;
-import tfm.slicing.SlicingCriterion;
-import tfm.utils.Context;
+import tfm.slicing.SlicingAlgorithm;
 
-import java.util.Optional;
-import java.util.Set;
-
-public class ESSDG extends SDG {
-    protected static final Set<NodeType> NOT_PP_TYPES = Set.of(NodeType.METHOD_CALL, NodeType.METHOD_OUTPUT, NodeType.METHOD_CALL_RETURN);
-
+/** An exception-sensitive SDG, equivalent to an PSDG, that is built using the {@link ESPDG}
+ *  instead of {@link tfm.graphs.augmented.PPDG}. It features a different slicing algorithm
+ *  and return arcs, which connect an exit node to a return node. */
+public class ESSDG extends PSDG {
     @Override
-    protected SDGBuilder createBuilder() {
+    protected Builder createBuilder() {
         return new Builder();
     }
 
     @Override
-    public Slice slice(SlicingCriterion slicingCriterion) {
-        Optional<GraphNode<?>> optSlicingNode = slicingCriterion.findNode(this);
-        if (optSlicingNode.isEmpty())
-            throw new IllegalArgumentException("Could not locate the slicing criterion in the SDG");
-        return new ExceptionSensitiveSlicingAlgorithm(ESSDG.this).traverse(optSlicingNode.get());
-    }
-
-    @Override
-    public void build(NodeList<CompilationUnit> nodeList) {
-        nodeList.accept(createBuilder(), new Context());
-        Set<GraphNode<?>> vertices = Set.copyOf(vertexSet());
-        vertices.forEach(n -> new ExceptionSensitiveMethodCallReplacerVisitor(this).startVisit(n));
-        new NaiveSummaryArcsBuilder(this).visit();
-        compilationUnits = nodeList;
-        built = true;
-    }
-
-    public boolean isPseudoPredicate(GraphNode<?> node) {
-        if (NOT_PP_TYPES.contains(node.getNodeType()) || node instanceof SyntheticNode)
-            return false;
-        for (CFG cfg : cfgs)
-            if (cfg.containsVertex(node))
-                return ((ACFG) cfg).isPseudoPredicate(node);
-        throw new IllegalArgumentException("Node " + node.getId() + "'s associated CFG cannot be found!");
+    protected SlicingAlgorithm createSlicingAlgorithm() {
+        return new ExceptionSensitiveSlicingAlgorithm(this);
     }
 
     public void addReturnArc(ExitNode source, ReturnNode target) {
         addEdge(source, target, new ReturnArc());
     }
 
-    class Builder extends SDGBuilder {
-        public Builder() {
-            super(ESSDG.this);
+    /** Populates an ESSDG, using ESPDG and ESCFG as default graphs.
+     * @see PSDG.Builder
+     * @see ExceptionSensitiveCallConnector */
+    class Builder extends PSDG.Builder {
+        @Override
+        protected CFG createCFG() {
+            return new ESCFG();
         }
 
         @Override
-        protected PDG createPDG() {
-            return new ESPDG();
+        protected PDG createPDG(CFG cfg) {
+            assert cfg instanceof ESCFG;
+            return new ESPDG((ESCFG) cfg);
+        }
+
+        @Override
+        protected void connectCalls(CallGraph callGraph) {
+            new ExceptionSensitiveCallConnector(ESSDG.this).connectAllCalls(callGraph);
         }
     }
 }

@@ -15,26 +15,28 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
+/** The root class from which all arcs in the {@link tfm.graphs.cfg.CFG CFG}, {@link tfm.graphs.pdg.PDG PDG}
+ * and {@link tfm.graphs.sdg.SDG SDG} inherit. */
 public abstract class Arc extends DefaultEdge {
-
-    private String label;
+    protected final String label;
 
     protected Arc() {
+        this(null);
     }
 
     protected Arc(String label) {
         this.label = label;
     }
 
+    public String getLabel() {
+        return label;
+    }
+
+    // =========================== CFG ===========================
+
     /** @see ControlFlowArc */
     public final boolean isControlFlowArc() {
         return this instanceof ControlFlowArc;
-    }
-
-    public final ControlFlowArc asControlFlowArc() {
-        if (isControlFlowArc())
-            return (ControlFlowArc) this;
-        throw new UnsupportedOperationException("Not a ControlFlowArc");
     }
 
     /** @see ControlFlowArc.NonExecutable */
@@ -47,15 +49,31 @@ public abstract class Arc extends DefaultEdge {
         return this instanceof ControlFlowArc.NonExecutable;
     }
 
+    // ======================== PDG & SDG ========================
+
     /** @see ControlDependencyArc */
     public final boolean isControlDependencyArc() {
         return this instanceof ControlDependencyArc;
     }
 
     public final ControlDependencyArc asControlDependencyArc() {
-        if (isControlDependencyArc())
-            return (ControlDependencyArc) this;
+        if (isControlDependencyArc()) return (ControlDependencyArc) this;
         throw new UnsupportedOperationException("Not a ControlDependencyArc");
+    }
+
+    /** @see ConditionalControlDependencyArc */
+    public final boolean isConditionalControlDependencyArc() {
+        return this instanceof ConditionalControlDependencyArc;
+    }
+
+    /** @see ConditionalControlDependencyArc */
+    public final boolean isUnconditionalControlDependencyArc() {
+        return isControlDependencyArc() && !isConditionalControlDependencyArc();
+    }
+
+    public final ControlDependencyArc asConditionalControlDependencyArc() {
+        if (isConditionalControlDependencyArc()) return (ConditionalControlDependencyArc) this;
+        throw new UnsupportedOperationException("Not a ConditionalControlDependencyArc");
     }
 
     /** @see DataDependencyArc */
@@ -64,15 +82,18 @@ public abstract class Arc extends DefaultEdge {
     }
 
     public final DataDependencyArc asDataDependencyArc() {
-        if (isDataDependencyArc())
-            return (DataDependencyArc) this;
+        if (isDataDependencyArc()) return (DataDependencyArc) this;
         throw new UnsupportedOperationException("Not a DataDependencyArc");
     }
 
+    // =========================== SDG ===========================
+
+    /** Whether or not this is an interprocedural arc that connects a call site to its declaration. */
     public boolean isInterproceduralInputArc() {
         return false;
     }
 
+    /** Whether or not this is an interprocedural arc that connects a declaration to a matching call site. */
     public boolean isInterproceduralOutputArc() {
         return false;
     }
@@ -83,8 +104,7 @@ public abstract class Arc extends DefaultEdge {
     }
 
     public final CallArc asCallArc() {
-        if (isCallArc())
-            return (CallArc) this;
+        if (isCallArc()) return (CallArc) this;
         throw new UnsupportedOperationException("Not a CallArc");
     }
 
@@ -94,8 +114,7 @@ public abstract class Arc extends DefaultEdge {
     }
 
     public final ParameterInOutArc asParameterInOutArc() {
-        if (isParameterInOutArc())
-            return (ParameterInOutArc) this;
+        if (isParameterInOutArc()) return (ParameterInOutArc) this;
         throw new UnsupportedOperationException("Not a ParameterInOutArc");
     }
 
@@ -105,32 +124,17 @@ public abstract class Arc extends DefaultEdge {
     }
 
     public final SummaryArc asSummaryArcArc() {
-        if (isSummaryArc())
-            return (SummaryArc) this;
+        if (isSummaryArc()) return (SummaryArc) this;
         throw new UnsupportedOperationException("Not a SummaryArc");
-    }
-
-    /** @see ConditionalControlDependencyArc */
-    public final boolean isConditionalControlDependencyArc() {
-        return this instanceof ConditionalControlDependencyArc;
-    }
-
-    public final boolean isUnconditionalControlDependencyArc() {
-        return isControlDependencyArc() && !isConditionalControlDependencyArc();
-    }
-
-    public final ControlDependencyArc asConditionalControlDependencyArc() {
-        if (isConditionalControlDependencyArc())
-            return (ConditionalControlDependencyArc) this;
-        throw new UnsupportedOperationException("Not a ConditionalControlDependencyArc");
     }
 
     @Override
     public String toString() {
         return String.format("%s{%d -> %d}", getClass().getName(),
-                ((GraphNode<?>) getSource()).getId(), ((GraphNode<?>) getTarget()).getId());
+                ((GraphNode<?>) super.getSource()).getId(), ((GraphNode<?>) super.getTarget()).getId());
     }
 
+    /** A map of DOT attributes that define the style of this arc. */
     public Map<String, Attribute> getDotAttributes() {
         return new HashMap<>();
     }
@@ -151,9 +155,5 @@ public abstract class Arc extends DefaultEdge {
     @Override
     public int hashCode() {
         return Objects.hash(getClass(), getLabel(), getSource(), getTarget());
-    }
-
-    public String getLabel() {
-        return label;
     }
 }

@@ -2,14 +2,20 @@ package tfm.graphs;
 
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.stmt.*;
+import com.github.javaparser.ast.visitor.VoidVisitor;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import tfm.nodes.GraphNode;
 
-/** A generic visitor that can be use as a basis to traverse the nodes inside
- * a given {@link GraphNode}. */
+/** A generic visitor that can be use as a basis to traverse the nodes inside a given {@link GraphNode}.
+ *  @see #startVisit(GraphNode) */
 public class GraphNodeContentVisitor<A> extends VoidVisitorAdapter<A> {
     protected GraphNode<?> graphNode = null;
 
+    /**
+     * An entry-point to this visitor. The use of this class via
+     * {@link com.github.javaparser.ast.Node#accept(VoidVisitor, Object) Node.accept(VoidVisitor, Object)}
+     * is not supported and may result in a {@link NullPointerException} being thrown
+     */
     public final void startVisit(GraphNode<?> graphNode, A arg) {
         this.graphNode = graphNode;
         graphNode.getAstNode().accept(this, arg);
@@ -26,7 +32,9 @@ public class GraphNodeContentVisitor<A> extends VoidVisitorAdapter<A> {
     }
 
     @Override
-    public void visit(BlockStmt n, A arg) {}
+    public void visit(BlockStmt n, A arg) {
+        // A node representing a block has no relevant elements to be visited.
+    }
 
     @Override
     public void visit(BreakStmt n, A arg) {
@@ -40,7 +48,7 @@ public class GraphNodeContentVisitor<A> extends VoidVisitorAdapter<A> {
 
     @Override
     public void visit(ConstructorDeclaration n, A arg) {
-        throw new UnsupportedOperationException();
+        // A node representing a constructor declaration has no relevant elements to be visited.
     }
 
     @Override
@@ -53,10 +61,10 @@ public class GraphNodeContentVisitor<A> extends VoidVisitorAdapter<A> {
         n.getCondition().accept(this, arg);
     }
 
-    // TODO: this should not be part of any node, but in practice there are still
-    //    synthetic nodes that rely on it instead of extending SyntheticNode.
     @Override
-    public void visit(EmptyStmt n, A arg) {}
+    public void visit(EmptyStmt n, A arg) {
+        throw new UnsupportedOperationException();
+    }
 
     @Override
     public void visit(EnumConstantDeclaration n, A arg) {
@@ -70,7 +78,7 @@ public class GraphNodeContentVisitor<A> extends VoidVisitorAdapter<A> {
 
     @Override
     public void visit(ExplicitConstructorInvocationStmt n, A arg) {
-        throw new UnsupportedOperationException();
+        super.visit(n, arg);
     }
 
     @Override
@@ -105,7 +113,9 @@ public class GraphNodeContentVisitor<A> extends VoidVisitorAdapter<A> {
     }
 
     @Override
-    public void visit(MethodDeclaration n, A arg) {}
+    public void visit(MethodDeclaration n, A arg) {
+        // A node representing a method declaration has no relevant elements to be visited.
+    }
 
     @Override
     public void visit(ReturnStmt n, A arg) {
@@ -133,7 +143,9 @@ public class GraphNodeContentVisitor<A> extends VoidVisitorAdapter<A> {
     }
 
     @Override
-    public void visit(TryStmt n, A arg) {}
+    public void visit(TryStmt n, A arg) {
+        // A node representing a try statement has no relevant elements to be visited.
+    }
 
     @Override
     public void visit(LocalClassDeclarationStmt n, A arg) {
