@@ -46,7 +46,7 @@ public class Example {
 The program can be saved to `Example.java`, and the slicer run with:
 
 ```
-java -jar sdg-cli.jar -c Example.java#11:sum
+java -jar sdg-cli.jar -c Example.java#11:sum -t SDG
 ```
 
 A more detailed description of the available options can be seen with:
