@@ -26,6 +26,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Slicer {
+    protected static final String HELP_HEADER = "Java SDG Slicer: extract a slice from a Java program. At least" +
+            " the \"-c\" flag must be used to specify the slicing criterion.";
+
     protected static final Pattern SC_PATTERN;
     protected static final File DEFAULT_OUTPUT_DIR = new File("./slice/");
     protected static final Options OPTIONS = new Options();
@@ -39,38 +42,37 @@ public class Slicer {
     }
 
     static {
-        OptionGroup criterionOptionGroup = new OptionGroup();
-        criterionOptionGroup.addOption(Option
+        OPTIONS.addOption(Option
                 .builder("f").longOpt("file")
                 .hasArg().argName("CriterionFile.java").type(File.class)
                 .desc("The file that contains the slicing criterion.")
                 .build());
-        criterionOptionGroup.addOption(Option
+        OPTIONS.addOption(Option
                 .builder("l").longOpt("line")
                 .hasArg().argName("lineNumber").type(Integer.class)
                 .desc("The line that contains the statement of the slicing criterion.")
                 .build());
-        criterionOptionGroup.addOption(Option
+        OPTIONS.addOption(Option
                 .builder("v").longOpt("var")
                 .hasArgs().argName("variableName").valueSeparator(',')
                 .desc("The name of the variable of the slicing criterion. Not setting this option is" +
                         " equivalent to selecting an empty set; setting multiple variables is allowed," +
                         " separated by commas")
                 .build());
-        criterionOptionGroup.addOption(Option
+        OPTIONS.addOption(Option
                 .builder("n").longOpt("number")
                 .hasArgs().argName("occurrenceNumber").valueSeparator(',')
                 .desc("The occurrence number of the variable(s) selected. If this argument is not set, it will" +
                         " default to the first appearance of each variable. If the occurrence number must be set" +
                         " for every variable in the same order.")
                 .build());
-        OPTIONS.addOptionGroup(criterionOptionGroup);
         OPTIONS.addOption(Option
                 .builder("c").longOpt("criterion")
                 .hasArg().argName("file#line[:var[!occurrence]]")
                 .desc("The slicing criterion, in the format \"file#line:var\". Optionally, the occurrence can be" +
-                        " appended as \"!occurrence\". This option replaces \"-f\", \"-l\", \"-v\" and \"-n\", and" +
-                        " functions in a similar way: the variable and occurrence may be skipped or declared multiple times.")
+                        " appended as \"!occurrence\". This option may be replaced by \"-f\", \"-l\", \"-v\" and \"-n\"." +
+                        " If both are specified, the others are discarded. It functions in a similar way: the variable" +
+                        " and occurrence may be skipped or declared multiple times.")
                 .build());
         OPTIONS.addOption(Option
                 .builder("i").longOpt("include")
@@ -107,7 +109,7 @@ public class Slicer {
     public Slicer(String... cliArgs) throws ParseException {
         cliOpts = new DefaultParser().parse(OPTIONS, cliArgs);
         if (cliOpts.hasOption('h'))
-            throw new ParseException(OPTIONS.toString());
+            printHelp();
         if (cliOpts.hasOption('c')) {
             Matcher matcher = SC_PATTERN.matcher(cliOpts.getOptionValue("criterion"));
             if (!matcher.matches())
@@ -132,7 +134,7 @@ public class Slicer {
                     setScVars(cliOpts.getOptionValues('v'));
             }
         } else {
-            throw new ParseException("Slicing criterion not specified: either use \"-c\" or \"-f\" and \"l\".");
+            throw new ParseException("Slicing criterion not specified: either use \"-c\" or \"-f\" and \"-l\".");
         }
 
         if (cliOpts.hasOption('o'))
@@ -229,7 +231,7 @@ public class Slicer {
         }
 
         SDG sdg;
-        switch (cliOpts.getOptionValue("type")) {
+        switch (cliOpts.getOptionValue("type", "ESSDG")) {
             case "SDG":   sdg = new SDG();   break;
             case "ASDG":  sdg = new ASDG();  break;
             case "PSDG":  sdg = new PSDG();  break;
@@ -264,6 +266,13 @@ public class Slicer {
         return String.format("\n\tThis file was automatically generated as part of a slice with criterion" +
                         "\n\tfile: %s, line: %d, variable(s): %s\n\tOriginal file: %s\n",
                 scFile, scLine, String.join(", ", scVars), s.getPath());
+    }
+
+    protected void printHelp() {
+        HelpFormatter formatter = new HelpFormatter();
+        formatter.setWidth(120);
+        formatter.printHelp("java -jar sdg-cli.jar", HELP_HEADER, OPTIONS, "", true);
+        System.exit(0);
     }
 
     public static void main(String... args) {
