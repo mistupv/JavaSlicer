@@ -4,9 +4,13 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>es.upv.mist.slicing</groupId>
     <artifactId>sdg-cli</artifactId>
-    <version>1.0.5</version>
+
+    <parent>
+        <artifactId>sdg</artifactId>
+        <groupId>es.upv.mist.slicing</groupId>
+        <version>1.2.4</version>
+    </parent>
 
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
@@ -57,7 +61,7 @@
         <dependency>
             <groupId>es.upv.mist.slicing</groupId>
             <artifactId>sdg-core</artifactId>
-            <version>1.2.4</version>
+            <version>${parent.version}</version>
         </dependency>
     </dependencies>
 </project>
