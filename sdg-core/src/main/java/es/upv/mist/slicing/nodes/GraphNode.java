@@ -7,7 +7,6 @@ import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclarati
 import es.upv.mist.slicing.graphs.cfg.CFG;
 import es.upv.mist.slicing.graphs.pdg.PDG;
 import es.upv.mist.slicing.graphs.sdg.SDG;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
@@ -31,22 +30,22 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
     protected final List<Resolvable<? extends ResolvedMethodLikeDeclaration>> methodCalls = new LinkedList<>();
 
     /** Create a graph node, with id and variable actions generated automatically. */
-    public GraphNode(String label, @NotNull N astNode) {
+    public GraphNode(String label, N astNode) {
         this(IdHelper.getInstance().getNextId(), label, astNode);
     }
 
     /** Create a graph node, with variable actions generated automatically. */
-    protected GraphNode(long id, String label, @NotNull N astNode) {
+    protected GraphNode(long id, String label, N astNode) {
         this(id, label, astNode, new LinkedList<>());
         extractVariables();
     }
 
     /** Create a graph node, with id generated automatically. */
-    public GraphNode(String label, @NotNull N astNode, List<VariableAction> variableActions) {
+    public GraphNode(String label, N astNode, List<VariableAction> variableActions) {
         this(IdHelper.getInstance().getNextId(), label, astNode, variableActions);
     }
 
-    protected GraphNode(long id, String label, @NotNull N astNode, List<VariableAction> variableActions) {
+    protected GraphNode(long id, String label, N astNode, List<VariableAction> variableActions) {
         this.id = id;
         this.label = label;
         this.astNode = astNode;
@@ -173,7 +172,7 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
     }
 
     @Override
-    public int compareTo(@NotNull GraphNode<?> o) {
+    public int compareTo(GraphNode<?> o) {
         return Long.compare(id, o.id);
     }
 }
