@@ -2,6 +2,7 @@ package es.upv.mist.slicing.slicing;
 
 import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.arcs.pdg.ConditionalControlDependencyArc;
+import es.upv.mist.slicing.arcs.pdg.ConditionalControlDependencyArc.CC1;
 import es.upv.mist.slicing.arcs.pdg.ControlDependencyArc;
 import es.upv.mist.slicing.arcs.sdg.InterproceduralArc;
 import es.upv.mist.slicing.graphs.exceptionsensitive.ESSDG;
@@ -92,7 +93,7 @@ public class ExceptionSensitiveSlicingAlgorithm implements SlicingAlgorithm {
         Slice slice = new Slice();
         // Removes nodes that have only been visited by one kind of conditional control dependence
         Predicate<GraphNode<?>> pred = n -> slicingCriterion.equals(n) ||
-                (!hasOnlyBeenReachedBy(n, ConditionalControlDependencyArc.CC1.class) && !hasOnlyBeenReachedBy(n, ConditionalControlDependencyArc.CC2.class));
+                (!hasOnlyBeenReachedBy(n, CC1.class) && !hasOnlyBeenReachedBy(n, ConditionalControlDependencyArc.CC2.class));
         visited.stream().filter(pred).forEach(slice::add);
         partlyVisited.keySet().stream().filter(pred).forEach(slice::add);
         return slice;
@@ -129,6 +130,14 @@ public class ExceptionSensitiveSlicingAlgorithm implements SlicingAlgorithm {
                 partlyVisited.put(node, remaining);
             }
         }
+
+        // Try to traverse a CC1 arc, then recurse or end the process.
+        graph.edgeSet().stream()
+                .filter(traversedArcs::contains)
+                .filter(CC1.class::isInstance)
+                .forEach(this::handleDefault);
+        if (!reached.isEmpty())
+            pass();
     }
 
     /** The default handler, which traverses unconditionally the arc. */
@@ -159,8 +168,8 @@ public class ExceptionSensitiveSlicingAlgorithm implements SlicingAlgorithm {
     protected int handleExceptionSensitive(Arc arc) {
         GraphNode<?> node = graph.getEdgeTarget(arc);
         // Visit only CC1 if only CC1 has visited it
-        if (hasOnlyBeenReachedBy(node, ConditionalControlDependencyArc.CC1.class) && arc instanceof ConditionalControlDependencyArc.CC1)
-            return NOT_HANDLED;
+        if (hasOnlyBeenReachedBy(node, CC1.class) && arc instanceof CC1)
+            return SKIPPED;
         // Visit none if the node has only been reached by conditional arcs
         if (!node.equals(slicingCriterion) && reachedStream(node).allMatch(Arc::isConditionalControlDependencyArc))
             return SKIPPED;
