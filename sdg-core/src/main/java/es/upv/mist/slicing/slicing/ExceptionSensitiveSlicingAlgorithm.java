@@ -2,21 +2,21 @@ package es.upv.mist.slicing.slicing;
 
 import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.arcs.pdg.ConditionalControlDependencyArc;
-import es.upv.mist.slicing.arcs.pdg.ControlDependencyArc;
+import es.upv.mist.slicing.arcs.pdg.ConditionalControlDependencyArc.CC1;
+import es.upv.mist.slicing.arcs.pdg.ConditionalControlDependencyArc.CC2;
 import es.upv.mist.slicing.arcs.sdg.InterproceduralArc;
 import es.upv.mist.slicing.graphs.exceptionsensitive.ESSDG;
 import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.utils.Utils;
 
 import java.util.*;
-import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
  * An exception-sensitive slicing algorithm, which follows these rules:
  * <ol>
- *     <li>SDG: two-pass traversal, first ignoring interprocedural outputs, then interprocedural inputs.</li>
+ *     <li>SDG: two-pass traversal, (a) first ignoring interprocedural outputs, (b) then interprocedural inputs.</li>
  *     <li>PPDG*: pseudo-predicate nodes that are included only due to control-dependency arcs should
  *          not keep traversing control-dependency arcs.</li>
  *     <li>CCD: a node reached by a CC1 or CC2 arc is not included in the slice until it has either been
@@ -24,157 +24,131 @@ import java.util.stream.Stream;
  *     <li>CCD: a node included only due to conditional-control-dependency should not keep traversing any arc.</li>
  *     <li>CCD (apply only if none of the previous allow for a new node and this does): CC1 arcs are
  *          transitively traversed, even when the intermediate nodes are not (yet) included in the slice.</li>
- *          TODO: last rule hasn't been completely included, the parenthesis is not implemented.
  * </ol>
  */
 public class ExceptionSensitiveSlicingAlgorithm implements SlicingAlgorithm {
-    /** Return values for handlers. A node can either be skipped, traversed or not handled.
-     * In the second case, the handler is responsible of modifying the state of the algorithm.
-     * In the last case, the following handler is called. */
-    protected static final int SKIPPED = 0, TRAVERSED = 1, NOT_HANDLED = 2;
+    protected static final Predicate<Arc> INTRAPROCEDURAL = InterproceduralArc.class::isInstance;
+    /** Applies rule 1a of the algorithm. */
+    protected static final Predicate<Arc> SDG_PASS_1 = Arc::isInterproceduralOutputArc;
+    /** Applies rule 1b of the algorithm. */
+    protected static final Predicate<Arc> SDG_PASS_2 = Arc::isInterproceduralInputArc;
 
     protected final ESSDG graph;
     protected GraphNode<?> slicingCriterion;
 
-    /** Nodes that already in the slice and whose arcs have all been traversed. */
-    protected final Set<GraphNode<?>> visited = new HashSet<>();
-    /** Nodes already in the slice whose arcs have been partially visited.
-     * The value stored is the number of arcs remaining */
-    protected final Map<GraphNode<?>, Integer> partlyVisited = new HashMap<>();
-    /** Arcs that have already been traversed. No arc must be traversed twice. */
-    protected final Set<Arc> traversedArcs = new HashSet<>();
-    /** Nodes that have been reached via an unconditional arc.
-     * The next step is to traverse their arcs and move them to 'visited' */
-    protected final Set<GraphNode<?>> reached = new HashSet<>();
-    /** Current SDG check (it changes depending on the pass). */
-    protected Predicate<Arc> sdgSkipCheck;
-
-    /** Arc handlers, in the order they are executed. Each handler is a predicate,
-     * if the arc is handled and added or skipped it should return true, for the
-     * chain to be stopped. Otherwise, it should return false and the next handler
-     * will try to handle it. The last handler must always handle the arcs that
-     * reach it (i.e. return true). */
-    protected final List<Function<Arc, Integer>> HANDLERS = List.of(
-            this::handleRepeats,
-            arc -> sdgSkipCheck.test(arc) ? SKIPPED : NOT_HANDLED,
-            this::ppdgSkipCheck,
-            this::handleExceptionSensitive,
-            this::handleDefault
-    );
+    /** Set of the arcs that have been traversed in the slicing process. */
+    protected final Set<Arc> traversedArcSet = new HashSet<>();
+    /** Similar to {@link #traversedArcSet} */
+    protected final Map<GraphNode<?>, Set<Arc>> traversedArcMap = new HashMap<>();
 
     public ExceptionSensitiveSlicingAlgorithm(ESSDG graph) {
         this.graph = Objects.requireNonNull(graph);
     }
 
     @Override
-    public Slice traverseProcedure(GraphNode<?> slicingCriterion) {
-        this.slicingCriterion = slicingCriterion;
-        reached.add(slicingCriterion);
-        sdgSkipCheck = InterproceduralArc.class::isInstance;
-        pass();
-        return createSlice();
-    }
-
-    @Override
     public Slice traverse(GraphNode<?> slicingCriterion) {
         this.slicingCriterion = slicingCriterion;
-        reached.add(slicingCriterion);
-        sdgSkipCheck = Arc::isInterproceduralOutputArc;
-        pass();
-        reached.addAll(partlyVisited.keySet());
-        sdgSkipCheck = Arc::isInterproceduralInputArc;
-        pass();
-        return createSlice();
-    }
-
-    /** Generate a slice object from the sets of visited and partly visited nodes. */
-    protected Slice createSlice() {
         Slice slice = new Slice();
-        // Removes nodes that have only been visited by one kind of conditional control dependence
-        Predicate<GraphNode<?>> pred = n -> slicingCriterion.equals(n) ||
-                (!hasOnlyBeenReachedBy(n, ConditionalControlDependencyArc.CC1.class) && !hasOnlyBeenReachedBy(n, ConditionalControlDependencyArc.CC2.class));
-        visited.stream().filter(pred).forEach(slice::add);
-        partlyVisited.keySet().stream().filter(pred).forEach(slice::add);
+        slice.add(slicingCriterion);
+        pass(slice, SDG_PASS_1.or(this::ppdgIgnore).or(this::essdgIgnore));
+        pass(slice, SDG_PASS_2.or(this::ppdgIgnore).or(this::essdgIgnore));
         return slice;
     }
 
-    /** Perform a round of traversal, until no new nodes can be added. */
-    protected void pass() {
-        while (!reached.isEmpty()) {
-            GraphNode<?> node = Utils.setPop(reached);
-            // Avoid duplicate traversal
-            if (visited.contains(node))
-                continue;
-            // Traverse all edges backwards
-            Set<Arc> incoming = graph.incomingEdgesOf(node);
-            int remaining = partlyVisited.getOrDefault(node, incoming.size());
-            arcLoop: for (Arc arc : incoming) {
-                for (Function<Arc, Integer> handler : HANDLERS)
-                    switch (handler.apply(arc)) {
-                        case TRAVERSED:   // the arc has been traversed, count down and stop applying handlers
-                            remaining--;
-                        case SKIPPED:     // stop applying handlers, go to next arc
-                            continue arcLoop;
-                        case NOT_HANDLED: // try the next handler
-                            break;
-                        default:
-                            throw new UnsupportedOperationException("Handler answer not considered in switch");
-                    }
-                throw new IllegalStateException("This arc has not been handled by any handler");
+    @Override
+    public Slice traverseProcedure(GraphNode<?> slicingCriterion) {
+        this.slicingCriterion = slicingCriterion;
+        Slice slice = new Slice();
+        slice.add(slicingCriterion);
+        pass(slice, INTRAPROCEDURAL);
+        return slice;
+    }
+
+    /**
+     * Perform a round of traversal, until no new nodes can be added to the slice. Then, apply rule 5.
+     * @param slice A slice object that will serve as initial work-list and where nodes will be added.
+     * @param ignoreCondition A predicate used to ignore arcs, when they test true.
+     */
+    protected void pass(Slice slice, Predicate<Arc> ignoreCondition) {
+        pass(slice, slice.getGraphNodes(), ignoreCondition);
+    }
+
+    /**
+     * Perform a round of traversal, until no new nodes can be added to the slice. Then, apply rule 5.
+     * @param slice A slice object where nodes will be added.
+     * @param workList The initial work-list.
+     * @param ignoreCondition A predicate used to ignore arcs, when they test true.
+     */
+    protected void pass(Slice slice, Set<GraphNode<?>> workList, Predicate<Arc> ignoreCondition) {
+        Set<GraphNode<?>> pending = new HashSet<>(workList);
+        Set<Arc> cc1s = new HashSet<>();
+        while (!pending.isEmpty()) {
+            GraphNode<?> node = Utils.setPop(pending);
+            // Populate the map for this node (if empty)
+            traversedArcMap.computeIfAbsent(node, n -> new HashSet<>());
+            for (Arc arc : graph.incomingEdgesOf(node)) {
+                if (arc instanceof CC1)
+                    cc1s.add(arc);
+                // Only traverse the arc if (1) it hasn't been traversed, (2) it hasn't been ignored
+                if (!traversedArcMap.get(node).contains(arc) && !ignoreCondition.test(arc))
+                    if (traverseArc(arc, slice))
+                        pending.add(graph.getEdgeSource(arc));
             }
-            if (remaining == 0) {
-                visited.add(node);
-                partlyVisited.remove(node);
-            } else {
-                partlyVisited.put(node, remaining);
+        }
+        // Consider transitivity when there are no more arcs to traverse.
+        cc1s.removeAll(traversedArcSet);
+        while (!cc1s.isEmpty()) {
+            Arc arc = Utils.setPop(cc1s);
+            // If the target of the arc has been reached, but only by CC1, traverse the arc
+            if (hasOnlyBeenReachedBy(graph.getEdgeTarget(arc), CC1.class)) {
+                traverseArc(arc, slice);
+                // Find the transitive CC1 edges and add them to the work-list
+                for (Arc a : graph.incomingEdgesOf(graph.getEdgeSource(arc)))
+                    if (a instanceof CC1)
+                        cc1s.add(a);
             }
         }
     }
 
-    /** The default handler, which traverses unconditionally the arc. */
-    protected int handleDefault(Arc arc) {
-        GraphNode<?> src = graph.getEdgeSource(arc);
-        traversedArcs.add(arc);
-        if (!visited.contains(src))
-            reached.add(src);
-        return TRAVERSED;
+    /** Applies rule 2 of the algorithm. */
+    protected boolean ppdgIgnore(Arc arc) {
+        GraphNode<?> target = graph.getEdgeTarget(arc);
+        return arc.isUnconditionalControlDependencyArc() &&
+                reachedStream(target).allMatch(Arc::isUnconditionalControlDependencyArc) &&
+                !target.equals(slicingCriterion);
     }
 
-    /** A handler that discards any arc that has already been processed. */
-    protected int handleRepeats(Arc arc) {
-        return traversedArcs.contains(arc) ? SKIPPED : NOT_HANDLED;
+    /** Applies rule 4 of the algorithm. */
+    protected boolean essdgIgnore(Arc arc) {
+        GraphNode<?> target = graph.getEdgeTarget(arc);
+        return hasOnlyBeenReachedBy(target, ConditionalControlDependencyArc.class);
     }
 
-    /** A handler that skips control dependency arcs that shall not be traversed due to the PPDG* rule. */
-    protected int ppdgSkipCheck(Arc arc) {
-        GraphNode<?> node = graph.getEdgeTarget(arc);
-        return !node.equals(slicingCriterion)
-                && graph.isPseudoPredicate(node)
-                && hasOnlyBeenReachedBy(node, ControlDependencyArc.class)
-                && arc.isUnconditionalControlDependencyArc()
-                ? SKIPPED : NOT_HANDLED;
+    /**
+     * Registers the arc as traversed, and if allowed by rule 3 of the algorithm, includes the source
+     * of the arc in the slice.
+     * @return If the source node should be added to the work-list.
+     */
+    protected boolean traverseArc(Arc arc, Slice slice) {
+        traversedArcMap.get(graph.getEdgeTarget(arc)).add(arc);
+        traversedArcSet.add(arc);
+        GraphNode<?> source = graph.getEdgeSource(arc);
+        if (!hasOnlyBeenReachedBy(source, CC1.class) && !hasOnlyBeenReachedBy(source, CC2.class)) {
+            if (!slice.contains(source))
+                slice.add(source);
+            int sourceArcsTraversed = traversedArcMap.getOrDefault(source, Collections.emptySet()).size();
+            return  sourceArcsTraversed != graph.incomingEdgesOf(source).size();
+        }
+        return false;
     }
 
-    /** A handler that skips arcs when a node has only been reached by CCD. */
-    protected int handleExceptionSensitive(Arc arc) {
-        GraphNode<?> node = graph.getEdgeTarget(arc);
-        // Visit only CC1 if only CC1 has visited it
-        if (hasOnlyBeenReachedBy(node, ConditionalControlDependencyArc.CC1.class) && arc instanceof ConditionalControlDependencyArc.CC1)
-            return NOT_HANDLED;
-        // Visit none if the node has only been reached by conditional arcs
-        if (!node.equals(slicingCriterion) && reachedStream(node).allMatch(Arc::isConditionalControlDependencyArc))
-            return SKIPPED;
-        // Otherwise (has been visited by other arcs) continue as normal
-        return NOT_HANDLED;
-    }
-
-    /** Check if a node hasn't been reached or it only has been reached by arcs of a given class. */
+    /** Check if a node only has been reached by arcs of a given class. */
     protected boolean hasOnlyBeenReachedBy(GraphNode<?> node, Class<? extends Arc> type) {
-        return reachedStream(node).allMatch(a -> a.getClass().equals(type));
+        return reachedStream(node).count() > 0 && reachedStream(node).allMatch(type::isInstance);
     }
 
     /** Obtain a stream of arcs that have reached the given node. */
     protected Stream<Arc> reachedStream(GraphNode<?> node) {
-        return traversedArcs.stream().filter(arc -> graph.getEdgeSource(arc).equals(node));
+        return traversedArcSet.stream().filter(arc -> graph.getEdgeSource(arc).equals(node));
     }
 }
