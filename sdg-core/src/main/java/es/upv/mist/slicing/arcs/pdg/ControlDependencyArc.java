@@ -11,4 +11,21 @@ import es.upv.mist.slicing.graphs.sdg.SDG;
  * {@code b} if and only if {@code b} alters the number of times {@code a} is executed.
  */
 public class ControlDependencyArc extends Arc {
+    private boolean ppdgExclusive = false;
+
+    /** Mark this arc as PPDG exclusive.
+     * @see #isPPDGExclusive() */
+    public void setPPDGExclusive() {
+        this.ppdgExclusive = true;
+    }
+
+    /** Whether this arc appears in the PPDG or subsequent graphs, but not in the APDG. */
+    public boolean isPPDGExclusive() {
+        return ppdgExclusive;
+    }
+
+    @Override
+    public String getLabel() {
+        return ppdgExclusive ? "*" : super.getLabel();
+    }
 }

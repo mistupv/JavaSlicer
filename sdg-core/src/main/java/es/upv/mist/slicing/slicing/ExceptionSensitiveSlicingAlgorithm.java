@@ -21,7 +21,8 @@ import java.util.stream.Stream;
  *          not keep traversing control-dependency arcs.</li>
  *     <li>CCD: a node reached by a CC1 or CC2 arc is not included in the slice until it has either been
  *          reached by an unconditional dependency or by the opposite (CC2 or CC1, respectively) arc.</li>
- *     <li>CCD: a node included only due to conditional-control-dependency should not keep traversing any arc.</li>
+ *     <li>CCD: a node included only due to conditional-control-dependency should not keep traversing any arc,
+ *          except for CD arcs that are exclusive to the PPDG.</li>
  *     <li>CCD (apply only if none of the previous allow for a new node and this does): CC1 arcs are
  *          transitively traversed, even when the intermediate nodes are not (yet) included in the slice.</li>
  * </ol>
@@ -121,6 +122,8 @@ public class ExceptionSensitiveSlicingAlgorithm implements SlicingAlgorithm {
     /** Applies rule 4 of the algorithm. */
     protected boolean essdgIgnore(Arc arc) {
         GraphNode<?> target = graph.getEdgeTarget(arc);
+        if (arc.isUnconditionalControlDependencyArc() && arc.asControlDependencyArc().isPPDGExclusive())
+            return false;
         return hasOnlyBeenReachedBy(target, ConditionalControlDependencyArc.class);
     }
 
