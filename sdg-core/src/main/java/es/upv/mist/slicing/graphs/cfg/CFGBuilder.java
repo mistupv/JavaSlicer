@@ -55,6 +55,8 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
     protected final Map<SimpleName, List<GraphNode<ContinueStmt>>> continueMap = new HashMap<>();
     /** Return statements that should be connected to the final node, if it is created at the end of the */
     protected final List<GraphNode<ReturnStmt>> returnList = new LinkedList<>();
+    /** Stack of switch statements. */
+    protected final Deque<GraphNode<SwitchStmt>> switchStack = new LinkedList<>();
     /** Stack of lists of hanging cases on switch statements */
     protected final Deque<List<GraphNode<SwitchEntryStmt>>> switchEntriesStack = new LinkedList<>();
 
@@ -271,8 +273,10 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
     @Override
     public void visit(SwitchEntryStmt entryStmt, Void arg) {
         // Case header (prev -> case EXPR)
-        GraphNode<SwitchEntryStmt> node = connectTo(entryStmt, entryStmt.getLabel().isPresent() ?
-                "case " + entryStmt.getLabel().get() : "default");
+        GraphNode<SwitchEntryStmt> node = graph.addVertex(entryStmt.getLabel().isPresent() ?
+                "case " + entryStmt.getLabel().get() : "default", entryStmt);
+        graph.addControlFlowArc(switchStack.element(), node);
+        hangingNodes.add(node);
         switchEntriesStack.peek().add(node);
         // Case body (case EXPR --> body)
         entryStmt.getStatements().accept(this, arg);
@@ -284,12 +288,13 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         // Link previous statement to the switch's selector
         switchEntriesStack.push(new LinkedList<>());
         breakStack.push(new LinkedList<>());
-        GraphNode<?> cond = connectTo(switchStmt, String.format("switch (%s)", switchStmt.getSelector()));
+        GraphNode<SwitchStmt> cond = connectTo(switchStmt, String.format("switch (%s)", switchStmt.getSelector()));
+        hangingNodes.remove(cond);
+        switchStack.push(cond);
         switchStmt.getSelector().accept(this, arg);
         // expr --> each case (fallthrough by default, so case --> case too)
         for (SwitchEntryStmt entry : switchStmt.getEntries()) {
             entry.accept(this, arg); // expr && prev case --> case --> next case
-            hangingNodes.add(cond); // expr --> next case
         }
         // The next statement will be linked to:
         //		1. All break statements that broke from the switch (done with break section)
@@ -298,7 +303,8 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         // If the last case is a default case, remove the selector node from the list of nodes (see 2)
         if (ASTUtils.switchHasDefaultCase(switchStmt))
             hangingNodes.remove(cond);
-        List<GraphNode<SwitchEntryStmt>> entries = switchEntriesStack.pop();
+        switchEntriesStack.pop();
+        switchStack.pop();
         // End block and break section
         hangingNodes.addAll(breakStack.pop());
     }

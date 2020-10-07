@@ -11,6 +11,7 @@ import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeS
 import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 import es.upv.mist.slicing.graphs.augmented.ASDG;
 import es.upv.mist.slicing.graphs.augmented.PSDG;
+import es.upv.mist.slicing.graphs.augmented.TapasSDG;
 import es.upv.mist.slicing.graphs.exceptionsensitive.ESSDG;
 import es.upv.mist.slicing.graphs.sdg.SDG;
 import es.upv.mist.slicing.slicing.FileLineSlicingCriterion;
@@ -232,10 +233,11 @@ public class Slicer {
 
         SDG sdg;
         switch (cliOpts.getOptionValue("type", "ESSDG")) {
-            case "SDG":   sdg = new SDG();   break;
-            case "ASDG":  sdg = new ASDG();  break;
-            case "PSDG":  sdg = new PSDG();  break;
-            case "ESSDG": sdg = new ESSDG(); break;
+            case "SDG":   sdg = new SDG();      break;
+            case "ASDG":  sdg = new ASDG();     break;
+            case "PSDG":  sdg = new PSDG();     break;
+            case "ESSDG": sdg = new ESSDG();    break;
+            case "TSDG":  sdg = new TapasSDG(); break;
             default:
                 throw new IllegalArgumentException("Unknown type of graph. Available graphs are SDG, ASDG, PSDG, ESSDG");
         }

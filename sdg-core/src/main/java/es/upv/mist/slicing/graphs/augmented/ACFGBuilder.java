@@ -69,12 +69,13 @@ public class ACFGBuilder extends CFGBuilder {
         // Link previous statement to the switch's selector
         switchEntriesStack.push(new LinkedList<>());
         breakStack.push(new LinkedList<>());
-        GraphNode<?> cond = connectTo(switchStmt, String.format("switch (%s)", switchStmt.getSelector()));
+        GraphNode<SwitchStmt> cond = connectTo(switchStmt, String.format("switch (%s)", switchStmt.getSelector()));
+        hangingNodes.remove(cond);
+        switchStack.push(cond);
         switchStmt.getSelector().accept(this, arg);
         // expr --> each case (fallthrough by default, so case --> case too)
         for (SwitchEntryStmt entry : switchStmt.getEntries()) {
             entry.accept(this, arg); // expr && prev case --> case --> next case
-            hangingNodes.add(cond); // expr --> next case
         }
         // The next statement will be linked to:
         //		1. All break statements that broke from the switch (done with break section)
@@ -84,6 +85,7 @@ public class ACFGBuilder extends CFGBuilder {
         if (ASTUtils.switchHasDefaultCase(switchStmt))
             hangingNodes.remove(cond);
         List<GraphNode<SwitchEntryStmt>> entries = switchEntriesStack.pop();
+        switchStack.pop();
         GraphNode<SwitchEntryStmt> def = null;
         for (GraphNode<SwitchEntryStmt> entry : entries) {
             if (entry.getAstNode().getLabel().isEmpty()) {
