@@ -31,7 +31,7 @@ public class FileLineSlicingCriterion extends LineNumberCriterion {
         for (CompilationUnit cu : cus) {
             Optional<CompilationUnit.Storage> optStorage = cu.getStorage();
             if (optStorage.isPresent() && optStorage.get().getFileName().equals(file.getName())
-                    && optStorage.get().getDirectory().toAbsolutePath().equals(file.getParentFile().toPath().toAbsolutePath()))
+                    && optStorage.get().getDirectory().toAbsolutePath().equals(file.toPath().toAbsolutePath().getParent()))
                 return Optional.of(cu);
         }
         return Optional.empty();
