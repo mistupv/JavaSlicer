@@ -4,9 +4,9 @@ import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.graphs.Graph;
 import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.utils.Logger;
-import es.upv.mist.slicing.utils.Utils;
 import org.jgrapht.io.DOTExporter;
 
+import java.awt.*;
 import java.io.*;
 
 public abstract class GraphLog<G extends Graph> {
@@ -99,7 +99,31 @@ public abstract class GraphLog<G extends Graph> {
 
     public void openVisualRepresentation() throws IOException {
         if (!generated) generateImages();
-        Utils.openFileForUser(getImageFile());
+        openFileForUser(getImageFile());
+    }
+
+    protected static void openFileForUser(File file) throws IOException {
+        if (Desktop.isDesktopSupported()) {
+            Desktop.getDesktop().open(file);
+            return;
+        }
+        // Alternative manual opening of the file
+        String os = System.getProperty("os.name").toLowerCase();
+        String cmd = null;
+        if (os.contains("win")) {
+            cmd = "";
+        } else if (os.contains("mac")) {
+            cmd = "open";
+        } else if (os.contains("nix") || os.contains("nux") || os.contains("aix")) {
+            cmd = "xdg-open";
+        }
+
+        if (cmd != null) {
+            new ProcessBuilder(cmd, file.getAbsolutePath()).start();
+        } else {
+            Logger.format("Warning: cannot open file %s in your system (%s)",
+                    file.getName(), os);
+        }
     }
 
     public File getImageFile() {
