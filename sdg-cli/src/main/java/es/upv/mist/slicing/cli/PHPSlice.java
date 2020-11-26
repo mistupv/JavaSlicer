@@ -1,6 +1,6 @@
 package es.upv.mist.slicing.cli;
 
-import com.github.javaparser.JavaParser;
+import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.comments.BlockComment;
@@ -90,13 +90,13 @@ public class PHPSlice {
         // Configure JavaParser
         CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
         combinedTypeSolver.add(new ReflectionTypeSolver(true));
-        JavaParser.getStaticConfiguration().setSymbolResolver(new JavaSymbolSolver(combinedTypeSolver));
-        JavaParser.getStaticConfiguration().setAttributeComments(false);
+        StaticJavaParser.getConfiguration().setSymbolResolver(new JavaSymbolSolver(combinedTypeSolver));
+        StaticJavaParser.getConfiguration().setAttributeComments(false);
 
         // Build the SDG
         NodeList<CompilationUnit> units = new NodeList<>();
         try {
-            units.add(JavaParser.parse(scFile));
+            units.add(StaticJavaParser.parse(scFile));
         } catch (FileNotFoundException e) {
             throw new ParseException(e.getMessage());
         }

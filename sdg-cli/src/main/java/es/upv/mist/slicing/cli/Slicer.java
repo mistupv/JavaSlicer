@@ -1,6 +1,6 @@
 package es.upv.mist.slicing.cli;
 
-import com.github.javaparser.JavaParser;
+import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.comments.BlockComment;
@@ -215,15 +215,15 @@ public class Slicer {
         combinedTypeSolver.add(new ReflectionTypeSolver(true));
         for (File directory : dirIncludeSet)
             combinedTypeSolver.add(new JavaParserTypeSolver(directory));
-        JavaParser.getStaticConfiguration().setSymbolResolver(new JavaSymbolSolver(combinedTypeSolver));
-        JavaParser.getStaticConfiguration().setAttributeComments(false);
+        StaticJavaParser.getConfiguration().setSymbolResolver(new JavaSymbolSolver(combinedTypeSolver));
+        StaticJavaParser.getConfiguration().setAttributeComments(false);
 
         // Build the SDG
         NodeList<CompilationUnit> units = new NodeList<>();
         try {
             for (File directory : dirIncludeSet)
-                units.add(JavaParser.parse(directory));
-            CompilationUnit scUnit = JavaParser.parse(scFile);
+                units.add(StaticJavaParser.parse(directory));
+            CompilationUnit scUnit = StaticJavaParser.parse(scFile);
             if (!units.contains(scUnit))
                 units.add(scUnit);
         } catch (FileNotFoundException e) {

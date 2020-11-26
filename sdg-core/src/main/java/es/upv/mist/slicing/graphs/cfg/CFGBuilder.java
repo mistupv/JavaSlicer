@@ -56,7 +56,7 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
     /** Return statements that should be connected to the final node, if it is created at the end of the */
     protected final List<GraphNode<ReturnStmt>> returnList = new LinkedList<>();
     /** Stack of lists of hanging cases on switch statements */
-    protected final Deque<List<GraphNode<SwitchEntryStmt>>> switchEntriesStack = new LinkedList<>();
+    protected final Deque<List<GraphNode<SwitchEntry>>> switchEntriesStack = new LinkedList<>();
 
     protected CFGBuilder(CFG graph) {
         this.graph = graph;
@@ -269,10 +269,13 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
     }
 
     @Override
-    public void visit(SwitchEntryStmt entryStmt, Void arg) {
+    public void visit(SwitchEntry entryStmt, Void arg) {
         // Case header (prev -> case EXPR)
-        GraphNode<SwitchEntryStmt> node = connectTo(entryStmt, entryStmt.getLabel().isPresent() ?
-                "case " + entryStmt.getLabel().get() : "default");
+        GraphNode<SwitchEntry> node = connectTo(entryStmt, entryStmt.getLabels().isNonEmpty() ?
+                "case " + entryStmt.getLabels().stream()
+                        .map(Node::toString)
+                        .reduce((a, b) -> a + ", " + b)
+                : "default");
         switchEntriesStack.peek().add(node);
         // Case body (case EXPR --> body)
         entryStmt.getStatements().accept(this, arg);
@@ -287,7 +290,7 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         GraphNode<?> cond = connectTo(switchStmt, String.format("switch (%s)", switchStmt.getSelector()));
         switchStmt.getSelector().accept(this, arg);
         // expr --> each case (fallthrough by default, so case --> case too)
-        for (SwitchEntryStmt entry : switchStmt.getEntries()) {
+        for (SwitchEntry entry : switchStmt.getEntries()) {
             entry.accept(this, arg); // expr && prev case --> case --> next case
             hangingNodes.add(cond); // expr --> next case
         }
@@ -298,7 +301,7 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         // If the last case is a default case, remove the selector node from the list of nodes (see 2)
         if (ASTUtils.switchHasDefaultCase(switchStmt))
             hangingNodes.remove(cond);
-        List<GraphNode<SwitchEntryStmt>> entries = switchEntriesStack.pop();
+        List<GraphNode<SwitchEntry>> entries = switchEntriesStack.pop();
         // End block and break section
         hangingNodes.addAll(breakStack.pop());
     }

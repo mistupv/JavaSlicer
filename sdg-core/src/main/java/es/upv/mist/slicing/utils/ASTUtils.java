@@ -9,7 +9,7 @@ import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
-import com.github.javaparser.ast.stmt.SwitchEntryStmt;
+import com.github.javaparser.ast.stmt.SwitchEntry;
 import com.github.javaparser.ast.stmt.SwitchStmt;
 import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.declarations.ResolvedConstructorDeclaration;
@@ -38,9 +38,9 @@ public class ASTUtils {
         return switchGetDefaultCase(stmt) != null;
     }
 
-    public static SwitchEntryStmt switchGetDefaultCase(SwitchStmt stmt) {
-        for (SwitchEntryStmt entry : stmt.getEntries())
-            if (entry.getLabel().isEmpty())
+    public static SwitchEntry switchGetDefaultCase(SwitchStmt stmt) {
+        for (SwitchEntry entry : stmt.getEntries())
+            if (entry.getLabels().isEmpty())
                 return entry;
         return null;
     }

@@ -72,7 +72,7 @@ public class ACFGBuilder extends CFGBuilder {
         GraphNode<?> cond = connectTo(switchStmt, String.format("switch (%s)", switchStmt.getSelector()));
         switchStmt.getSelector().accept(this, arg);
         // expr --> each case (fallthrough by default, so case --> case too)
-        for (SwitchEntryStmt entry : switchStmt.getEntries()) {
+        for (SwitchEntry entry : switchStmt.getEntries()) {
             entry.accept(this, arg); // expr && prev case --> case --> next case
             hangingNodes.add(cond); // expr --> next case
         }
@@ -83,10 +83,10 @@ public class ACFGBuilder extends CFGBuilder {
         // If the last case is a default case, remove the selector node from the list of nodes (see 2)
         if (ASTUtils.switchHasDefaultCase(switchStmt))
             hangingNodes.remove(cond);
-        List<GraphNode<SwitchEntryStmt>> entries = switchEntriesStack.pop();
-        GraphNode<SwitchEntryStmt> def = null;
-        for (GraphNode<SwitchEntryStmt> entry : entries) {
-            if (entry.getAstNode().getLabel().isEmpty()) {
+        List<GraphNode<SwitchEntry>> entries = switchEntriesStack.pop();
+        GraphNode<SwitchEntry> def = null;
+        for (GraphNode<SwitchEntry> entry : entries) {
+            if (entry.getAstNode().getLabels().isEmpty()) {
                 def = entry;
                 break;
             }

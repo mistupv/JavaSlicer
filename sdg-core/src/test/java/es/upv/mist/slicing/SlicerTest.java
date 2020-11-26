@@ -1,6 +1,6 @@
 package es.upv.mist.slicing;
 
-import com.github.javaparser.JavaParser;
+import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.symbolsolver.JavaSymbolSolver;
@@ -25,11 +25,11 @@ import java.util.Scanner;
 
 public class SlicerTest {
     static {
-        JavaParser.getStaticConfiguration().setAttributeComments(false);
+        StaticJavaParser.getConfiguration().setAttributeComments(false);
         CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
         combinedTypeSolver.add(new ReflectionTypeSolver(true));
-        JavaParser.getStaticConfiguration().setSymbolResolver(new JavaSymbolSolver(combinedTypeSolver));
-        JavaParser.getStaticConfiguration().setAttributeComments(false);
+        StaticJavaParser.getConfiguration().setSymbolResolver(new JavaSymbolSolver(combinedTypeSolver));
+        StaticJavaParser.getConfiguration().setAttributeComments(false);
     }
 
     private static final String TEST_FILES = "./sdg-core/src/test/res/dinsa-tests";
@@ -66,7 +66,7 @@ public class SlicerTest {
     public void sdgCompare(File source, File target, int criterionLine) throws FileNotFoundException {
         // Build the SDG
         SDG sdg = new ESSDG();
-        sdg.build(new NodeList<>(JavaParser.parse(source)));
+        sdg.build(new NodeList<>(StaticJavaParser.parse(source)));
         SlicingCriterion sc = new FileLineSlicingCriterion(source, criterionLine);
         Slice slice = sdg.slice(sc);
 

@@ -123,8 +123,8 @@ public class GraphNodeContentVisitor<A> extends VoidVisitorAdapter<A> {
     }
 
     @Override
-    public void visit(SwitchEntryStmt n, A arg) {
-        n.getLabel().ifPresent(l -> l.accept(this, arg));
+    public void visit(SwitchEntry n, A arg) {
+        n.getLabels().forEach(l -> l.accept(this, arg));
     }
 
     @Override

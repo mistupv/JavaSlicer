@@ -153,7 +153,7 @@ public class SlicePruneVisitor extends ModifierVisitor<Set<Node>> {
     }
 
     @Override
-    public Visitable visit(SwitchEntryStmt n, Set<Node> arg) {
+    public Visitable visit(SwitchEntry n, Set<Node> arg) {
         boolean keep = arg.contains(n);
         super.visit(n, arg);
         if (!n.getStatements().isEmpty())
