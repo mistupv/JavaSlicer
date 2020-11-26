@@ -11,12 +11,9 @@ Warning: all method calls must resolve to a method declaration. If your Java pro
 
 ### Build the project
 
+JavaSDGSlicer manages its dependencies through maven, so you need to have the JDK (&ge;11) and Maven installed, then run 
 ```
-cd sdg-core
-mvn install
-cd ../sdg-cli
 mvn package
-cd ..
 ```
 
 A fat jar containing all the project's dependencies can be then located at `./sdg-cli/target/sdg-cli-{version}-jar-with-dependencies.jar`.
