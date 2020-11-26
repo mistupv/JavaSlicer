@@ -11,10 +11,10 @@ import es.upv.mist.slicing.graphs.cfg.CFG;
 import es.upv.mist.slicing.graphs.pdg.PDG;
 import es.upv.mist.slicing.graphs.sdg.SDG;
 import es.upv.mist.slicing.nodes.GraphNode;
+import es.upv.mist.slicing.utils.Utils;
 import org.jgrapht.graph.DefaultEdge;
-import org.jgrapht.io.Attribute;
+import org.jgrapht.nio.Attribute;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -139,7 +139,7 @@ public abstract class Arc extends DefaultEdge {
 
     /** A map of DOT attributes that define the style of this arc. */
     public Map<String, Attribute> getDotAttributes() {
-        return new HashMap<>();
+        return Utils.dotLabel(getLabel());
     }
 
     @Override

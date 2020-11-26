@@ -1,8 +1,8 @@
 package es.upv.mist.slicing.arcs.pdg;
 
 import es.upv.mist.slicing.graphs.exceptionsensitive.ConditionalControlDependencyBuilder;
-import org.jgrapht.io.Attribute;
-import org.jgrapht.io.DefaultAttribute;
+import org.jgrapht.nio.Attribute;
+import org.jgrapht.nio.DefaultAttribute;
 
 import java.util.Map;
 

@@ -4,8 +4,8 @@ import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.graphs.pdg.PDG;
 import es.upv.mist.slicing.graphs.sdg.SDG;
 import es.upv.mist.slicing.nodes.VariableAction;
-import org.jgrapht.io.Attribute;
-import org.jgrapht.io.DefaultAttribute;
+import org.jgrapht.nio.Attribute;
+import org.jgrapht.nio.DefaultAttribute;
 
 import java.util.List;
 import java.util.Map;

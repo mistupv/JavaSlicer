@@ -5,9 +5,9 @@ import es.upv.mist.slicing.graphs.sdg.SDG;
 import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.slicing.Slice;
 import es.upv.mist.slicing.slicing.SlicingCriterion;
-import org.jgrapht.io.Attribute;
-import org.jgrapht.io.DOTExporter;
-import org.jgrapht.io.DefaultAttribute;
+import org.jgrapht.nio.Attribute;
+import org.jgrapht.nio.DefaultAttribute;
+import org.jgrapht.nio.dot.DOTExporter;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -29,17 +29,11 @@ public class SlicedSDGLog extends SDGLog {
 
     @Override
     protected DOTExporter<GraphNode<?>, Arc> getDOTExporter(SDG graph) {
-        return new DOTExporter<>(
-                n -> String.valueOf(n.getId()),
-                n -> {
-                    String s = n.getId() + ": " + n.getLabel();
-                    if (!n.getVariableActions().isEmpty())
-                        s += "\n" + n.getVariableActions().stream().map(Object::toString).reduce((a, b) -> a + "," + b).orElse("--");
-                    return s;
-                },
-                Arc::getLabel,
-                this::vertexAttributes,
-                Arc::getDotAttributes);
+        DOTExporter<GraphNode<?>, Arc> dot = new DOTExporter<>();
+        dot.setVertexIdProvider(n -> String.valueOf(n.getId()));
+        dot.setVertexAttributeProvider(this::vertexAttributes);
+        dot.setEdgeAttributeProvider(Arc::getDotAttributes);
+        return dot;
     }
 
     protected Map<String, Attribute> vertexAttributes(GraphNode<?> node) {
@@ -50,6 +44,7 @@ public class SlicedSDGLog extends SDGLog {
             map.put("style", DefaultAttribute.createAttribute("filled"));
         else if (node.equals(sc))
             map.put("style", DefaultAttribute.createAttribute("bold"));
+        map.put("label", DefaultAttribute.createAttribute(node.getLongLabel()));
         return map;
     }
 }

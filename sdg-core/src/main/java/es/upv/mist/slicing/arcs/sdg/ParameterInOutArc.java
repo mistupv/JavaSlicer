@@ -5,8 +5,8 @@ import es.upv.mist.slicing.nodes.io.ActualIONode;
 import es.upv.mist.slicing.nodes.io.CallNode;
 import es.upv.mist.slicing.nodes.io.FormalIONode;
 import es.upv.mist.slicing.nodes.io.OutputNode;
-import org.jgrapht.io.Attribute;
-import org.jgrapht.io.DefaultAttribute;
+import org.jgrapht.nio.Attribute;
+import org.jgrapht.nio.DefaultAttribute;
 
 import java.util.Map;
 

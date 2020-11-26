@@ -78,6 +78,14 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
         return label;
     }
 
+    /** The node's long-form label, including its id and information on variables. */
+    public String getLongLabel() {
+        String label = getId() + ": " + getLabel();
+        if (!getVariableActions().isEmpty())
+            label += "\n" + getVariableActions().stream().map(Object::toString).reduce((a, b) -> a + "," + b).orElse("--");
+        return label;
+    }
+
     // =============================================================
     // ===================  Variables and Calls  ===================
     // =============================================================

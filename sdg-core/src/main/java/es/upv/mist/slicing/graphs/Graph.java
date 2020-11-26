@@ -5,8 +5,9 @@ import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.nodes.SyntheticNode;
 import es.upv.mist.slicing.utils.ASTUtils;
+import es.upv.mist.slicing.utils.Utils;
 import org.jgrapht.graph.DirectedPseudograph;
-import org.jgrapht.io.DOTExporter;
+import org.jgrapht.nio.dot.DOTExporter;
 
 import java.util.Optional;
 import java.util.Set;
@@ -70,16 +71,10 @@ public abstract class Graph extends DirectedPseudograph<GraphNode<?>, Arc> {
 
     /** Obtain an appropriate DOT exporter for graphs based on this class. */
     public DOTExporter<GraphNode<?>, Arc> getDOTExporter() {
-        return new DOTExporter<>(
-                n -> String.valueOf(n.getId()),
-                n -> {
-                    String s = n.getId() + ": " + n.getLabel();
-                    if (!n.getVariableActions().isEmpty())
-                        s += "\n" + n.getVariableActions().stream().map(Object::toString).reduce((a, b) -> a + "," + b).orElse("--");
-                    return s;
-                },
-                Arc::getLabel,
-                null,
-                Arc::getDotAttributes);
+        DOTExporter<GraphNode<?>, Arc> dot = new DOTExporter<>();
+        dot.setVertexIdProvider(n -> String.valueOf(n.getId()));
+        dot.setVertexAttributeProvider(n -> Utils.dotLabel(n.getLongLabel()));
+        dot.setEdgeAttributeProvider(Arc::getDotAttributes);
+        return dot;
     }
 }

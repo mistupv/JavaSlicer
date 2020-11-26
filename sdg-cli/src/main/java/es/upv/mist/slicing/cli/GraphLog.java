@@ -4,7 +4,7 @@ import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.graphs.Graph;
 import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.utils.Logger;
-import org.jgrapht.io.DOTExporter;
+import org.jgrapht.nio.dot.DOTExporter;
 
 import java.awt.*;
 import java.io.*;

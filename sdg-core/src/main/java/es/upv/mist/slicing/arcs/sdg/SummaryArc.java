@@ -2,8 +2,8 @@ package es.upv.mist.slicing.arcs.sdg;
 
 import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.nodes.io.ActualIONode;
-import org.jgrapht.io.Attribute;
-import org.jgrapht.io.DefaultAttribute;
+import org.jgrapht.nio.Attribute;
+import org.jgrapht.nio.DefaultAttribute;
 
 import java.util.Map;
 

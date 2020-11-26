@@ -3,8 +3,8 @@ package es.upv.mist.slicing.arcs.cfg;
 import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.graphs.augmented.ACFG;
 import es.upv.mist.slicing.graphs.cfg.CFG;
-import org.jgrapht.io.Attribute;
-import org.jgrapht.io.DefaultAttribute;
+import org.jgrapht.nio.Attribute;
+import org.jgrapht.nio.DefaultAttribute;
 
 import java.util.Map;
 

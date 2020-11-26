@@ -16,9 +16,10 @@ import es.upv.mist.slicing.graphs.cfg.CFG;
 import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.utils.ASTUtils;
 import es.upv.mist.slicing.utils.NodeNotFoundException;
+import es.upv.mist.slicing.utils.Utils;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.DirectedPseudograph;
-import org.jgrapht.io.DOTExporter;
+import org.jgrapht.nio.dot.DOTExporter;
 
 import java.util.*;
 
@@ -153,12 +154,10 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
 
     /** Creates a graph-appropriate DOT exporter. */
     public DOTExporter<CallableDeclaration<?>, Edge<?>> getDOTExporter() {
-        int[] id = new int[]{0};
-        return new DOTExporter<>(
-                decl -> id[0]++ + "",
-                decl -> decl.getDeclarationAsString(false, false, false),
-                e -> e.getCall().toString()
-        );
+        DOTExporter<CallableDeclaration<?>, Edge<?>> dot = new DOTExporter<>();
+        dot.setVertexAttributeProvider(decl -> Utils.dotLabel(decl.getDeclarationAsString(false, false, false)));
+        dot.setEdgeAttributeProvider(edge -> Utils.dotLabel(edge.getCall().toString()));
+        return dot;
     }
 
     /** A vertex containing the declaration it represents. It only exists because
