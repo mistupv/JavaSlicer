@@ -9,7 +9,7 @@
     <parent>
         <artifactId>sdg</artifactId>
         <groupId>es.upv.mist.slicing</groupId>
-        <version>1.2.4</version>
+        <version>1.2.5</version>
     </parent>
 
     <properties>
