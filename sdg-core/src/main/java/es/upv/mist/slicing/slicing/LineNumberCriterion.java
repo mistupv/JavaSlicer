@@ -1,7 +1,10 @@
 package es.upv.mist.slicing.slicing;
 
 import com.github.javaparser.Position;
+import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.NodeList;
+import com.github.javaparser.ast.stmt.Statement;
 import es.upv.mist.slicing.graphs.cfg.CFG;
 import es.upv.mist.slicing.graphs.pdg.PDG;
 import es.upv.mist.slicing.graphs.sdg.SDG;
@@ -46,7 +49,15 @@ public class LineNumberCriterion extends SlicingCriterion {
 
     @Override
     public Optional<GraphNode<?>> findNode(SDG graph) {
-        return Optional.empty();
+        Optional<CompilationUnit> optCu = findCompilationUnit(graph.getCompilationUnits());
+        if (optCu.isEmpty())
+            return Optional.empty();
+        return optCu.get().findFirst(Statement.class, this::matchesLine).flatMap(graph::findNodeByASTNode);
+    }
+
+    /** Locates the compilation unit that corresponds to this criterion's file. */
+    protected Optional<CompilationUnit> findCompilationUnit(NodeList<CompilationUnit> cus) {
+        return cus.getFirst();
     }
 
     /** Check if a node matches the criterion's line. */
