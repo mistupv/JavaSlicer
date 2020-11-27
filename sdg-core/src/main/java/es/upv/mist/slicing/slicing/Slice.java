@@ -73,8 +73,9 @@ public class Slice {
         CloneVisitor cloneVisitor = new CloneVisitor();
         for (Map.Entry<CompilationUnit, Set<Node>> entry : cuMap.entrySet()) {
             CompilationUnit clone = (CompilationUnit) entry.getKey().accept(cloneVisitor, null);
-            assert entry.getKey().getStorage().isPresent();
-            clone.setStorage(entry.getKey().getStorage().get().getPath());
+            if (entry.getKey().getStorage().isPresent())
+                clone.setStorage(entry.getKey().getStorage().get().getPath(),
+                        entry.getKey().getStorage().get().getEncoding());
             clone.accept(sliceVisitor, entry.getValue());
             cus.add(clone);
         }

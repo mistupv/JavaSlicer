@@ -2,9 +2,6 @@ package es.upv.mist.slicing.slicing;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.NodeList;
-import com.github.javaparser.ast.stmt.Statement;
-import es.upv.mist.slicing.graphs.sdg.SDG;
-import es.upv.mist.slicing.nodes.GraphNode;
 
 import java.io.File;
 import java.util.Optional;
@@ -18,20 +15,15 @@ public class FileLineSlicingCriterion extends LineNumberCriterion {
         this.file = file;
     }
 
-    @Override
-    public Optional<GraphNode<?>> findNode(SDG graph) {
-        Optional<CompilationUnit> optCu = findCompilationUnit(graph.getCompilationUnits());
-        if (optCu.isEmpty())
-            return Optional.empty();
-        return optCu.get().findFirst(Statement.class, this::matchesLine).flatMap(graph::findNodeByASTNode);
-    }
-
     /** Locates the compilation unit that corresponds to this criterion's file. */
+    @Override
     protected Optional<CompilationUnit> findCompilationUnit(NodeList<CompilationUnit> cus) {
         for (CompilationUnit cu : cus) {
-            Optional<CompilationUnit.Storage> optStorage = cu.getStorage();
-            if (optStorage.isPresent() && optStorage.get().getFileName().equals(file.getName())
-                    && optStorage.get().getDirectory().toAbsolutePath().equals(file.toPath().toAbsolutePath().getParent()))
+            if (cu.getStorage().isEmpty())
+                continue;
+            CompilationUnit.Storage storage = cu.getStorage().get();
+            if (storage.getDirectory().toAbsolutePath().equals(file.toPath().toAbsolutePath().getParent())
+                    && storage.getFileName().equals(file.getName()))
                 return Optional.of(cu);
         }
         return Optional.empty();
