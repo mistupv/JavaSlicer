@@ -17,6 +17,19 @@
         <maven.compiler.target>11</maven.compiler.target>
     </properties>
 
+    <build>
+        <testResources>
+            <testResource>
+                <directory>src/test/res</directory>
+                <includes>
+                    <include>**/*.java</include>
+                    <include>**/*.java.*.criterion</include>
+                    <include>**/*.java.*.sliced</include>
+                </includes>
+            </testResource>
+        </testResources>
+    </build>
+
     <dependencies>
         <dependency>
             <groupId>com.github.javaparser</groupId>

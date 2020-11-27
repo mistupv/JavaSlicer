@@ -49,7 +49,9 @@ public class SlicerTest {
     }
 
     public static Arguments[] findAllFiles() throws FileNotFoundException {
-        Collection<Arguments> args = findFiles(new File(TEST_FILES), DOT_JAVA);
+        File testFolder = new File(Thread.currentThread().getContextClassLoader()
+                .getResource("dinsa-tests/").getPath());
+        Collection<Arguments> args = findFiles(testFolder, DOT_JAVA);
         return args.toArray(Arguments[]::new);
     }
 
