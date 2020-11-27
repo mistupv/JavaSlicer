@@ -32,7 +32,7 @@ public class SlicerTest {
         StaticJavaParser.getConfiguration().setAttributeComments(false);
     }
 
-    private static final String TEST_FILES = "./sdg-core/src/test/res/dinsa-tests";
+    private static final String TEST_PKG = "regression";
     private static final String DOT_JAVA = ".java";
 
     public static Collection<Arguments> findFiles(File directory, String suffix) throws FileNotFoundException {
@@ -40,27 +40,28 @@ public class SlicerTest {
         File[] files = directory.listFiles();
         if (files == null) return Collections.emptyList();
         for (File f : files) {
-            if (f.getName().endsWith(suffix))
-                res.add(Arguments.of(f, getSliceFile(f), getCriterionLine(f)));
-            if (f.isDirectory())
+            if (f.isDirectory()) {
                 res.addAll(findFiles(f, suffix));
+            } else if (f.getName().endsWith(suffix)) {
+                File slice = new File(f.getParent(), f.getName() + ".sdg.sliced");
+                if (!slice.isFile() || !slice.canRead())
+                    continue;
+                int criterionLine;
+                try (Scanner in = new Scanner(new File(f.getParent(), f.getName() + "sdg.criterion"))) {
+                    criterionLine = in.nextInt();
+                } catch (FileNotFoundException e) {
+                    continue;
+                }
+                res.add(Arguments.of(f, slice, criterionLine));
+            }
         }
         return res;
     }
 
     public static Arguments[] findAllFiles() throws FileNotFoundException {
-        File testFolder = new File(Thread.currentThread().getContextClassLoader()
-                .getResource("dinsa-tests/").getPath());
+        File testFolder = new File(Thread.currentThread().getContextClassLoader().getResource(TEST_PKG).getPath());
         Collection<Arguments> args = findFiles(testFolder, DOT_JAVA);
         return args.toArray(Arguments[]::new);
-    }
-
-    private static File getSliceFile(File file) {
-        return new File(file.getParent(), file.getName() + ".sdg.sliced");
-    }
-
-    private static int getCriterionLine(File file) throws FileNotFoundException {
-        return new Scanner(new File(file.getParent(), file.getName() + ".sdg.criterion")).nextInt();
     }
 
     @ParameterizedTest(name = "[{index}] {0}")
