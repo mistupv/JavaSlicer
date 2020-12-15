@@ -1,0 +1,25 @@
+class A {
+
+    A(int newx) {
+    }
+
+    int getx() {
+        return xA;
+    }
+
+    void siModificaxA(int v) {
+        xA++;
+    }
+
+    public static void main(String[] args) {
+        A a1 = new A(1);
+        int z = a1.getx();
+        System.out.println(z);
+    }
+}
+
+class B extends A {
+
+    void siModificaxA(int v) {
+    }
+}

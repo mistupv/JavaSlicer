@@ -1,0 +1,16 @@
+package tfm.programs.pdg;
+
+import tfm.utils.Logger;
+import java.util.Arrays;
+
+public class Example2 {
+
+    public static void main(String[] args) {
+        int a = 8;
+        int b = 2;
+        for (; a < 100; a++) {
+            b++;
+        }
+        System.out.println(b);
+    }
+}

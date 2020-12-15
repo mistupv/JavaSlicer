@@ -1,0 +1,14 @@
+package ejemplos;
+
+public class Bucles_4 {
+
+    public static void main(String[] args) {
+        int sumatorio = 0;
+        int min = 10;
+        int max = 100;
+        for (int num = min; num <= max; num++) {
+            sumatorio += num;
+        }
+        System.out.println(sumatorio);
+    }
+}

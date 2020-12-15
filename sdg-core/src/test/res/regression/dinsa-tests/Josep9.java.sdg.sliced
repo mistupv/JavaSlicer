@@ -1,0 +1,20 @@
+class A {
+
+    int getx() {
+        return xA;
+    }
+
+    void setx(int newx) {
+        xA = newx;
+    }
+
+    void siModificaxA(int v) {
+        xA++;
+    }
+
+    public static void main(String[] args) {
+        A a1 = new A();
+        int z = a1.getx();
+        System.out.println(z);
+    }
+}

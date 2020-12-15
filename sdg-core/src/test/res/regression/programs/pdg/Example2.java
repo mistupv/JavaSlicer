@@ -33,6 +33,6 @@ public class Example2 {
             b++;
         }
 
-        Logger.log(b);
+        System.out.println(b);
     }
 }

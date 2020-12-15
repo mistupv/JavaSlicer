@@ -1,0 +1,16 @@
+class A {
+
+    A(int x) {
+    }
+
+    int getx() {
+        return this.x;
+    }
+
+    public static void main(int[] args) {
+        A a = new A(1);
+        int y;
+        y = a.getx();
+        int z = y;
+    }
+}

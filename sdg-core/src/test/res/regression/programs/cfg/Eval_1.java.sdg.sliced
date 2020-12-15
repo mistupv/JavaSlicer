@@ -1,0 +1,38 @@
+package tfm.programs.cfg;
+
+import tfm.utils.Logger;
+
+public class Eval_1 {
+
+    public static void main(String[] args) {
+        int x = 1;
+        one: while (x <= 10) {
+            x++;
+        }
+        do {
+            x--;
+            if (x == 1) {
+                x = 2;
+            } else {
+                x = 4;
+            }
+        } while (x < 1);
+        for (int z = 1; z < x; z++, x--) {
+        }
+        switch(x) {
+            case 1:
+                x = 3;
+                break;
+            case 2:
+                x = 4;
+                break;
+            case 3:
+                x = 5;
+                break;
+            default:
+                x = 5;
+                break;
+        }
+        System.out.println(x);
+    }
+}

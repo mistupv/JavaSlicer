@@ -1,0 +1,17 @@
+public class Bucles {
+
+    static void metodoGeneradorExcepciones(int x) throws Exception {
+        if (x == 0)
+            throw new ExceptionA();
+        if (x == 1)
+            throw new ExceptionB();
+        if (x == 2)
+            throw new Exception();
+    }
+}
+
+class ExceptionA extends Exception {
+}
+
+class ExceptionB extends ExceptionA {
+}

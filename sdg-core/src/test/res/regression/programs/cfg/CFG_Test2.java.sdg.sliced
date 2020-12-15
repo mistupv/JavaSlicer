@@ -1,0 +1,6 @@
+public class CFG_Test2 {
+
+    public static void main(String[] args) {
+        int d = 4;
+    }
+}

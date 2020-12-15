@@ -1,0 +1,14 @@
+package mytest;
+
+public class BasicBreak {
+
+    public static void main(String[] args) {
+        int x = 0;
+        bucle: while (true) {
+            x++;
+            if (x > 10)
+                break;
+            x++;
+        }
+    }
+}

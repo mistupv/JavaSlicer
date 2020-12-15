@@ -71,7 +71,7 @@ public class SlicerTest {
             return;
         Slice slice = slice(source ,sc);
         boolean equal = slicesMatch(slice, target);
-        assert equal: "The slice for " + source.toString() + " has change, please fix the error or update the reference slice.";
+        assert equal: "The slice for " + source.toString() + " has changed, please fix the error or update the reference slice.";
     }
 
     @Test

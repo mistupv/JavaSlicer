@@ -1,0 +1,12 @@
+public class Bucles {
+
+    public static void main(String[] args) {
+        System.out.println("No se lanza ninguna excepcion");
+    }
+}
+
+class ExceptionA extends Exception {
+}
+
+class ExceptionB extends ExceptionA {
+}

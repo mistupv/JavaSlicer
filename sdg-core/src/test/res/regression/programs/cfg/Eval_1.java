@@ -61,6 +61,6 @@ public class Eval_1 {
 				break;
 		}
 
-		Logger.log(x);
+		System.out.println(x);
 	}
 }

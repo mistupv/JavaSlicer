@@ -1,3 +1,5 @@
+import java.util.Scanner;
+
 public class Classic {
     public static void main(String[] args) {
         int sum = 0;
@@ -18,7 +20,7 @@ public class Classic {
         int chars = 1;
         String subtext = "";
         int i = 0;
-        while (i < text.size()) {
+        while (i < text.length()) {
             char c = text.charAt(i);
             if (c == '\n') {
                 lines += 1;

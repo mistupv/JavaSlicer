@@ -3,14 +3,14 @@ public class Problem1 {
         while (X) {
             if (Y) {
                 if (Z) {
-                    A();
+                    System.out.println("A");
                     break;
                 }
-                B();
+                System.out.println("B");
                 break;
             }
-            C();
+            System.out.println("C");
         }
-        D();
+        System.out.println("D");
     }
 }
