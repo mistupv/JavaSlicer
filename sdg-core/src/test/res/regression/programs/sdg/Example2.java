@@ -31,7 +31,7 @@ public class Example2 {
     public static void main(String[] args) {
         CustomObject customObject = new CustomObject(new InnerObject(1));
         modifyCustomObject(customObject);
-        modifyInnerObject(customObject.inner);
+        modifyInnerObject(customObject.inner); // Slicing criterion
     }
 
     public static void modifyCustomObject(CustomObject customObject) {
