@@ -16,6 +16,7 @@ import com.github.javaparser.resolution.declarations.ResolvedConstructorDeclarat
 import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedParameterDeclaration;
+import es.upv.mist.slicing.nodes.GraphNode;
 
 import java.util.List;
 import java.util.Objects;
@@ -116,5 +117,13 @@ public class ASTUtils {
         if (resolvedDeclaration instanceof ResolvedConstructorDeclaration)
             return ((ResolvedConstructorDeclaration) resolvedDeclaration).toAst();
         throw new IllegalStateException("AST node of invalid type");
+    }
+
+    public static boolean shouldVisitArgumentsForMethodCalls(Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
+        return getResolvedAST(call.resolve()).isEmpty();
+    }
+
+    public static boolean shouldVisitArgumentsForMethodCalls(Resolvable<? extends ResolvedMethodLikeDeclaration> call, GraphNode<?> graphNode) {
+        return shouldVisitArgumentsForMethodCalls(call) || graphNode == null;
     }
 }
