@@ -211,7 +211,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
 
     /** Tries to resolve and add the corresponding call markers. */
     protected boolean visitCall(Resolvable<? extends ResolvedMethodLikeDeclaration> call, Action arg) {
-        if (ASTUtils.getResolvedAST(call.resolve()).isEmpty() || graphNode == null)
+        if (ASTUtils.shouldVisitArgumentsForMethodCalls(call, graphNode))
             return true;
         graphNode.addCallMarker(call, true);
         ASTUtils.getResolvableScope(call).ifPresent(s -> s.accept(this, arg));

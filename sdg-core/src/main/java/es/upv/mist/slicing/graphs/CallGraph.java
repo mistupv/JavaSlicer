@@ -127,19 +127,22 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
             @Override
             public void visit(MethodCallExpr n, Void arg) {
                 n.resolve().toAst().ifPresent(decl -> addEdge(declStack.peek(), decl, n));
-                super.visit(n, arg);
+                if (ASTUtils.shouldVisitArgumentsForMethodCalls(n))
+                    super.visit(n, arg);
             }
 
             @Override
             public void visit(ObjectCreationExpr n, Void arg) {
                 n.resolve().toAst().ifPresent(decl -> addEdge(declStack.peek(), decl, n));
-                super.visit(n, arg);
+                if (ASTUtils.shouldVisitArgumentsForMethodCalls(n))
+                    super.visit(n, arg);
             }
 
             @Override
             public void visit(ExplicitConstructorInvocationStmt n, Void arg) {
                 n.resolve().toAst().ifPresent(decl -> addEdge(declStack.peek(), decl, n));
-                super.visit(n, arg);
+                if (ASTUtils.shouldVisitArgumentsForMethodCalls(n))
+                    super.visit(n, arg);
             }
         }, null);
     }
