@@ -11,6 +11,8 @@ import es.upv.mist.slicing.nodes.VariableAction;
 import es.upv.mist.slicing.nodes.io.ActualIONode;
 import es.upv.mist.slicing.nodes.io.CallNode;
 
+import java.util.Deque;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
@@ -111,29 +113,28 @@ public class PDG extends GraphWithRootNode<CallableDeclaration<?>> {
          */
         protected void expandCalls() {
             for (GraphNode<?> graphNode : Set.copyOf(vertexSet())) {
-                CallNode callNode = null;
+                Deque<CallNode> callNodeStack = new LinkedList<>();
                 for (VariableAction action : List.copyOf(graphNode.getVariableActions())) {
                     if (action instanceof VariableAction.CallMarker) {
-                        callNode = updateCallNode(graphNode, (VariableAction.CallMarker) action);
+                        // Compute the call node, if entering the marker. Additionally, it places the node
+                        // in the graph and makes it control-dependent on its container.
+                        if (!((VariableAction.CallMarker) action).isEnter()) {
+                            callNodeStack.pop();
+                        } else {
+                            CallNode callNode = CallNode.create(((VariableAction.CallMarker) action).getCall());
+                            addVertex(callNode);
+                            addControlDependencyArc(graphNode, callNode);
+                            callNodeStack.push(callNode);
+                        }
                     } else if (action instanceof VariableAction.Movable) {
+                        // Move the variable to its own node, add that node to the graph and connect it.
                         var movable = (VariableAction.Movable) action;
                         movable.move(PDG.this);
-                        connectRealNode(graphNode, callNode, movable.getRealNode());
+                        connectRealNode(graphNode, callNodeStack.peek(), movable.getRealNode());
                     }
                 }
-                assert callNode == null;
+                assert callNodeStack.isEmpty();
             }
-        }
-
-        /** Compute the call node, if entering the marker. Additionally, it places the node
-         * in the graph and makes it control-dependent on its container. */
-        protected CallNode updateCallNode(GraphNode<?> graphNode, VariableAction.CallMarker marker) {
-            if (!marker.isEnter())
-                return null;
-            var callNode = CallNode.create(marker.getCall());
-            addVertex(callNode);
-            addControlDependencyArc(graphNode, callNode);
-            return callNode;
         }
 
         /** Connects the real node to the proper parent, control-dependent-wise. */
