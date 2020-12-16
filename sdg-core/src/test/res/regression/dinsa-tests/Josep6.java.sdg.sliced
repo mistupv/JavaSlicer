@@ -1,0 +1,26 @@
+class A {
+
+    A(int newx) {
+    }
+
+    public static void main(String[] args) {
+        B b1 = new B(5.6);
+        int z = b1.getxB();
+        System.out.println(z);
+    }
+}
+
+class B extends A {
+
+    B(double valor) {
+        super((int) valor);
+    }
+
+    void modificarxB(B b) {
+        b.xB = 10;
+    }
+
+    int getxB() {
+        return xB;
+    }
+}

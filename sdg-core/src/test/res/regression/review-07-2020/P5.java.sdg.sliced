@@ -1,0 +1,38 @@
+public class Josep2 {
+
+    public static void main(String[] args) {
+        int suma = 0;
+        suma += factorial(5);
+        Numeros num = new GrandesNumeros(7);
+        suma += num.random();
+        System.out.print(suma);
+    }
+
+    static int factorial(int x) {
+        int contador = 1;
+        int fact = 1;
+        while (contador < x) {
+            contador++;
+            fact = fact * contador;
+        }
+        return fact;
+    }
+}
+
+class Numeros {
+
+    int random() {
+        return haceFalta;
+    }
+}
+
+class GrandesNumeros extends Numeros {
+
+    GrandesNumeros(double x) {
+        haceFalta = 0;
+    }
+
+    int random() {
+        return haceFalta;
+    }
+}

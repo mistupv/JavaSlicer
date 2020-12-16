@@ -1,0 +1,15 @@
+package mytest;
+
+public class BasicSwitchNoBreak {
+
+    public static void main(String[] args) {
+        String res = "";
+        switch(args[0]) {
+            case "a":
+            case "b":
+            case "c":
+                res = "cab";
+        }
+        System.out.println(res);
+    }
+}

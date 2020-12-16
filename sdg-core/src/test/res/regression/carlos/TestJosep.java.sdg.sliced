@@ -1,0 +1,6 @@
+public class TestJosep {
+
+    public static void main(int y) {
+        log(z);
+    }
+}

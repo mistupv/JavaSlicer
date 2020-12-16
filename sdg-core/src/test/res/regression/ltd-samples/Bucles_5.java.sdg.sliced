@@ -1,0 +1,13 @@
+package ejemplos;
+
+public class Bucles_5 {
+
+    public static void main(String[] args) {
+        int x = 0;
+        x = 1;
+        x = 1;
+        do {
+            x++;
+        } while (x <= 10);
+    }
+}

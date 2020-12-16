@@ -1,0 +1,16 @@
+package tfm.programs;
+
+public class WhileLoop {
+
+    void while5() {
+        int x = 1;
+        int y = 2;
+        while (x < y) {
+            x += y;
+            while (y < x) {
+                y++;
+            }
+            y += 1;
+        }
+    }
+}

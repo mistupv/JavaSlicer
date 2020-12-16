@@ -1,0 +1,8 @@
+public class Bucles {
+
+    public static void main(String[] args) {
+        int x;
+        int i = 8;
+        x = 5 + i;
+    }
+}

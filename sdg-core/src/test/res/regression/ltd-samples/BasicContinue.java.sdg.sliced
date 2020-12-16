@@ -1,0 +1,14 @@
+package mytest;
+
+public class BasicContinue {
+
+    public static void main(String[] args) {
+        int x = 0;
+        bucle: while (x < 20) {
+            x++;
+            if (x > 10)
+                continue;
+            x++;
+        }
+    }
+}

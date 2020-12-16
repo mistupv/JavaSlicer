@@ -1,0 +1,12 @@
+package ejemplos;
+
+public class Test_7 {
+
+    public static void main(String[] args) {
+        int x = 1;
+        x = 4;
+        if (x == 2) {
+            x = 5;
+        }
+    }
+}

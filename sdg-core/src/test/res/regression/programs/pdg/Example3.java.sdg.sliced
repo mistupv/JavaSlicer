@@ -1,0 +1,17 @@
+package tfm.programs.pdg;
+
+import tfm.utils.Logger;
+
+public class Example3 {
+
+    public static void main(String[] args) {
+        int n = 1;
+        int i = 1;
+        int sum = 0;
+        while (i < n) {
+            sum += i;
+            i++;
+        }
+        System.out.println(sum);
+    }
+}

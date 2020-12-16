@@ -1,0 +1,10 @@
+package ejemplos;
+
+public class Bucles_Josep {
+
+    public static void main(String[] args) {
+        int x = 0;
+        int y = 0, z = 0;
+        z = x + y;
+    }
+}

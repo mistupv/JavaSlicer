@@ -1,0 +1,13 @@
+public class Problem3 {
+
+    public static void main() throws Exception {
+        x = 0;
+        f();
+    }
+
+    public static void f() throws Exception {
+        if (x % 2 == 0)
+            throw new Exception("error!");
+        System.out.println("x = " + x);
+    }
+}
