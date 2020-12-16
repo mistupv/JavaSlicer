@@ -49,7 +49,7 @@ public class Slicer {
                 .build());
         OPTIONS.addOption(Option
                 .builder("l").longOpt("line")
-                .hasArg().argName("lineNumber").type(Integer.class)
+                .hasArg().argName("lineNumber").type(Number.class)
                 .desc("The line that contains the statement of the slicing criterion.")
                 .build());
         OPTIONS.addOption(Option
@@ -126,7 +126,7 @@ public class Slicer {
             }
         } else if (cliOpts.hasOption('f') && cliOpts.hasOption('l')) {
             setScFile(cliOpts.getOptionValue('f'));
-            setScLine((Integer) cliOpts.getParsedOptionValue("l"));
+            setScLine(((Number) cliOpts.getParsedOptionValue("l")).intValue());
             if (cliOpts.hasOption('v')) {
                 if (cliOpts.hasOption('n'))
                     setScVars(cliOpts.getOptionValues('v'), cliOpts.getOptionValues('n'));
