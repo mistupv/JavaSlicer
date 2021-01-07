@@ -5,10 +5,7 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.comments.BlockComment;
 import com.github.javaparser.ast.nodeTypes.NodeWithName;
-import com.github.javaparser.symbolsolver.JavaSymbolSolver;
-import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
-import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 import es.upv.mist.slicing.graphs.augmented.ASDG;
 import es.upv.mist.slicing.graphs.augmented.PSDG;
 import es.upv.mist.slicing.graphs.exceptionsensitive.ESSDG;
@@ -16,6 +13,7 @@ import es.upv.mist.slicing.graphs.sdg.SDG;
 import es.upv.mist.slicing.slicing.FileLineSlicingCriterion;
 import es.upv.mist.slicing.slicing.Slice;
 import es.upv.mist.slicing.slicing.SlicingCriterion;
+import es.upv.mist.slicing.utils.StaticTypeSolver;
 import org.apache.commons.cli.*;
 
 import java.io.File;
@@ -211,11 +209,9 @@ public class Slicer {
 
     public void slice() throws ParseException {
         // Configure JavaParser
-        CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
-        combinedTypeSolver.add(new ReflectionTypeSolver(true));
+        StaticTypeSolver.addTypeSolverJRE();
         for (File directory : dirIncludeSet)
-            combinedTypeSolver.add(new JavaParserTypeSolver(directory));
-        StaticJavaParser.getConfiguration().setSymbolResolver(new JavaSymbolSolver(combinedTypeSolver));
+            StaticTypeSolver.addTypeSolver(new JavaParserTypeSolver(directory));
         StaticJavaParser.getConfiguration().setAttributeComments(false);
 
         // Build the SDG

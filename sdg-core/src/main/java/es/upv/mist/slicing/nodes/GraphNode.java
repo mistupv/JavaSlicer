@@ -1,6 +1,7 @@
 package es.upv.mist.slicing.nodes;
 
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
@@ -131,8 +132,8 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
     }
 
     /** Create and append a definition of a variable to the list of actions of this node. */
-    public void addDefinedVariable(NameExpr variable) {
-        VariableAction.Definition def = new VariableAction.Definition(variable, this);
+    public void addDefinedVariable(NameExpr variable, Expression expression) {
+        VariableAction.Definition def = new VariableAction.Definition(variable, this, expression);
         variableActions.add(def);
     }
 

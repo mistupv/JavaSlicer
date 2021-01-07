@@ -132,8 +132,10 @@ public class ACFGBuilder extends CFGBuilder {
     @Override
     public void visit(ReturnStmt returnStmt, Void arg) {
         GraphNode<ReturnStmt> node = connectTo(returnStmt);
-        node.addDefinedVariable(new NameExpr(VARIABLE_NAME_OUTPUT));
-        returnStmt.getExpression().ifPresent(n -> n.accept(this, arg));
+        returnStmt.getExpression().ifPresent(n -> {
+            n.accept(this, arg);
+            node.addDefinedVariable(new NameExpr(VARIABLE_NAME_OUTPUT), n);
+        });
         returnList.add(node);
         clearHanging();
         nonExecHangingNodes.add(node); // NEW vs CFG
