@@ -48,7 +48,7 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, DefaultEd
      * in the given list of compilation units. */
     protected void buildVertices(NodeList<CompilationUnit> arg) {
         arg.accept(new VoidVisitorAdapter<Void>() {
-
+            private final Deque<ClassOrInterfaceDeclaration> classStack = new LinkedList<>();
 //            QUESTIONS & LACKS:
 //              1) Is it necessary to include something apart from class vertices?
 //              2) Private classes inside other classes?
@@ -56,23 +56,25 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, DefaultEd
 
             @Override
             public void visit(ClassOrInterfaceDeclaration n, Void arg) {
+                classStack.push(n);
                 addClassDeclaration(n);
                 super.visit(n, arg);
+                classStack.pop();
             }
 
             @Override
             public void visit(FieldDeclaration n, Void arg) {
-                addFieldDeclaration(n);
+                addFieldDeclaration(n, classStack.peek());
             }
 
             @Override
             public void visit(MethodDeclaration n, Void arg) {
-                addCallableDeclaration(n);
+                addCallableDeclaration(n, classStack.peek());
             }
 
             @Override
             public void visit(ConstructorDeclaration n, Void arg) {
-                addCallableDeclaration(n);
+                addCallableDeclaration(n, classStack.peek());
             }
         }, null);
     }
@@ -80,24 +82,24 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, DefaultEd
     /** Add a class declaration vertex to the class graph */
     protected void addClassDeclaration(ClassOrInterfaceDeclaration n) {
         ClassGraph.Vertex v = new ClassGraph.Vertex(n);
-        // Required string to match ClassOrInterfaceType and ClassOrInterfaceDeclaration
+        // Required string to match ClassOrInterfaceType and ClassOrInterfaceDeclaration. QualifiedName Not Valid
         vertexDeclarationMap.put(n.getNameAsString(), v);
         addVertex(v);
     }
 
     /** Add a field declaration vertex to the class graph */
-    protected void addFieldDeclaration(FieldDeclaration n){
+    protected void addFieldDeclaration(FieldDeclaration n, ClassOrInterfaceDeclaration c){
         ClassGraph.Vertex v = new ClassGraph.Vertex(n);
         // Key value: hashCode + toString() to avoid multiple field declarations with the same syntax in different classes
-        vertexDeclarationMap.put(n.hashCode() + n.toString(), v);
+        vertexDeclarationMap.put(c.getFullyQualifiedName().get()+ "." + n.toString(), v);
         addVertex(v);
     }
 
     /** Add a method/constructor declaration vertex to the class graph */
-    protected void addCallableDeclaration(CallableDeclaration<?> n){
+    protected void addCallableDeclaration(CallableDeclaration<?> n, ClassOrInterfaceDeclaration c){
         assert n instanceof ConstructorDeclaration || n instanceof MethodDeclaration;
         ClassGraph.Vertex v = new ClassGraph.Vertex(n);
-        vertexDeclarationMap.put(n.hashCode() + n.getSignature().toString(), v);
+        vertexDeclarationMap.put(c.getFullyQualifiedName().get()+ "." + n.getSignature().toString(), v);
         addVertex(v);
     }
 
@@ -120,7 +122,7 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, DefaultEd
             public void visit(FieldDeclaration n, Void arg) {
                 ClassOrInterfaceDeclaration clazz = classStack.peek();
                 Vertex c = vertexDeclarationMap.get(clazz.getNameAsString());
-                Vertex v = vertexDeclarationMap.get(n.hashCode() + n.toString());
+                Vertex v = vertexDeclarationMap.get(clazz.getFullyQualifiedName().get()+ "." + n.toString());
                 addEdge(c, v, new MemberArc());
             }
 
@@ -128,7 +130,7 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, DefaultEd
             public void visit(MethodDeclaration n, Void arg) {
                 ClassOrInterfaceDeclaration clazz = classStack.peek();
                 Vertex c = vertexDeclarationMap.get(clazz.getNameAsString());
-                Vertex v = vertexDeclarationMap.get(n.hashCode() + n.getSignature().toString());
+                Vertex v = vertexDeclarationMap.get(clazz.getFullyQualifiedName().get()+ "." + n.getSignature().toString());
                 addEdge(c, v, new MemberArc());
             }
 
@@ -136,7 +138,7 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, DefaultEd
             public void visit(ConstructorDeclaration n, Void arg) {
                 ClassOrInterfaceDeclaration clazz = classStack.peek();
                 Vertex c = vertexDeclarationMap.get(clazz.getNameAsString());
-                Vertex v = vertexDeclarationMap.get(n.hashCode() + n.getSignature().toString());
+                Vertex v = vertexDeclarationMap.get(clazz.getFullyQualifiedName().get()+ "." + n.getSignature().toString());
                 addEdge(c, v, new MemberArc());
             }
         }, null);
