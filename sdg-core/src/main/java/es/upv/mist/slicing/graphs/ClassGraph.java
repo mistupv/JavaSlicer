@@ -4,14 +4,13 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import es.upv.mist.slicing.arcs.clg.ExtendsArc;
-import es.upv.mist.slicing.arcs.clg.ImplementsArc;
-import es.upv.mist.slicing.arcs.clg.MemberArc;
-import es.upv.mist.slicing.graphs.cfg.CFG;
+import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.utils.ASTUtils;
 import es.upv.mist.slicing.utils.Utils;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.DirectedPseudograph;
+import org.jgrapht.nio.Attribute;
+import org.jgrapht.nio.DefaultAttribute;
 import org.jgrapht.nio.dot.DOTExporter;
 
 import java.util.*;
@@ -28,7 +27,6 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, DefaultEd
     public ClassGraph() {
         super(null, null, false);
     }
-
 
     @Override
     public void build(NodeList<CompilationUnit> arg) {
@@ -147,8 +145,16 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, DefaultEd
     protected void addClassEdges(Vertex v){
         assert v.declaration instanceof ClassOrInterfaceDeclaration;
         ClassOrInterfaceDeclaration dv = (ClassOrInterfaceDeclaration) v.declaration;
-        dv.getExtendedTypes().forEach(p -> addEdge(vertexDeclarationMap.get(p.getNameAsString()), v, new ExtendsArc()));
-        dv.getImplementedTypes().forEach(p -> addEdge(vertexDeclarationMap.get(p.getNameAsString()), v, new ImplementsArc()));
+        dv.getExtendedTypes().forEach(p -> {
+            Vertex source = vertexDeclarationMap.get(p.getNameAsString());
+            if (source != null && containsVertex(v))
+                addEdge(source, v, new ExtendsArc());
+        });
+        dv.getImplementedTypes().forEach(p -> {
+            Vertex source = vertexDeclarationMap.get(p.getNameAsString());
+            if (source != null && containsVertex(v))
+                addEdge(source, v, new ImplementsArc());
+        });
     }
 
     /** Creates a graph-appropriate DOT exporter. */
@@ -188,6 +194,42 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, DefaultEd
         @Override
         public String toString() {
             return super.toString();
+        }
+    }
+
+    /**
+     * An edge of the {@link ClassGraph}. Represents the inheritance relationship in Java.
+     * It goes from the base class to the derived class
+     */
+    public static class ExtendsArc extends Arc {
+        public Map<String, Attribute> getDotAttributes() {
+            Map<String, Attribute> map = super.getDotAttributes();
+            map.put("style", DefaultAttribute.createAttribute("dashed"));
+            return map;
+        }
+    }
+
+    /**
+     * An edge of the {@link ClassGraph}. Represents the implements relationship in Java.
+     * It goes from the interface to the class that implements it.
+     */
+    public static class ImplementsArc extends Arc {
+        public Map<String, Attribute> getDotAttributes() {
+            Map<String, Attribute> map = super.getDotAttributes();
+            map.put("style", DefaultAttribute.createAttribute("dashed"));
+            return map;
+        }
+    }
+
+    /**
+     * An edge of the {@link ClassGraph}. It represents the membership of a class node.
+     * It links the class node and its inner data members/function definitions.
+     */
+    public static class MemberArc extends Arc {
+        public Map<String, Attribute> getDotAttributes() {
+            Map<String, Attribute> map = super.getDotAttributes();
+            map.put("style", DefaultAttribute.createAttribute("dashed"));
+            return map;
         }
     }
 }
