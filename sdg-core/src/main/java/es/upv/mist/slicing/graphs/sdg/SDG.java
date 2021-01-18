@@ -28,7 +28,10 @@ import es.upv.mist.slicing.nodes.io.CallNode;
 import es.upv.mist.slicing.slicing.*;
 import es.upv.mist.slicing.utils.ASTUtils;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 /**
  * The <b>System Dependence Graph</b> represents the statements of a program in
@@ -43,7 +46,7 @@ import java.util.*;
  * </ol>
  */
 public class SDG extends Graph implements Sliceable, Buildable<NodeList<CompilationUnit>> {
-    protected final Map<CallableDeclaration<?>, CFG> cfgMap = new IdentityHashMap<>();
+    protected final Map<CallableDeclaration<?>, CFG> cfgMap = ASTUtils.newIdentityHashMap();
 
     protected boolean built = false;
     protected NodeList<CompilationUnit> compilationUnits;
