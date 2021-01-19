@@ -65,7 +65,7 @@ public class Slice {
         for (Node node : nodes) {
             Optional<CompilationUnit> cu = node.findCompilationUnit();
             if (cu.isEmpty()) continue;
-            cuMap.putIfAbsent(cu.get(), new NodeHashSet<>());
+            cuMap.computeIfAbsent(cu.get(), compilationUnit -> new NodeHashSet<>());
             cuMap.get(cu.get()).add(node);
         }
         // Traverse the AST of each compilation unit, creating a copy and
