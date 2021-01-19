@@ -1,5 +1,6 @@
 package es.upv.mist.slicing.nodes;
 
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.*;
@@ -10,7 +11,10 @@ import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
 import es.upv.mist.slicing.graphs.GraphNodeContentVisitor;
 import es.upv.mist.slicing.utils.ASTUtils;
+import es.upv.mist.slicing.utils.TriConsumer;
 
+import java.util.Deque;
+import java.util.LinkedList;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 
@@ -41,13 +45,16 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
 
     /** A default action to be used as a placeholder when a {@code null} action is received. */
     protected static final BiConsumer<GraphNode<?>, NameExpr> BLANK_CONSUMER = (a, b) -> {};
+    protected static final TriConsumer<GraphNode<?>, NameExpr, Expression> BLANK_TRICONSUMER = (a, b, c) -> {};
 
     /** The action to perform when a declaration is found. */
     protected final BiConsumer<GraphNode<?>, NameExpr> declConsumer;
     /** The action to perform when a definition is found. */
-    protected final BiConsumer<GraphNode<?>, NameExpr> defConsumer;
+    protected final TriConsumer<GraphNode<?>, NameExpr, Expression> defConsumer;
     /** The action to perform when a usage is found. */
     protected final BiConsumer<GraphNode<?>, NameExpr> useConsumer;
+    /** A stack with the last definition expression, to provide it when a variable definition is found. */
+    protected final Deque<Expression> definitionStack = new LinkedList<>();
 
     /** A variable visitor that will add each action to the list of actions of the graph node.
      *  The entry-point for this graph MUST be {@link #startVisit(GraphNode)} or {@link #startVisit(GraphNode, Action)} */
@@ -58,10 +65,20 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     /** A variable visitor that will perform the given actions when a variable is found. A node can accept this visitor,
      *  but calls will be ignored if the entry-point is not {@link #startVisit(GraphNode)} or {@link #startVisit(GraphNode, Action)}.
      *  The arguments are the actions to be performed when an action is found in the corresponding node. */
-    public VariableVisitor(BiConsumer<GraphNode<?>, NameExpr> declConsumer, BiConsumer<GraphNode<?>, NameExpr> defConsumer, BiConsumer<GraphNode<?>, NameExpr> useConsumer) {
+    public VariableVisitor(BiConsumer<GraphNode<?>, NameExpr> declConsumer, TriConsumer<GraphNode<?>, NameExpr, Expression> defConsumer, BiConsumer<GraphNode<?>, NameExpr> useConsumer) {
         this.declConsumer = Objects.requireNonNullElse(declConsumer, BLANK_CONSUMER);
-        this.defConsumer = Objects.requireNonNullElse(defConsumer, BLANK_CONSUMER);
+        this.defConsumer = Objects.requireNonNullElse(defConsumer, BLANK_TRICONSUMER);
         this.useConsumer = Objects.requireNonNullElse(useConsumer, BLANK_CONSUMER);
+    }
+
+    public void visitAsDefinition(Node node, Expression value) {
+        visitAsDefinition(node, value, Action.DEFINITION);
+    }
+
+    public void visitAsDefinition(Node node, Expression value, Action action) {
+        definitionStack.push(value);
+        node.accept(this, action.or(Action.DEFINITION));
+        definitionStack.pop();
     }
 
     @Override
@@ -76,7 +93,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
                 declConsumer.accept(graphNode, n);
                 break;
             case DEFINITION:
-                defConsumer.accept(graphNode, n);
+                defConsumer.accept(graphNode, n, definitionStack.peek());
                 break;
             case USE:
                 useConsumer.accept(graphNode, n);
@@ -103,7 +120,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         n.getIterable().accept(this, Action.USE);
         for (VariableDeclarator variable : n.getVariable().getVariables()) {
             variable.getNameAsExpression().accept(this, Action.DECLARATION);
-            variable.getNameAsExpression().accept(this, Action.DEFINITION);
+            visitAsDefinition(variable.getNameAsExpression(), null); // TODO: add a better initializer
         }
     }
 
@@ -138,7 +155,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         // Target will be used if operator is not '='
         if (n.getOperator() != AssignExpr.Operator.ASSIGN)
             n.getTarget().accept(this, action);
-        n.getTarget().accept(this, action.or(Action.DEFINITION));
+        visitAsDefinition(n.getTarget(), n.getValue(), action);
         n.getValue().accept(this, action);
     }
 
@@ -151,14 +168,14 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
             case PREFIX_DECREMENT:
             case PREFIX_INCREMENT:
                 n.getExpression().accept(this, action);
-                n.getExpression().accept(this, action.or(Action.DEFINITION));
+                visitAsDefinition(n.getExpression(), null, action); // TODO: improve initializer
                 break;
         }
         n.getExpression().accept(this, action);
         switch (n.getOperator()) {
             case POSTFIX_INCREMENT:
             case POSTFIX_DECREMENT:
-               n.getExpression().accept(this, action.or(Action.DEFINITION));
+                visitAsDefinition(n.getExpression(), null, action); // TODO: improve initializer
                 break;
         }
     }
@@ -167,10 +184,10 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     public void visit(VariableDeclarationExpr n, Action action) {
         for (VariableDeclarator v : n.getVariables()) {
             v.getNameAsExpression().accept(this, action.or(Action.DECLARATION));
-            if (v.getInitializer().isPresent()) {
-                v.getInitializer().get().accept(this, action);
-                v.getNameAsExpression().accept(this, Action.DEFINITION);
-            }
+            v.getInitializer().ifPresent(init -> {
+                init.accept(this, action);
+                visitAsDefinition(v.getNameAsExpression(), init);
+            });
         }
     }
 
@@ -182,7 +199,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     @Override
     public void visit(Parameter n, Action arg) {
         declConsumer.accept(graphNode, new NameExpr(n.getName().getId()));
-        defConsumer.accept(graphNode, new NameExpr(n.getName().getId()));
+        defConsumer.accept(graphNode, new NameExpr(n.getName().getId()), null); // TODO: improve initializer
     }
     // =======================================================================
     // ================================ CALLS ================================

@@ -1,5 +1,6 @@
 package es.upv.mist.slicing.nodes;
 
+import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
@@ -160,8 +161,21 @@ public abstract class VariableAction {
 
     /** A definition of a variable. */
     public static class Definition extends VariableAction {
+        /** The value to which the variable has been defined. */
+        protected final Expression expression;
+
         public Definition(NameExpr variable, GraphNode<?> graphNode) {
+            this(variable, graphNode, null);
+        }
+
+        public Definition(NameExpr variable, GraphNode<?> graphNode, Expression expression) {
             super(variable, graphNode);
+            this.expression = expression;
+        }
+
+        /** @see #expression */
+        public Expression getExpression() {
+            return expression;
         }
 
         @Override
