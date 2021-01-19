@@ -29,7 +29,6 @@ public class Example1 {
             case 2:
             case 3:
                 e = 4;
-                break;
         }
         System.out.println(e);
     }

@@ -1,5 +1,6 @@
 package es.upv.mist.slicing.graphs;
 
+import es.upv.mist.slicing.utils.ASTUtils;
 import org.jgrapht.graph.AbstractGraph;
 
 import java.util.*;
@@ -34,7 +35,7 @@ public abstract class BackwardDataFlowAnalysis<V, E, D> {
             List<V> newWorkList = new LinkedList<>();
             for (V vertex : workList) {
                 Set<V> mayAffectVertex = graph.outgoingEdgesOf(vertex).stream()
-                        .map(graph::getEdgeTarget).collect(Collectors.toCollection(() -> Collections.newSetFromMap(new IdentityHashMap<>())));
+                        .map(graph::getEdgeTarget).collect(Collectors.toCollection(ASTUtils::newIdentityHashSet));
                 D newValue = compute(vertex, mayAffectVertex);
                 if (!Objects.equals(vertexDataMap.get(vertex), newValue)) {
                     vertexDataMap.put(vertex, newValue);

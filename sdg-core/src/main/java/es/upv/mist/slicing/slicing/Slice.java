@@ -5,6 +5,8 @@ import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.visitor.CloneVisitor;
 import es.upv.mist.slicing.nodes.GraphNode;
+import es.upv.mist.slicing.utils.ASTUtils;
+import es.upv.mist.slicing.utils.NodeHashSet;
 
 import java.util.*;
 
@@ -57,13 +59,13 @@ public class Slice {
     /** Organize all nodes pertaining to this slice in one or more CompilationUnits. CompilationUnits
      *  themselves need not be part of the slice to be included if any of their components are present. */
     public NodeList<CompilationUnit> toAst() {
-        Map<CompilationUnit, Set<Node>> cuMap = new IdentityHashMap<>();
+        Map<CompilationUnit, NodeHashSet<Node>> cuMap = ASTUtils.newIdentityHashMap();
         // Add each node to the corresponding bucket of the map
         // Nodes may not belong to a compilation unit (fictional nodes), and they are skipped for the slice.
         for (Node node : nodes) {
             Optional<CompilationUnit> cu = node.findCompilationUnit();
             if (cu.isEmpty()) continue;
-            cuMap.putIfAbsent(cu.get(), new HashSet<>());
+            cuMap.computeIfAbsent(cu.get(), compilationUnit -> new NodeHashSet<>());
             cuMap.get(cu.get()).add(node);
         }
         // Traverse the AST of each compilation unit, creating a copy and
@@ -71,7 +73,7 @@ public class Slice {
         NodeList<CompilationUnit> cus = new NodeList<>();
         SlicePruneVisitor sliceVisitor = new SlicePruneVisitor();
         CloneVisitor cloneVisitor = new CloneVisitor();
-        for (Map.Entry<CompilationUnit, Set<Node>> entry : cuMap.entrySet()) {
+        for (Map.Entry<CompilationUnit, NodeHashSet<Node>> entry : cuMap.entrySet()) {
             CompilationUnit clone = (CompilationUnit) entry.getKey().accept(cloneVisitor, null);
             if (entry.getKey().getStorage().isPresent())
                 clone.setStorage(entry.getKey().getStorage().get().getPath(),

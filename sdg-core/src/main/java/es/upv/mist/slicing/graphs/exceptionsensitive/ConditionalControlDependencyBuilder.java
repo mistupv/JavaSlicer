@@ -14,6 +14,7 @@ import es.upv.mist.slicing.nodes.exceptionsensitive.NormalReturnNode;
 import es.upv.mist.slicing.nodes.exceptionsensitive.ReturnNode;
 import es.upv.mist.slicing.slicing.PseudoPredicateSlicingAlgorithm;
 import es.upv.mist.slicing.utils.ASTUtils;
+import es.upv.mist.slicing.utils.NodeHashSet;
 import es.upv.mist.slicing.utils.Utils;
 
 import java.util.HashSet;
@@ -70,7 +71,7 @@ public class ConditionalControlDependencyBuilder {
     /** Create the {@link ConditionalControlDependencyArc.CC2 CC2}
      * arcs associated to a given {@link CatchClause}. */
     protected void buildCC2(GraphNode<CatchClause> cc) {
-        Set<Node> tryBlockInstructs = getTryBlockInstructs(cc.getAstNode());
+        NodeHashSet<Node> tryBlockInstructs = getTryBlockInstructs(cc.getAstNode());
         for (Node node : tryBlockInstructs)
             for (GraphNode<?> dst : pdg.findAllNodes(n -> ASTUtils.equalsWithRangeInCU(n.getAstNode(), node)))
                 if (isExceptionSource(dst) && hasControlDependencePath(dst, cc, tryBlockInstructs))
@@ -78,13 +79,13 @@ public class ConditionalControlDependencyBuilder {
     }
 
     /** Obtains the set of AST nodes found within a given {@link CatchClause}. */
-    protected static Set<Node> getBlockInstructs(CatchClause cc) {
+    protected static NodeHashSet<Node> getBlockInstructs(CatchClause cc) {
         return childNodesOf(cc);
     }
 
     /** Obtains the set of AST nodes found within the {@link com.github.javaparser.ast.stmt.TryStmt try}
      * associated with the given {@link CatchClause}. */
-    protected static Set<Node> getTryBlockInstructs(CatchClause cc) {
+    protected static NodeHashSet<Node> getTryBlockInstructs(CatchClause cc) {
         Optional<Node> parent = cc.getParentNode();
         assert parent.isPresent();
         return childNodesOf(parent.get());
@@ -107,7 +108,7 @@ public class ConditionalControlDependencyBuilder {
      * following the rules of the PPDG traversal.
      * @see PseudoPredicateSlicingAlgorithm
      */
-    protected boolean hasControlDependencePath(GraphNode<?> a, GraphNode<?> b, Set<Node> universe) {
+    protected boolean hasControlDependencePath(GraphNode<?> a, GraphNode<?> b, NodeHashSet<Node> universe) {
         Set<GraphNode<?>> visited = new HashSet<>();
         Set<GraphNode<?>> pending = new HashSet<>();
         pending.add(b);
@@ -134,13 +135,13 @@ public class ConditionalControlDependencyBuilder {
     }
 
     /** Internal method to find all possible AST nodes that descend from the given argument. */
-    protected static Set<Node> childNodesOf(Node parent) {
-        Set<Node> result = new HashSet<>();
-        Set<Node> pending = new HashSet<>();
+    protected static NodeHashSet<Node> childNodesOf(Node parent) {
+        NodeHashSet<Node> result = new NodeHashSet<>();
+        Set<Node> pending = new NodeHashSet<>();
         pending.add(parent);
 
         while (!pending.isEmpty()) {
-            Set<Node> newPending = new HashSet<>();
+            Set<Node> newPending = new NodeHashSet<>();
             for (Node n : pending) {
                 newPending.addAll(n.getChildNodes());
                 result.add(n);

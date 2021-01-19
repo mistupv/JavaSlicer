@@ -12,14 +12,14 @@ import com.github.javaparser.ast.nodeTypes.NodeWithBody;
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.ModifierVisitor;
 import com.github.javaparser.ast.visitor.Visitable;
+import es.upv.mist.slicing.utils.NodeHashSet;
 
-import java.util.Set;
 import java.util.stream.Collectors;
 
 /** Given an AST tree and a slice, removes or prunes all nodes that are not
  *  included in the slice. Some nodes are included if they are present in the slice
  *  or of any of their children are (as is the case with {@link CompilationUnit}s). */
-public class SlicePruneVisitor extends ModifierVisitor<Set<Node>> {
+public class SlicePruneVisitor extends ModifierVisitor<NodeHashSet<Node>> {
     // ========== Utility methods ==========
 
     /** Place a valid placeholder in this node's body, if any. */
@@ -34,14 +34,14 @@ public class SlicePruneVisitor extends ModifierVisitor<Set<Node>> {
     // ========== File visitors ==========
 
     @Override
-    public Visitable visit(CompilationUnit n, Set<Node> arg) {
+    public Visitable visit(CompilationUnit n, NodeHashSet<Node> arg) {
         boolean keep = arg.contains(n);
         Visitable v = super.visit(n, arg);
         return keep || !((Node) v).getChildNodes().isEmpty() ? v : null;
     }
 
     @Override
-    public Visitable visit(ClassOrInterfaceDeclaration n, Set<Node> arg) {
+    public Visitable visit(ClassOrInterfaceDeclaration n, NodeHashSet<Node> arg) {
         boolean keep = arg.contains(n);
         Visitable v = super.visit(n, arg);
         return keep || !((Node) v).getChildNodes().isEmpty() ? v : null;
@@ -50,21 +50,21 @@ public class SlicePruneVisitor extends ModifierVisitor<Set<Node>> {
     // ========== Class body visitors ==========
 
     @Override
-    public Visitable visit(MethodDeclaration n, Set<Node> arg) {
+    public Visitable visit(MethodDeclaration n, NodeHashSet<Node> arg) {
         boolean keep = arg.contains(n);
         Visitable v = super.visit(n, arg);
         return keep ? v : null;
     }
 
     @Override
-    public Visitable visit(ConstructorDeclaration n, Set<Node> arg) {
+    public Visitable visit(ConstructorDeclaration n, NodeHashSet<Node> arg) {
         boolean keep = arg.contains(n);
         Visitable v = super.visit(n, arg);
         return keep ? v : null;
     }
 
     @Override
-    public Visitable visit(FieldDeclaration n, Set<Node> arg) {
+    public Visitable visit(FieldDeclaration n, NodeHashSet<Node> arg) {
         boolean keep = arg.contains(n);
         Visitable v = super.visit(n, arg);
         return keep ? v : null;
@@ -77,17 +77,17 @@ public class SlicePruneVisitor extends ModifierVisitor<Set<Node>> {
     //      c. With relevant children and included if any children is included OR if on the slice (e.g. SwitchEntryStmt, LabeledStmt)
 
     @Override
-    public Visitable visit(BreakStmt n, Set<Node> arg) {
+    public Visitable visit(BreakStmt n, NodeHashSet<Node> arg) {
         return arg.contains(n) ? n : null;
     }
 
     @Override
-    public Visitable visit(ContinueStmt n, Set<Node> arg) {
+    public Visitable visit(ContinueStmt n, NodeHashSet<Node> arg) {
         return arg.contains(n) ? n : null;
     }
 
     @Override
-    public Visitable visit(DoStmt n, Set<Node> arg) {
+    public Visitable visit(DoStmt n, NodeHashSet<Node> arg) {
         boolean keep = arg.contains(n);
         super.visit(n, arg);
         fillBody(n);
@@ -95,7 +95,7 @@ public class SlicePruneVisitor extends ModifierVisitor<Set<Node>> {
     }
 
     @Override
-    public Visitable visit(ForEachStmt n, Set<Node> arg) {
+    public Visitable visit(ForEachStmt n, NodeHashSet<Node> arg) {
         boolean keep = arg.contains(n);
         super.visit(n, arg);
         fillBody(n);
@@ -103,7 +103,7 @@ public class SlicePruneVisitor extends ModifierVisitor<Set<Node>> {
     }
 
     @Override
-    public Visitable visit(ForStmt n, Set<Node> arg) {
+    public Visitable visit(ForStmt n, NodeHashSet<Node> arg) {
         boolean keep = arg.contains(n);
         super.visit(n, arg);
         n.setInitialization(new NodeList<>(n.getInitialization().stream()
@@ -120,7 +120,7 @@ public class SlicePruneVisitor extends ModifierVisitor<Set<Node>> {
     }
 
     @Override
-    public Visitable visit(WhileStmt n, Set<Node> arg) {
+    public Visitable visit(WhileStmt n, NodeHashSet<Node> arg) {
         boolean keep = arg.contains(n);
         super.visit(n, arg);
         fillBody(n);
@@ -128,7 +128,7 @@ public class SlicePruneVisitor extends ModifierVisitor<Set<Node>> {
     }
 
     @Override
-    public Visitable visit(IfStmt n, Set<Node> arg) {
+    public Visitable visit(IfStmt n, NodeHashSet<Node> arg) {
         boolean keep = arg.contains(n);
         super.visit(n, arg);
         if (n.getThenStmt() == null)
@@ -137,23 +137,23 @@ public class SlicePruneVisitor extends ModifierVisitor<Set<Node>> {
     }
 
     @Override
-    public Visitable visit(LabeledStmt n, Set<Node> arg) {
+    public Visitable visit(LabeledStmt n, NodeHashSet<Node> arg) {
         super.visit(n, arg);
         return n.getStatement() != null ? n : null;
     }
 
     @Override
-    public Visitable visit(ReturnStmt n, Set<Node> arg) {
+    public Visitable visit(ReturnStmt n, NodeHashSet<Node> arg) {
         return arg.contains(n) ? n : null;
     }
 
     @Override
-    public Visitable visit(ThrowStmt n, Set<Node> arg) {
+    public Visitable visit(ThrowStmt n, NodeHashSet<Node> arg) {
         return arg.contains(n) ? n : null;
     }
 
     @Override
-    public Visitable visit(SwitchEntry n, Set<Node> arg) {
+    public Visitable visit(SwitchEntry n, NodeHashSet<Node> arg) {
         boolean keep = arg.contains(n);
         super.visit(n, arg);
         if (!n.getStatements().isEmpty())
@@ -162,31 +162,31 @@ public class SlicePruneVisitor extends ModifierVisitor<Set<Node>> {
     }
 
     @Override
-    public Visitable visit(SwitchStmt n, Set<Node> arg) {
+    public Visitable visit(SwitchStmt n, NodeHashSet<Node> arg) {
         boolean keep = arg.contains(n);
         super.visit(n, arg);
         return keep ? n : null;
     }
 
     @Override
-    public Visitable visit(ExpressionStmt n, Set<Node> arg) {
+    public Visitable visit(ExpressionStmt n, NodeHashSet<Node> arg) {
         return arg.contains(n) ? n : null;
     }
 
     @Override
-    public Visitable visit(ExplicitConstructorInvocationStmt n, Set<Node> arg) {
+    public Visitable visit(ExplicitConstructorInvocationStmt n, NodeHashSet<Node> arg) {
         return arg.contains(n) ? n : null;
     }
 
     @Override
-    public Visitable visit(TryStmt n, Set<Node> arg) {
+    public Visitable visit(TryStmt n, NodeHashSet<Node> arg) {
         boolean keep = arg.contains(n);
         super.visit(n, arg);
         return keep ? n : null;
     }
 
     @Override
-    public Visitable visit(CatchClause n, Set<Node> arg) {
+    public Visitable visit(CatchClause n, NodeHashSet<Node> arg) {
         boolean keep = arg.contains(n);
         super.visit(n, arg);
         return keep ? n : null;
