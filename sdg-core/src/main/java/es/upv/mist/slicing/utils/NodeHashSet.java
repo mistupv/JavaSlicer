@@ -22,7 +22,7 @@ public class NodeHashSet<T extends Node> extends CustomEqualityHashSet<T> {
 
     @Override
     protected boolean objEquals(T a, Object b) {
-        return ASTUtils.equalsWithRangeInCU(a, (Node) b);
+        return ASTUtils.equalsWithRange(a, (Node) b);
     }
 
     @Override

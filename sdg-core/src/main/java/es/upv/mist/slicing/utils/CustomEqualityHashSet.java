@@ -81,8 +81,33 @@ public abstract class CustomEqualityHashSet<T> extends AbstractSet<T> {
     }
 
     @Override
+    public void clear() {
+        map.clear();
+        size = 0;
+    }
+
+    @Override
     public Iterator<T> iterator() {
-        return map.values().stream().flatMap(Collection::stream).iterator();
+        Iterator<T> it = map.values().stream().flatMap(Collection::stream).iterator();
+        return new Iterator<>() {
+            T last = null;
+
+            @Override
+            public boolean hasNext() {
+                return it.hasNext();
+            }
+
+            @Override
+            public T next() {
+                return last = it.next();
+            }
+
+            @Override
+            public void remove() {
+                if (last != null)
+                    CustomEqualityHashSet.this.remove(last);
+            }
+        };
     }
 
     @Override
