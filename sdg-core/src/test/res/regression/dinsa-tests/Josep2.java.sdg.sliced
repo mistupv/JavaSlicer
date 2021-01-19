@@ -31,8 +31,4 @@ class GrandesNumeros extends Numeros {
     GrandesNumeros(double x) {
         haceFalta = 0;
     }
-
-    int random() {
-        return haceFalta;
-    }
 }

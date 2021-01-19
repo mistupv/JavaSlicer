@@ -31,7 +31,6 @@ public class Eval_1 {
                 break;
             default:
                 x = 5;
-                break;
         }
         System.out.println(x);
     }

@@ -17,7 +17,6 @@ public class BasicSwitchDefault {
                 break;
             default:
                 y = -1;
-                break;
         }
         System.out.println(y);
     }

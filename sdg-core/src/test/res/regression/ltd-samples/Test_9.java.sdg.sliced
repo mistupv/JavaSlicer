@@ -21,8 +21,6 @@ public class Test_9 {
                 }
                 x--;
             }
-            x--;
         }
-        x--;
     }
 }
