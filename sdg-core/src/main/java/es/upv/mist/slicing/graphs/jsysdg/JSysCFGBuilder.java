@@ -33,7 +33,9 @@ public class JSysCFGBuilder extends ACFGBuilder {
             connectTo(n);
         }
         // 2. Insert dynamic class code
-        // TODO
+        ClassOrInterfaceDeclaration containerClass = ((JSysCFG) graph).getDeclarationClass();
+        NodeList<BodyDeclaration<?>> dynInitList = ((JSysCFG) graph).getClassGraph().getDynInit(containerClass.getNameAsString());
+        dynInitList.accept(this, arg);
 
     }
 

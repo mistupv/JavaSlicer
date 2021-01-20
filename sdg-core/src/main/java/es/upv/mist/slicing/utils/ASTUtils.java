@@ -125,6 +125,11 @@ public class ASTUtils {
         return shouldVisitArgumentsForMethodCalls(call) || graphNode == null;
     }
 
+    public static boolean constructorHasExplicitConstructorInvocation(ConstructorDeclaration declaration) {
+        return !getCallableBody(declaration).getStatements().isEmpty() &&
+                getCallableBody(declaration).getStatements().getFirst().get() instanceof ExplicitConstructorInvocationStmt;
+    }
+
     /**
      * Creates a new set that is suitable for JavaParser nodes. This
      * set behaves by comparing by identity (==) instead of equality (equals()).
