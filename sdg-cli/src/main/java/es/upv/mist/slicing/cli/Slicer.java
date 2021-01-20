@@ -7,6 +7,7 @@ import com.github.javaparser.ast.comments.BlockComment;
 import com.github.javaparser.ast.nodeTypes.NodeWithName;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
 import es.upv.mist.slicing.graphs.augmented.ASDG;
+import es.upv.mist.slicing.graphs.jsysdg.JSysDG;
 import es.upv.mist.slicing.graphs.augmented.PSDG;
 import es.upv.mist.slicing.graphs.exceptionsensitive.ESSDG;
 import es.upv.mist.slicing.graphs.sdg.SDG;
@@ -237,6 +238,7 @@ public class Slicer {
             case "ASDG":  sdg = new ASDG();  break;
             case "PSDG":  sdg = new PSDG();  break;
             case "ESSDG": sdg = new ESSDG(); break;
+            case "JSysDG": sdg = new JSysDG(); break;
             default:
                 throw new IllegalArgumentException("Unknown type of graph. Available graphs are SDG, ASDG, PSDG, ESSDG");
         }
