@@ -8,7 +8,7 @@ public class JSysPDG extends ESPDG {
         this(new JSysCFG(clg));
     }
 
-    public JSysPDG(JSysCFG oocfg) {
-        super(oocfg);
+    public JSysPDG(JSysCFG cfg) {
+        super(cfg);
     }
 }

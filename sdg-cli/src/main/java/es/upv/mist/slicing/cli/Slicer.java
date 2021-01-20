@@ -233,7 +233,7 @@ public class Slicer {
         }
 
         SDG sdg;
-        switch (cliOpts.getOptionValue("type", "ESSDG")) {
+        switch (cliOpts.getOptionValue("type", "JSysDG")) {
             case "SDG":   sdg = new SDG();   break;
             case "ASDG":  sdg = new ASDG();  break;
             case "PSDG":  sdg = new PSDG();  break;

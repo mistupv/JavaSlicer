@@ -270,7 +270,6 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, ClassGrap
                 addEdge(source, v, new ClassArc.Implements());
         });
     }
-
     /** Creates a graph-appropriate DOT exporter. */
     public DOTExporter<CallableDeclaration<?>, CallGraph.Edge<?>> getDOTExporter() {
         DOTExporter<CallableDeclaration<?>, CallGraph.Edge<?>> dot = new DOTExporter<>();
