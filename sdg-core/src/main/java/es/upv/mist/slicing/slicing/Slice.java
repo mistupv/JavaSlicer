@@ -4,6 +4,7 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.visitor.CloneVisitor;
+import es.upv.mist.slicing.graphs.jsysdg.ImplicitNode;
 import es.upv.mist.slicing.nodes.GraphNode;
 
 import java.util.*;
@@ -20,8 +21,10 @@ public class Slice {
     /** Add a node to this slice. */
     public void add(GraphNode<?> node) {
         assert !map.containsKey(node.getId());
-        map.put(node.getId(), node);
-        nodes.add(node.getAstNode());
+        if (this.isASTOriginalNode(node)) {
+            map.put(node.getId(), node);
+            nodes.add(node.getAstNode());
+        }
     }
 
     /** Add multiple nodes to this slice. */
@@ -80,5 +83,10 @@ public class Slice {
             cus.add(clone);
         }
         return cus;
+    }
+
+    /** Returns whether a node was in the original AST or was added by instrumentation. */
+    private boolean isASTOriginalNode(GraphNode<?> node){
+        return !(node instanceof ImplicitNode);
     }
 }
