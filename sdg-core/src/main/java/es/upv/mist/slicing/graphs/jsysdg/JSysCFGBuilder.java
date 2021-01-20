@@ -26,7 +26,8 @@ public class JSysCFGBuilder extends ACFGBuilder {
 
         // 1. Create new super call if not present
         if (methodInsertedInstructions.contains(n)){
-            ImplicitNode node = new ImplicitNode(n.toString(), n); // TODO: implementar
+            ImplicitNode node = new ImplicitNode(n.toString(), n);
+            graph.addVertex(node);
             connectTo(node);
         }
         else {
@@ -34,21 +35,14 @@ public class JSysCFGBuilder extends ACFGBuilder {
         }
         // 2. Insert dynamic class code
         ClassOrInterfaceDeclaration containerClass = ((JSysCFG) graph).getDeclarationClass();
-        NodeList<BodyDeclaration<?>> dynInitList = ((JSysCFG) graph).getClassGraph().getDynInit(containerClass.getNameAsString());
-        dynInitList.accept(this, arg);
-
+        List<BodyDeclaration<?>> dynInitList = ((JSysCFG) graph).getClassGraph().getDynInit(containerClass.getNameAsString());
+        dynInitList.forEach(node -> node.accept(this, arg));
     }
 
     @Override
     public void visit(FieldDeclaration n, Void arg){
         connectTo(n);
     }
-
-    @Override
-    public void visit(InitializerDeclaration n, Void arg){
-        // TODO
-    }
-
 
     @Override
     protected void visitCallableDeclaration(CallableDeclaration<?> callableDeclaration, Void arg) {

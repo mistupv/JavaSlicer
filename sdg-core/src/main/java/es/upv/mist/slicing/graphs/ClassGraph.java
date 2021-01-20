@@ -180,21 +180,21 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, ClassGrap
         });
     }
 
-    /** Returns a NodeList with the static FieldDeclarations and InitializerDeclarations of the given class */
-    public NodeList<BodyDeclaration<?>> getStaticInit(String className){
+    /** Returns a List with the static FieldDeclarations and InitializerDeclarations of the given class */
+    public List<BodyDeclaration<?>> getStaticInit(String className){
         return getClassInit(className,true);
     }
 
-    /** Returns a NodeList with the dynamic FieldDeclarations and InitializerDeclarations of the given class */
-    public NodeList<BodyDeclaration<?>> getDynInit(String className){
+    /** Returns a List with the dynamic FieldDeclarations and InitializerDeclarations of the given class */
+    public List<BodyDeclaration<?>> getDynInit(String className){
         return getClassInit(className,false);
     }
 
-    /** Returns a NodeList with FieldDeclarations and InitializerDeclarations static/dynamic items of the given class */
-    private NodeList<BodyDeclaration<?>> getClassInit(String className, Boolean isStatic){
+    /** Returns a List with FieldDeclarations and InitializerDeclarations static/dynamic items of the given class */
+    private List<BodyDeclaration<?>> getClassInit(String className, Boolean isStatic){
         Vertex classNode = vertexDeclarationMap.get(className);
-        NodeList<BodyDeclaration<?>> members = classNode.declaration.asClassOrInterfaceDeclaration().getMembers();
-        NodeList<BodyDeclaration<?>> classInit = new NodeList<>();
+        List<BodyDeclaration<?>> members = classNode.declaration.asClassOrInterfaceDeclaration().getMembers();
+        List<BodyDeclaration<?>> classInit = new LinkedList<>();
         for (BodyDeclaration<?> member : members) {
             if (member instanceof CallableDeclaration<?>)
                 continue;

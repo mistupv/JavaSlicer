@@ -109,8 +109,7 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
     public class Builder {
         public void build(NodeList<CompilationUnit> nodeList) {
             // See creation strategy at http://kaz2.dsic.upv.es:3000/Fzg46cQvT1GzHQG9hFnP1g#Using-data-flow-in-the-SDG
-            ClassGraph classGraph = createClassGraph(nodeList); // TODO: Update order and creation strategy
-            buildCFGs(nodeList, classGraph);                 // 1
+            buildCFGs(nodeList);                             // 1
             CallGraph callGraph = createCallGraph(nodeList); // 2
             dataFlowAnalysis(callGraph);                     // 3
             buildAndCopyPDGs();                              // 4
@@ -119,7 +118,7 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
         }
 
         /** Build a CFG per declaration found in the list of compilation units. */
-        protected void buildCFGs(NodeList<CompilationUnit> nodeList, ClassGraph clg) {
+        protected void buildCFGs(NodeList<CompilationUnit> nodeList) {
             nodeList.accept(new VoidVisitorAdapter<Void>() {
                 @Override
                 public void visit(MethodDeclaration n, Void arg) {
@@ -132,6 +131,9 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
                 public void visit(ConstructorDeclaration n, Void arg) {
                     CFG cfg = createCFG();
                     cfg.build(n);
+                    for(GraphNode<?> nod : cfg.vertexSet()){
+                        System.out.println();
+                    }
                     cfgMap.put(n, cfg);
                 }
             }, null);

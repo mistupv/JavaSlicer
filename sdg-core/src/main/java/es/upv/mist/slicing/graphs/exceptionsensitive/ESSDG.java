@@ -32,7 +32,7 @@ public class ESSDG extends PSDG {
     /** Populates an ESSDG, using ESPDG and ESCFG as default graphs.
      * @see PSDG.Builder
      * @see ExceptionSensitiveCallConnector */
-    class Builder extends PSDG.Builder {
+    protected class Builder extends PSDG.Builder {
         @Override
         protected CFG createCFG() {
             return new ESCFG();
