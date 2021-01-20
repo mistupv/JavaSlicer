@@ -240,7 +240,7 @@ public class ESCFG extends ACFG {
             stmtStack.push(n);
             GraphNode<ThrowStmt> stmt = connectTo(n);
             n.getExpression().accept(this, arg);
-            stmt.addDefinedVariable(new NameExpr(ACTIVE_EXCEPTION_VARIABLE));
+            stmt.addDefinedVariable(new NameExpr(ACTIVE_EXCEPTION_VARIABLE), n.getExpression());
             populateExceptionSourceMap(new ExceptionSource(stmt, n.getExpression().calculateResolvedType()));
             clearHanging();
             nonExecHangingNodes.add(stmt);
@@ -286,7 +286,7 @@ public class ESCFG extends ACFG {
             for (ResolvedType type : resolved.getSpecifiedExceptions()) {
                 hangingNodes.add(stmtNode);
                 ExceptionReturnNode exceptionReturn = addExceptionReturnNode(call, type);
-                exceptionReturn.addDefinedVariable(new NameExpr(ACTIVE_EXCEPTION_VARIABLE));
+                exceptionReturn.addDefinedVariable(new NameExpr(ACTIVE_EXCEPTION_VARIABLE), null); // TODO: improve initializer
                 populateExceptionSourceMap(new ExceptionSource(exceptionReturn, type));
                 returnNodes.add(exceptionReturn);
                 connectTo(exceptionReturn);

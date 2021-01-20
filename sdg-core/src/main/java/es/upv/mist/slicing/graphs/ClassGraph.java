@@ -5,18 +5,18 @@ import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import es.upv.mist.slicing.arcs.clg.ExtendsArc;
-import es.upv.mist.slicing.arcs.clg.ImplementsArc;
-import es.upv.mist.slicing.arcs.clg.MemberArc;
+import com.github.javaparser.resolution.declarations.ResolvedClassDeclaration;
+import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.utils.ASTUtils;
 import es.upv.mist.slicing.utils.Utils;
-import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.DirectedPseudograph;
 import org.jgrapht.nio.dot.DOTExporter;
 
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, DefaultEdge> implements Buildable<NodeList<CompilationUnit>> {
+public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, ClassGraph.ClassArc> implements Buildable<NodeList<CompilationUnit>> {
 
     /** The key of the vertex map needs to be a String because extendedTypes represent extended classes
      * as ClassOrInterfaceType objects while class declarations define classes as ClassOrInterfaceDeclaration
@@ -29,6 +29,28 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, DefaultEd
         super(null, null, false);
     }
 
+    /** Locates the vertex that represents a given class or interface declaration.
+     *  The vertex must exist, or an exception will be thrown. */
+    protected Vertex findVertex(ResolvedClassDeclaration declaration) {
+        Optional<Vertex> vertex = vertexSet().stream()
+                .filter(v -> v.declaration instanceof ClassOrInterfaceDeclaration)
+                .filter(v -> v.declaration.asClassOrInterfaceDeclaration().resolve().asClass().equals(declaration))
+                .findFirst();
+        return vertex.orElseThrow();
+    }
+
+    public Set<ClassOrInterfaceDeclaration> subclassesOf(ResolvedClassDeclaration clazz) {
+        return subclassesStreamOf(findVertex(clazz))
+                .map(ClassOrInterfaceDeclaration.class::cast)
+                .collect(Collectors.toSet());
+    }
+
+    protected Stream<Vertex> subclassesStreamOf(Vertex classVertex) {
+        return Stream.concat(Stream.of(classVertex), outgoingEdgesOf(classVertex).stream()
+                .filter(ClassArc.Extends.class::isInstance)
+                .map(this::getEdgeTarget)
+                .flatMap(this::subclassesStreamOf));
+    }
 
     @Override
     public void build(NodeList<CompilationUnit> arg) {
@@ -122,7 +144,7 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, DefaultEd
                 ClassOrInterfaceDeclaration clazz = classStack.peek();
                 Vertex c = vertexDeclarationMap.get(clazz.getNameAsString());
                 Vertex v = vertexDeclarationMap.get(clazz.getFullyQualifiedName().get()+ "." + n.toString());
-                addEdge(c, v, new MemberArc());
+                addEdge(c, v, new ClassArc.Member());
             }
 
             @Override
@@ -130,7 +152,7 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, DefaultEd
                 ClassOrInterfaceDeclaration clazz = classStack.peek();
                 Vertex c = vertexDeclarationMap.get(clazz.getNameAsString());
                 Vertex v = vertexDeclarationMap.get(clazz.getFullyQualifiedName().get()+ "." + n.getSignature().toString());
-                addEdge(c, v, new MemberArc());
+                addEdge(c, v, new ClassArc.Member());
             }
 
             @Override
@@ -138,7 +160,7 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, DefaultEd
                 ClassOrInterfaceDeclaration clazz = classStack.peek();
                 Vertex c = vertexDeclarationMap.get(clazz.getNameAsString());
                 Vertex v = vertexDeclarationMap.get(clazz.getFullyQualifiedName().get()+ "." + n.getSignature().toString());
-                addEdge(c, v, new MemberArc());
+                addEdge(c, v, new ClassArc.Member());
             }
         }, null);
     }
@@ -146,48 +168,16 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, DefaultEd
     protected void addClassEdges(Vertex v){
         assert v.declaration instanceof ClassOrInterfaceDeclaration;
         ClassOrInterfaceDeclaration dv = (ClassOrInterfaceDeclaration) v.declaration;
-        dv.getExtendedTypes().forEach(p -> addEdge(vertexDeclarationMap.get(p.getNameAsString()), v, new ExtendsArc()));
-        dv.getImplementedTypes().forEach(p -> addEdge(vertexDeclarationMap.get(p.getNameAsString()), v, new ImplementsArc()));
-    }
-
-    /** Creates a graph-appropriate DOT exporter. */
-    public DOTExporter<CallableDeclaration<?>, CallGraph.Edge<?>> getDOTExporter() {
-        DOTExporter<CallableDeclaration<?>, CallGraph.Edge<?>> dot = new DOTExporter<>();
-        dot.setVertexAttributeProvider(decl -> Utils.dotLabel(decl.getDeclarationAsString(false, false, false)));
-        dot.setEdgeAttributeProvider(edge -> Utils.dotLabel(edge.getCall().toString()));
-        return dot;
-    }
-
-    /** A vertex containing the declaration it represents. It only exists because
-     *  JGraphT relies heavily on equals comparison, which may not be correct in declarations. */
-    public static class Vertex {
-        // First ancestor common class in the JavaParser hierarchy for
-        // ClassOrInterfaceDeclaration, FieldDeclaration and CallableDeclaration
-        protected final BodyDeclaration<?> declaration;
-
-        public Vertex(BodyDeclaration<?> declaration) {
-            this.declaration = declaration;
-        }
-
-        /** The declaration represented by this node. */
-        public BodyDeclaration<?> getDeclaration() {
-            return declaration;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(declaration, declaration.getRange());
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            return obj instanceof CallGraph.Vertex && ASTUtils.equalsWithRangeInCU(((CallGraph.Vertex) obj).declaration, declaration);
-        }
-
-        @Override
-        public String toString() {
-            return super.toString();
-        }
+        dv.getExtendedTypes().forEach(p -> {
+            Vertex source = vertexDeclarationMap.get(p.getNameAsString());
+            if (source != null && containsVertex(v))
+                addEdge(source, v, new ClassArc.Extends());
+        });
+        dv.getImplementedTypes().forEach(p -> {
+            Vertex source = vertexDeclarationMap.get(p.getNameAsString());
+            if (source != null && containsVertex(v))
+                addEdge(source, v, new ClassArc.Implements());
+        });
     }
 
     /** Returns a NodeList with the static FieldDeclarations and InitializerDeclarations of the given class */
@@ -220,6 +210,55 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, DefaultEd
                     classInit.add(member);
         }
         return classInit;
+    }
+
+    /** Creates a graph-appropriate DOT exporter. */
+    public DOTExporter<CallableDeclaration<?>, CallGraph.Edge<?>> getDOTExporter() {
+        DOTExporter<CallableDeclaration<?>, CallGraph.Edge<?>> dot = new DOTExporter<>();
+        dot.setVertexAttributeProvider(decl -> Utils.dotLabel(decl.getDeclarationAsString(false, false, false)));
+        dot.setEdgeAttributeProvider(edge -> Utils.dotLabel(edge.getCall().toString()));
+        return dot;
+    }
+
+    /** A vertex containing the declaration it represents. It only exists because
+     *  JGraphT relies heavily on equals comparison, which may not be correct in declarations. */
+    protected static class Vertex {
+        // First ancestor common class in the JavaParser hierarchy for
+        // ClassOrInterfaceDeclaration, FieldDeclaration and CallableDeclaration
+        protected final BodyDeclaration<?> declaration;
+
+        public Vertex(BodyDeclaration<?> declaration) {
+            this.declaration = declaration;
+        }
+
+        /** The declaration represented by this node. */
+        public BodyDeclaration<?> getDeclaration() {
+            return declaration;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(declaration, declaration.getRange());
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof CallGraph.Vertex && ASTUtils.equalsWithRangeInCU(((CallGraph.Vertex) obj).declaration, declaration);
+        }
+
+        @Override
+        public String toString() {
+            return super.toString();
+        }
+    }
+
+    protected static class ClassArc extends Arc {
+        /** An arc that connects a class with another one that inherits from it. */
+        protected static class Extends extends ClassArc {}
+        /** An arc that connects an interface to a class that implements it. */
+        protected static class Implements extends ClassArc {}
+        /** An arc that connects a class with a field or method contained in it. */
+        protected static class Member extends ClassArc {}
     }
 }
 

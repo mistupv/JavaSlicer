@@ -331,7 +331,7 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         GraphNode<ReturnStmt> node = connectTo(returnStmt);
         returnStmt.getExpression().ifPresent(n -> {
             n.accept(this, arg);
-            node.addDefinedVariable(new NameExpr(VARIABLE_NAME_OUTPUT));
+            node.addDefinedVariable(new NameExpr(VARIABLE_NAME_OUTPUT), n);
         });
         returnList.add(node);
         clearHanging();

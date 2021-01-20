@@ -4,6 +4,7 @@ import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.expr.CastExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
@@ -12,15 +13,12 @@ import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
 import com.github.javaparser.ast.stmt.SwitchEntry;
 import com.github.javaparser.ast.stmt.SwitchStmt;
 import com.github.javaparser.resolution.Resolvable;
-import com.github.javaparser.resolution.declarations.ResolvedConstructorDeclaration;
-import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
-import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
-import com.github.javaparser.resolution.declarations.ResolvedParameterDeclaration;
+import com.github.javaparser.resolution.declarations.*;
+import com.github.javaparser.resolution.types.ResolvedType;
+import com.github.javaparser.symbolsolver.model.typesystem.ReferenceTypeImpl;
 import es.upv.mist.slicing.nodes.GraphNode;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 
 /** JavaParser-related utility functions. */
 public class ASTUtils {
@@ -131,4 +129,55 @@ public class ASTUtils {
         return !getCallableBody(declaration).getStatements().isEmpty() &&
                 getCallableBody(declaration).getStatements().getFirst().get() instanceof ExplicitConstructorInvocationStmt;
     }
+
+    /**
+     * Creates a new set that is suitable for JavaParser nodes. This
+     * set behaves by comparing by identity (==) instead of equality (equals()).
+     * Thus, multiple objects representing the same node will not be identified as
+     * equal, and duplicates will be inserted. For this use-case, you may use
+     * {@link NodeHashSet}.
+     */
+    public static <T> Set<T> newIdentityHashSet() {
+        return Collections.newSetFromMap(new IdentityHashMap<>());
+    }
+
+    /**
+     * Creates a new map that is suitable for JavaParser nodes as keys. This
+     * map behaves by comparing by identity (==) instead of equality (equals()).
+     * Thus, multiple objects representing the same node will not be identified as
+     * equal, and duplicates will be inserted.
+     */
+    public static <K, V> Map<K, V> newIdentityHashMap() {
+        return new IdentityHashMap<>();
+    }
+
+    /** Converts a type declaration into just a type. */
+    public static ResolvedType resolvedTypeDeclarationToResolvedType(ResolvedReferenceTypeDeclaration decl) {
+        return new ReferenceTypeImpl(decl, StaticTypeSolver.getTypeSolver());
+    }
+
+    /**
+     * Whether a cast of reference type is a downcast; which means
+     * that the type of the cast is strictly more specific than the expression's static type.
+     * This method should only be called with cast expressions of reference type (no primitives).
+     * Otherwise it will fail.
+     * <br/>
+     * Examples:
+     * <ul>
+     *     <li>{@code (Object) new String()}: false.</li>
+     *     <li>{@code (String) new String()}: false</li>
+     *     <li>{@code (String) object}: true.</li>
+     * </ul>
+     */
+    public static boolean isDownCast(CastExpr castExpr) {
+        ResolvedType castType = castExpr.getType().resolve();
+        ResolvedType exprType = castExpr.getExpression().calculateResolvedType();
+        if (castType.isReferenceType() && exprType.isReferenceType()) {
+            if (castType.equals(exprType))
+                return false;
+            return castType.asReferenceType().getAllAncestors().contains(exprType.asReferenceType());
+        }
+        throw new IllegalArgumentException("This operation is only valid for reference type cast operations.");
+    }
+
 }

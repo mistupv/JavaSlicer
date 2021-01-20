@@ -21,7 +21,10 @@ import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.DirectedPseudograph;
 import org.jgrapht.nio.dot.DOTExporter;
 
-import java.util.*;
+import java.util.Deque;
+import java.util.LinkedList;
+import java.util.Map;
+import java.util.Objects;
 
 /**
  * A directed graph which displays the available method declarations as nodes and their
@@ -37,7 +40,7 @@ import java.util.*;
  */
 public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.Edge<?>> implements Buildable<NodeList<CompilationUnit>> {
     private final Map<CallableDeclaration<?>, CFG> cfgMap;
-    private final Map<CallableDeclaration<?>, Vertex> vertexDeclarationMap = new IdentityHashMap<>();
+    private final Map<CallableDeclaration<?>, Vertex> vertexDeclarationMap = ASTUtils.newIdentityHashMap();
 
     private boolean built = false;
 

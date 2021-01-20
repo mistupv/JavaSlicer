@@ -5,10 +5,7 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.comments.BlockComment;
 import com.github.javaparser.ast.nodeTypes.NodeWithName;
-import com.github.javaparser.symbolsolver.JavaSymbolSolver;
-import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
-import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 import es.upv.mist.slicing.graphs.augmented.ASDG;
 import es.upv.mist.slicing.graphs.jsysdg.JSysDG;
 import es.upv.mist.slicing.graphs.augmented.PSDG;
@@ -17,6 +14,7 @@ import es.upv.mist.slicing.graphs.sdg.SDG;
 import es.upv.mist.slicing.slicing.FileLineSlicingCriterion;
 import es.upv.mist.slicing.slicing.Slice;
 import es.upv.mist.slicing.slicing.SlicingCriterion;
+import es.upv.mist.slicing.utils.StaticTypeSolver;
 import org.apache.commons.cli.*;
 
 import java.io.File;
@@ -50,7 +48,7 @@ public class Slicer {
                 .build());
         OPTIONS.addOption(Option
                 .builder("l").longOpt("line")
-                .hasArg().argName("lineNumber").type(Integer.class)
+                .hasArg().argName("lineNumber").type(Number.class)
                 .desc("The line that contains the statement of the slicing criterion.")
                 .build());
         OPTIONS.addOption(Option
@@ -127,7 +125,7 @@ public class Slicer {
             }
         } else if (cliOpts.hasOption('f') && cliOpts.hasOption('l')) {
             setScFile(cliOpts.getOptionValue('f'));
-            setScLine((Integer) cliOpts.getParsedOptionValue("l"));
+            setScLine(((Number) cliOpts.getParsedOptionValue("l")).intValue());
             if (cliOpts.hasOption('v')) {
                 if (cliOpts.hasOption('n'))
                     setScVars(cliOpts.getOptionValues('v'), cliOpts.getOptionValues('n'));
@@ -212,11 +210,9 @@ public class Slicer {
 
     public void slice() throws ParseException {
         // Configure JavaParser
-        CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
-        combinedTypeSolver.add(new ReflectionTypeSolver(true));
+        StaticTypeSolver.addTypeSolverJRE();
         for (File directory : dirIncludeSet)
-            combinedTypeSolver.add(new JavaParserTypeSolver(directory));
-        StaticJavaParser.getConfiguration().setSymbolResolver(new JavaSymbolSolver(combinedTypeSolver));
+            StaticTypeSolver.addTypeSolver(new JavaParserTypeSolver(directory));
         StaticJavaParser.getConfiguration().setAttributeComments(false);
 
         // Build the SDG
