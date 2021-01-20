@@ -87,9 +87,7 @@ public class GraphNodeContentVisitor<A> extends VoidVisitorAdapter<A> {
     }
 
     @Override
-    public void visit(FieldDeclaration n, A arg) {
-        throw new UnsupportedOperationException();
-    }
+    public void visit(FieldDeclaration n, A arg) { super.visit(n, arg); }
 
     @Override
     public void visit(ForEachStmt n, A arg) {

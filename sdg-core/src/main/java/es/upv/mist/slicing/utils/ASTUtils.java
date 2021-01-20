@@ -126,4 +126,9 @@ public class ASTUtils {
     public static boolean shouldVisitArgumentsForMethodCalls(Resolvable<? extends ResolvedMethodLikeDeclaration> call, GraphNode<?> graphNode) {
         return shouldVisitArgumentsForMethodCalls(call) || graphNode == null;
     }
+
+    public static boolean constructorHasExplicitConstructorInvocation(ConstructorDeclaration declaration) {
+        return !getCallableBody(declaration).getStatements().isEmpty() &&
+                getCallableBody(declaration).getStatements().getFirst().get() instanceof ExplicitConstructorInvocationStmt;
+    }
 }

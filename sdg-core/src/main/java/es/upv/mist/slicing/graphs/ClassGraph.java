@@ -1,13 +1,13 @@
 package es.upv.mist.slicing.graphs;
 
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import es.upv.mist.slicing.arcs.clg.ExtendsArc;
 import es.upv.mist.slicing.arcs.clg.ImplementsArc;
 import es.upv.mist.slicing.arcs.clg.MemberArc;
-import es.upv.mist.slicing.graphs.cfg.CFG;
 import es.upv.mist.slicing.utils.ASTUtils;
 import es.upv.mist.slicing.utils.Utils;
 import org.jgrapht.graph.DefaultEdge;
@@ -90,7 +90,6 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, DefaultEd
     /** Add a field declaration vertex to the class graph */
     protected void addFieldDeclaration(FieldDeclaration n, ClassOrInterfaceDeclaration c){
         ClassGraph.Vertex v = new ClassGraph.Vertex(n);
-        // Key value: hashCode + toString() to avoid multiple field declarations with the same syntax in different classes
         vertexDeclarationMap.put(c.getFullyQualifiedName().get()+ "." + n.toString(), v);
         addVertex(v);
     }
@@ -189,6 +188,38 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, DefaultEd
         public String toString() {
             return super.toString();
         }
+    }
+
+    /** Returns a NodeList with the static FieldDeclarations and InitializerDeclarations of the given class */
+    public NodeList<BodyDeclaration<?>> getStaticInit(String className){
+        return getClassInit(className,true);
+    }
+
+    /** Returns a NodeList with the dynamic FieldDeclarations and InitializerDeclarations of the given class */
+    public NodeList<BodyDeclaration<?>> getDynInit(String className){
+        return getClassInit(className,false);
+    }
+
+    /** Returns a NodeList with FieldDeclarations and InitializerDeclarations static/dynamic items of the given class */
+    private NodeList<BodyDeclaration<?>> getClassInit(String className, Boolean isStatic){
+        Vertex classNode = vertexDeclarationMap.get(className);
+        NodeList<BodyDeclaration<?>> members = classNode.declaration.asClassOrInterfaceDeclaration().getMembers();
+        NodeList<BodyDeclaration<?>> classInit = new NodeList<>();
+        for (BodyDeclaration<?> member : members) {
+            if (member instanceof CallableDeclaration<?>)
+                continue;
+
+            if (member.isFieldDeclaration()) {
+                if (isStatic == member.asFieldDeclaration().hasModifier(Modifier.Keyword.STATIC))
+                    classInit.add(member);
+                continue;
+            }
+
+            if (member.isInitializerDeclaration())
+                if (isStatic == member.asInitializerDeclaration().isStatic())
+                    classInit.add(member);
+        }
+        return classInit;
     }
 }
 

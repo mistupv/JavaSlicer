@@ -1,5 +1,6 @@
 package es.upv.mist.slicing.nodes;
 
+import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.*;
@@ -167,6 +168,22 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     public void visit(VariableDeclarationExpr n, Action action) {
         for (VariableDeclarator v : n.getVariables()) {
             v.getNameAsExpression().accept(this, action.or(Action.DECLARATION));
+            if (v.getInitializer().isPresent()) {
+                v.getInitializer().get().accept(this, action);
+                v.getNameAsExpression().accept(this, Action.DEFINITION);
+            }
+        }
+    }
+
+    @Override
+    public void visit(FieldDeclaration n, Action action) {
+        for (VariableDeclarator v : n.getVariables()) {
+
+            // Change the name of the FieldDeclaration Variable to "this.varName"
+            NameExpr nameExpr = v.getNameAsExpression();
+            nameExpr.setName(new SimpleName("this." + nameExpr.getNameAsString()));
+
+            nameExpr.accept(this, action.or(Action.DECLARATION));
             if (v.getInitializer().isPresent()) {
                 v.getInitializer().get().accept(this, action);
                 v.getNameAsExpression().accept(this, Action.DEFINITION);
