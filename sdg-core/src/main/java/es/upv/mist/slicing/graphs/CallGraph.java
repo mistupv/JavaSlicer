@@ -2,10 +2,8 @@ package es.upv.mist.slicing.graphs;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.NodeList;
-import com.github.javaparser.ast.body.CallableDeclaration;
-import com.github.javaparser.ast.body.ConstructorDeclaration;
-import com.github.javaparser.ast.body.InitializerDeclaration;
-import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.*;
+import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
@@ -15,16 +13,17 @@ import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclarati
 import es.upv.mist.slicing.graphs.cfg.CFG;
 import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.utils.ASTUtils;
+import es.upv.mist.slicing.utils.NodeHashSet;
 import es.upv.mist.slicing.utils.NodeNotFoundException;
 import es.upv.mist.slicing.utils.Utils;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.DirectedPseudograph;
 import org.jgrapht.nio.dot.DOTExporter;
 
-import java.util.Deque;
-import java.util.LinkedList;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * A directed graph which displays the available method declarations as nodes and their
@@ -41,23 +40,23 @@ import java.util.Objects;
 public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.Edge<?>> implements Buildable<NodeList<CompilationUnit>> {
     private final Map<CallableDeclaration<?>, CFG> cfgMap;
     private final Map<CallableDeclaration<?>, Vertex> vertexDeclarationMap = ASTUtils.newIdentityHashMap();
+    private final ClassGraph classGraph;
 
     private boolean built = false;
 
-    public CallGraph(Map<CallableDeclaration<?>, CFG> cfgMap) {
+    public CallGraph(Map<CallableDeclaration<?>, CFG> cfgMap, ClassGraph classGraph) {
         super(null, null, false);
         this.cfgMap = cfgMap;
+        this.classGraph = classGraph;
     }
 
-    /** Resolve a call to its declaration, by using the call AST nodes stored on the edges. */
-    public CallableDeclaration<?> getCallTarget(Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
+    /** Resolve a call to all its possible declarations, by using the call AST nodes stored on the edges. */
+    public Stream<CallableDeclaration<?>> getCallTargets(Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
         return edgeSet().stream()
                 .filter(e -> e.getCall() == call)
                 .map(this::getEdgeTarget)
                 .map(Vertex::getDeclaration)
-                .map(CallableDeclaration.class::cast)
-                .findFirst()
-                .orElse(null);
+                .map(decl -> (CallableDeclaration<?>) decl);
     }
 
     @Override
@@ -105,7 +104,15 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
     /** Find the calls to methods and constructors (edges) in the given list of compilation units. */
     protected void buildEdges(NodeList<CompilationUnit> arg) {
         arg.accept(new VoidVisitorAdapter<Void>() {
+            private final Deque<ClassOrInterfaceDeclaration> classStack = new LinkedList<>();
             private final Deque<CallableDeclaration<?>> declStack = new LinkedList<>();
+
+            @Override
+            public void visit(ClassOrInterfaceDeclaration n, Void arg) {
+                classStack.push(n);
+                super.visit(n, arg);
+                classStack.pop();
+            }
 
             // ============ Method declarations ===========
             // There are some locations not considered, which may lead to an error in the stack.
@@ -129,23 +136,67 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
             // =============== Method calls ===============
             @Override
             public void visit(MethodCallExpr n, Void arg) {
-                n.resolve().toAst().ifPresent(decl -> addEdge(declStack.peek(), decl, n));
+                n.resolve().toAst().ifPresent(decl -> createPolyEdges(decl, n));
                 if (ASTUtils.shouldVisitArgumentsForMethodCalls(n))
                     super.visit(n, arg);
             }
 
             @Override
             public void visit(ObjectCreationExpr n, Void arg) {
-                n.resolve().toAst().ifPresent(decl -> addEdge(declStack.peek(), decl, n));
+                n.resolve().toAst().ifPresent(decl -> createNormalEdge(decl, n));
                 if (ASTUtils.shouldVisitArgumentsForMethodCalls(n))
                     super.visit(n, arg);
             }
 
             @Override
             public void visit(ExplicitConstructorInvocationStmt n, Void arg) {
-                n.resolve().toAst().ifPresent(decl -> addEdge(declStack.peek(), decl, n));
+                n.resolve().toAst().ifPresent(decl -> createNormalEdge(decl, n));
                 if (ASTUtils.shouldVisitArgumentsForMethodCalls(n))
                     super.visit(n, arg);
+            }
+
+            protected void createPolyEdges(MethodDeclaration decl, MethodCallExpr call) {
+                // Static calls have no polymorphism, ignore
+                if (decl.isStatic()) {
+                    createNormalEdge(decl, call);
+                    return;
+                }
+                Optional<Expression> scope = call.getScope();
+                // Determine the type of the call's scope
+                Set<ClassOrInterfaceDeclaration> dynamicTypes;
+                if (scope.isEmpty()) {
+                    // a) No scope: any class the method is in, or any outer class if the class is not static.
+                    // Early exit: it is easier to find the methods that override the
+                    // detected call than to account for all cases (implicit inner or outer class)
+                    classGraph.overriddenSetOf(decl)
+                            .forEach(methodDecl -> createNormalEdge(methodDecl, call));
+                    return;
+                } else if (scope.get().isThisExpr() && scope.get().asThisExpr().getTypeName().isEmpty()) {
+                    // b) just 'this', the current class and any subclass
+                    dynamicTypes = classGraph.subclassesOf(classStack.peek());
+                } else if (scope.get().isThisExpr()) {
+                    // c) 'ClassName.this', the given class and any subclass
+                    dynamicTypes = classGraph.subclassesOf(scope.get().asThisExpr().resolve().asClass());
+                } else {
+                    // d) others: compute possible dynamic types of the expression (TODO)
+                    dynamicTypes = classGraph.subclassesOf(scope.get().calculateResolvedType().asReferenceType());
+                }
+                // Locate the corresponding methods for each possible dynamic type, they must be available to all
+                // To locate them, use the method signature and search for it in the class graph
+                // Connect to each declaration
+                AtomicInteger edgesCreated = new AtomicInteger();
+                dynamicTypes.stream()
+                        .map(t -> classGraph.findMethodByTypeAndSignature(t, decl.getSignature()))
+                        .collect(Collectors.toCollection(NodeHashSet::new))
+                        .forEach(methodDecl -> {
+                            edgesCreated.getAndIncrement();
+                            createNormalEdge(methodDecl, call);
+                        });
+                assert edgesCreated.get() > 0;
+            }
+
+            protected void createNormalEdge(CallableDeclaration<?> decl, Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
+                addEdge(declStack.peek(), decl, call);
             }
         }, null);
     }
