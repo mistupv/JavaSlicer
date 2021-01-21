@@ -5,6 +5,7 @@ import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.github.javaparser.resolution.declarations.ResolvedClassDeclaration;
+import com.github.javaparser.resolution.types.ResolvedReferenceType;
 import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.utils.ASTUtils;
 import es.upv.mist.slicing.utils.Utils;
@@ -30,16 +31,75 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, ClassGrap
 
     /** Locates the vertex that represents a given class or interface declaration.
      *  The vertex must exist, or an exception will be thrown. */
-    protected Vertex findVertex(ResolvedClassDeclaration declaration) {
-        Optional<Vertex> vertex = vertexSet().stream()
-                .filter(v -> v.declaration instanceof ClassOrInterfaceDeclaration)
-                .filter(v -> v.declaration.asClassOrInterfaceDeclaration().resolve().asClass().equals(declaration))
-                .findFirst();
-        return vertex.orElseThrow();
+    protected Vertex findClassVertex(ClassOrInterfaceDeclaration declaration) {
+        return vertexSet().stream()
+                .filter(v -> v.declaration.isClassOrInterfaceDeclaration())
+                .filter(v -> ASTUtils.equalsWithRangeInCU(v.declaration, declaration))
+                .findFirst().orElseThrow();
     }
 
+    /** Locates the vertex that represents a given class or interface declaration.
+     *  The vertex must exist, or an exception will be thrown. */
+    protected Vertex findClassVertex(ResolvedClassDeclaration declaration) {
+        return vertexSet().stream()
+                .filter(v -> v.declaration.isClassOrInterfaceDeclaration())
+                .filter(v -> v.declaration.asClassOrInterfaceDeclaration().resolve().asClass().equals(declaration))
+                .findFirst().orElseThrow();
+    }
+
+    protected Vertex findClassVertex(ResolvedReferenceType type) {
+        return vertexSet().stream()
+                .filter(v -> v.declaration.isClassOrInterfaceDeclaration())
+                .filter(v -> ASTUtils.resolvedTypeDeclarationToResolvedType(v.declaration.asClassOrInterfaceDeclaration().resolve()).equals(type))
+                .findFirst().orElseThrow();
+    }
+
+    protected Vertex findMethodVertex(CallableDeclaration<?> declaration) {
+        return vertexSet().stream()
+                .filter(v -> v.declaration.isCallableDeclaration())
+                .filter(v -> ASTUtils.equalsWithRangeInCU(v.declaration, declaration))
+                .findFirst().orElseThrow();
+    }
+
+    public Set<MethodDeclaration> overriddenSetOf(MethodDeclaration method) {
+        return subclassesStreamOf(classVertexOf(findMethodVertex(method)))
+                .flatMap(vertex -> outgoingEdgesOf(vertex).stream()
+                        .filter(ClassArc.Member.class::isInstance)
+                        .map(ClassGraph.this::getEdgeTarget)
+                        .filter(v -> v.declaration.isMethodDeclaration())
+                        .filter(v -> v.declaration.asMethodDeclaration().getSignature().equals(method.getSignature()))
+                        .map(v -> v.declaration.asMethodDeclaration()))
+                .collect(Collectors.toSet());
+    }
+
+    protected Vertex classVertexOf(Vertex member) {
+        assert member.declaration.isFieldDeclaration() ||
+                member.declaration.isCallableDeclaration() ||
+                member.declaration.isInitializerDeclaration();
+        return incomingEdgesOf(member).stream()
+                .filter(ClassArc.Member.class::isInstance)
+                .map(this::getEdgeSource)
+                .findFirst().orElseThrow();
+    }
+
+    /** Returns all child classes of the given class, including itself. */
+    public Set<ClassOrInterfaceDeclaration> subclassesOf(ClassOrInterfaceDeclaration clazz) {
+        return subclassesOf(findClassVertex(clazz));
+    }
+
+    /** Returns all child classes of the given class, including itself. */
     public Set<ClassOrInterfaceDeclaration> subclassesOf(ResolvedClassDeclaration clazz) {
-        return subclassesStreamOf(findVertex(clazz))
+        return subclassesOf(findClassVertex(clazz));
+    }
+
+    public Set<ClassOrInterfaceDeclaration> subclassesOf(ResolvedReferenceType type) {
+        return subclassesOf(findClassVertex(type));
+    }
+
+    /** @see #subclassesOf(ClassOrInterfaceDeclaration) */
+    protected Set<ClassOrInterfaceDeclaration> subclassesOf(Vertex v) {
+        return subclassesStreamOf(v)
+                .map(Vertex::getDeclaration)
                 .map(ClassOrInterfaceDeclaration.class::cast)
                 .collect(Collectors.toSet());
     }
@@ -49,6 +109,37 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, ClassGrap
                 .filter(ClassArc.Extends.class::isInstance)
                 .map(this::getEdgeTarget)
                 .flatMap(this::subclassesStreamOf));
+    }
+
+    // TODO: this method ignores default method implementations in interfaces, as can be overridden.
+    /** Looks up a method in the graph, going up the class inheritance tree to locate a
+     *  matching method. If no match can be found, throws an {@link IllegalArgumentException}. */
+    public MethodDeclaration findMethodByTypeAndSignature(ClassOrInterfaceDeclaration type, CallableDeclaration.Signature signature) {
+        Optional<MethodDeclaration> result = outgoingEdgesOf(findClassVertex(type)).stream()
+                .filter(ClassArc.Member.class::isInstance)
+                .map(this::getEdgeTarget)
+                .map(Vertex::getDeclaration)
+                .filter(BodyDeclaration::isMethodDeclaration)
+                .map(BodyDeclaration::asMethodDeclaration)
+                .filter(decl -> signature.equals(decl.getSignature()))
+                .findFirst();
+        if (result.isPresent())
+            return result.get();
+        Optional<ClassOrInterfaceDeclaration> parentType = parentOf(type);
+        if (parentType.isEmpty())
+            throw new IllegalArgumentException("Cannot find the given signature: " + signature);
+        return findMethodByTypeAndSignature(parentType.get(), signature);
+    }
+
+    /** Find the parent class or interface of a given class. */
+    public Optional<ClassOrInterfaceDeclaration> parentOf(ClassOrInterfaceDeclaration declaration) {
+        return incomingEdgesOf(findClassVertex(declaration)).stream()
+                .filter(ClassArc.Extends.class::isInstance)
+                .map(this::getEdgeSource)
+                .map(Vertex::getDeclaration)
+                .filter(BodyDeclaration::isClassOrInterfaceDeclaration)
+                .map(BodyDeclaration::asClassOrInterfaceDeclaration)
+                .findFirst();
     }
 
     @Override

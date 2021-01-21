@@ -27,7 +27,8 @@ public class ExceptionSensitiveCallConnector extends CallConnector {
     @Override
     protected void connectCall(CallNode callNode, CallGraph callGraph) {
         var callExpr = callNode.getCallASTNode();
-        if (callGraph.getCallTarget(callExpr).getThrownExceptions().size() > 0)
+        // We can pick any call, because the signatures must match
+        if (callGraph.getCallTargets(callExpr).findFirst().orElseThrow().getThrownExceptions().size() > 0)
             handleExceptionReturnArcs(callExpr, callGraph);
         super.connectCall(callNode, callGraph);
     }
@@ -44,12 +45,10 @@ public class ExceptionSensitiveCallConnector extends CallConnector {
                 .filter(SyntheticNode.class::isInstance)
                 .map(n -> (SyntheticNode<?>) n)
                 .collect(Collectors.toSet());
-        CallableDeclaration<?> decl = callGraph.getCallTarget(call);
-        if (decl == null)
-            throw new IllegalArgumentException("Unknown call!");
-
-        connectNormalNodes(synthNodes, call, decl);
-        connectExceptionNodes(synthNodes, call, decl);
+        callGraph.getCallTargets(call).forEach(decl -> {
+            connectNormalNodes(synthNodes, call, decl);
+            connectExceptionNodes(synthNodes, call, decl);
+        });
     }
 
     /** Connects normal exit nodes to their corresponding return node. */

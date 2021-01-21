@@ -14,8 +14,6 @@ import es.upv.mist.slicing.nodes.io.FormalIONode;
 import es.upv.mist.slicing.nodes.io.OutputNode;
 import es.upv.mist.slicing.utils.Logger;
 
-import java.util.Optional;
-
 /** Adds interprocedural arcs between the 'PDG components' of an SDG.
  * Arcs generated include {@link ParameterInOutArc parameter input/output} and
  * {@link CallArc call} arcs. */
@@ -34,20 +32,23 @@ public class CallConnector {
                 .forEach(node -> connectCall(node, callGraph));
     }
 
-    /** Connects a given call to its declaration, via call and in/out arcs. */
+    /** Connects a given call to all possible matching declarations. */
+    @SuppressWarnings("unchecked")
     protected void connectCall(CallNode callNode, CallGraph callGraph) {
-        @SuppressWarnings("unchecked")
         var callExpr = (Resolvable<? extends ResolvedMethodLikeDeclaration>) callNode.getAstNode();
-        GraphNode<? extends CallableDeclaration<?>> declarationNode;
-        try {
-            declarationNode = Optional.ofNullable(callGraph.getCallTarget(callExpr))
-                    .flatMap(sdg::findNodeByASTNode)
-                    .orElseThrow(IllegalArgumentException::new);
-        } catch (IllegalArgumentException e) {
-            Logger.format("Method declaration not found: '%s'. Discarding", callExpr);
-            return;
-        }
+        callGraph.getCallTargets(callExpr)
+                .map(sdg::findNodeByASTNode)
+                .filter(opt -> {
+                    if (opt.isEmpty())
+                        Logger.format("Method declaration not found: '%s'. Discarding", callExpr);
+                    return opt.isPresent();
+                })
+                .map(opt -> opt.orElseThrow(IllegalArgumentException::new))
+                .forEach(node -> connectCall(callNode, node));
+    }
 
+    /** Connects a given call to its declaration, via call and in/out arcs. */
+    protected void connectCall(CallNode callNode, GraphNode<? extends CallableDeclaration<?>> declarationNode) {
         // Connect the call and declaration nodes
         sdg.addCallArc(callNode, declarationNode);
 
