@@ -7,6 +7,7 @@ import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.stmt.CatchClause;
 import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
+import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.stmt.ForEachStmt;
 import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
@@ -170,7 +171,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
             default:
                 n.getRight().accept(this, arg);
         }
-        super.visit(n, arg);
+        n.getComment().ifPresent(l -> l.accept(this, arg));
     }
 
     @Override
