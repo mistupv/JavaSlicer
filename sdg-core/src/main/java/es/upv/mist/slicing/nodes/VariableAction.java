@@ -4,6 +4,7 @@ import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
+import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
 import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.arcs.pdg.DataDependencyArc;
 import es.upv.mist.slicing.graphs.Graph;
@@ -18,12 +19,14 @@ import java.util.stream.Collectors;
 public abstract class VariableAction {
     protected static final String VARIABLE_PATTERN = "^([a-zA-Z][a-zA-Z0-9_]*|[_a-zA-Z][a-zA-Z0-9_]+)$";
 
-    protected final NameExpr variable;
+    protected final Expression variable;
     protected final GraphNode<?> graphNode;
 
     protected boolean optional = false;
+    protected ResolvedValueDeclaration resolvedVariableCache;
 
-    public VariableAction(NameExpr variable, GraphNode<?> graphNode) {
+    public VariableAction(Expression variable, GraphNode<?> graphNode) {
+        assert variable.isNameExpr() || variable.isFieldAccessExpr();
         this.variable = variable;
         this.graphNode = graphNode;
     }
@@ -31,15 +34,25 @@ public abstract class VariableAction {
     /** Whether this action is performed upon an invented variable,
      * introduced by this library (e.g. the active exception or the returned value). */
     public boolean isSynthetic() {
-        return !variable.getNameAsString().matches(VARIABLE_PATTERN);
+        return !getVariable().matches(VARIABLE_PATTERN);
     }
 
     public String getVariable() {
-        return variable.getNameAsString();
+        return variable.toString();
     }
 
-    public NameExpr getNameExpr() {
+    public Expression getVariableExpression() {
         return variable;
+    }
+
+    public ResolvedValueDeclaration getResolvedValueDeclaration() {
+        if (resolvedVariableCache == null) {
+            if (variable.isFieldAccessExpr())
+                resolvedVariableCache = variable.asFieldAccessExpr().resolve();
+            else if (variable.isNameExpr())
+                resolvedVariableCache = variable.asNameExpr().resolve();
+        }
+        return resolvedVariableCache;
     }
 
     // TODO: detected optional actions
@@ -149,7 +162,7 @@ public abstract class VariableAction {
 
     /** A usage of a variable. */
     public static class Usage extends VariableAction {
-        public Usage(NameExpr variable, GraphNode<?> graphNode) {
+        public Usage(Expression variable, GraphNode<?> graphNode) {
             super(variable, graphNode);
         }
 
@@ -164,11 +177,11 @@ public abstract class VariableAction {
         /** The value to which the variable has been defined. */
         protected final Expression expression;
 
-        public Definition(NameExpr variable, GraphNode<?> graphNode) {
+        public Definition(Expression variable, GraphNode<?> graphNode) {
             this(variable, graphNode, null);
         }
 
-        public Definition(NameExpr variable, GraphNode<?> graphNode, Expression expression) {
+        public Definition(Expression variable, GraphNode<?> graphNode, Expression expression) {
             super(variable, graphNode);
             this.expression = expression;
         }
@@ -186,7 +199,7 @@ public abstract class VariableAction {
 
     /** A declaration of a variable. */
     public static class Declaration extends VariableAction {
-        public Declaration(NameExpr variable, GraphNode<?> graphNode) {
+        public Declaration(Expression variable, GraphNode<?> graphNode) {
             super(variable, graphNode);
         }
 
@@ -226,11 +239,15 @@ public abstract class VariableAction {
          *  the action is deleted from its original node's list, a copy is created with the real
          *  target and any {@link DataDependencyArc} is relocated to match this change. */
         public VariableAction move(Graph graph) {
-            // Create unwrapped action
+            // Create unwrapped action (the graphNode field must be changed).
             VariableAction newAction;
             try {
-                newAction = inner.getClass().getConstructor(NameExpr.class, GraphNode.class)
-                        .newInstance(variable, (GraphNode<?>) realNode);
+                if (inner instanceof Definition && inner.asDefinition().getExpression() != null)
+                    newAction = inner.getClass().getConstructor(Expression.class, GraphNode.class, Expression.class)
+                            .newInstance(variable, realNode, inner.asDefinition().expression);
+                else
+                    newAction = inner.getClass().getConstructor(Expression.class, GraphNode.class)
+                            .newInstance(variable, realNode);
             } catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
                 throw new UnsupportedOperationException("The VariableAction constructor has changed!", e);
             }

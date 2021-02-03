@@ -74,7 +74,7 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
     /** Obtains the expression passed as argument for the given action at the given call. If {@code input}
      * is false, primitive parameters will be skipped, as their value cannot be redefined.*/
     protected Expression extractArgument(VariableAction action, CallGraph.Edge<?> edge, boolean input) {
-        ResolvedValueDeclaration resolved = action.getNameExpr().resolve();
+        ResolvedValueDeclaration resolved = action.getResolvedValueDeclaration();
         CallableDeclaration<?> callTarget = graph.getEdgeTarget(edge).getDeclaration();
         if (resolved.isParameter()) {
             ResolvedParameterDeclaration p = resolved.asParameter();
@@ -83,7 +83,7 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
             int paramIndex = ASTUtils.getMatchingParameterIndex(callTarget, p);
             return ASTUtils.getResolvableArgs(edge.getCall()).get(paramIndex);
         } else if (resolved.isField()) {
-            return action.getNameExpr();
+            return action.getVariableExpression();
         } else {
             throw new IllegalArgumentException("Variable should be either param or field!");
         }
@@ -116,8 +116,8 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
             ResolvedValueDeclaration r1 = null;
             ResolvedValueDeclaration r2 = null;
             try {
-                r1 = o1.getAction().getNameExpr().resolve();
-                r2 = o2.getAction().getNameExpr().resolve();
+                r1 = o1.getAction().getResolvedValueDeclaration();
+                r2 = o2.getAction().getResolvedValueDeclaration();
                 if (r1.isParameter() && r2.isParameter())
                     return -Integer.compare(ASTUtils.getMatchingParameterIndex(graph.getEdgeTarget(edge).getDeclaration(), r1.asParameter()),
                             ASTUtils.getMatchingParameterIndex(graph.getEdgeTarget(edge).getDeclaration(), r2.asParameter()));

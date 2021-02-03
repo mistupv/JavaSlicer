@@ -27,7 +27,7 @@ public class InterproceduralUsageFinder extends InterproceduralActionFinder<Vari
     @Override
     protected void handleFormalAction(CallableDeclaration<?> declaration, VariableAction.Usage use) {
         CFG cfg = cfgMap.get(declaration);
-        ResolvedValueDeclaration resolved = use.getNameExpr().resolve();
+        ResolvedValueDeclaration resolved = use.getResolvedValueDeclaration();
         FormalIONode formalIn = FormalIONode.createFormalIn(declaration, resolved);
         cfg.getRootNode().addMovableVariable(new VariableAction.Movable(use.toDefinition(cfg.getRootNode()), formalIn));
     }
@@ -36,7 +36,7 @@ public class InterproceduralUsageFinder extends InterproceduralActionFinder<Vari
     protected void handleActualAction(CallGraph.Edge<?> edge, VariableAction.Usage use) {
         Set<VariableAction.Movable> movables = new HashSet<>();
         GraphNode<?> graphNode = edge.getGraphNode();
-        ResolvedValueDeclaration resolved = use.getNameExpr().resolve();
+        ResolvedValueDeclaration resolved = use.getResolvedValueDeclaration();
         Expression argument = extractArgument(use, edge, true);
         ActualIONode actualIn = ActualIONode.createActualIn(edge.getCall(), resolved, argument);
         argument.accept(new VariableVisitor(

@@ -1,6 +1,7 @@
 package es.upv.mist.slicing.graphs;
 
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.expr.Expression;
@@ -57,6 +58,43 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
                 .map(this::getEdgeTarget)
                 .map(Vertex::getDeclaration)
                 .map(decl -> (CallableDeclaration<?>) decl);
+    }
+
+    /** Locates the calls to a given declaration. The result is any node that represents a call. */
+    public Stream<Node> callsTo(CallableDeclaration<?> callee) {
+        return incomingEdgesOf(findVertexByDeclaration(callee)).stream()
+                .map(Edge::getCall)
+                .map(Node.class::cast);
+    }
+
+    /** Locates the calls contained in a given method or constructor.
+     *  See {@link #callsTo(CallableDeclaration)} for the return value. */
+    public Stream<Node> callsFrom(CallableDeclaration<?> caller) {
+        return outgoingEdgesOf(findVertexByDeclaration(caller)).stream()
+                .map(Edge::getCall)
+                .map(Node.class::cast);
+    }
+
+    /** Locates the methods that may call the given declaration. */
+    public Stream<CallableDeclaration<?>> callersOf(CallableDeclaration<?> callee) {
+        return incomingEdgesOf(findVertexByDeclaration(callee)).stream()
+                .map(this::getEdgeSource)
+                .map(Vertex::getDeclaration);
+    }
+
+    /** Locates the methods that may be called when executing the given declaration. */
+    public Stream<CallableDeclaration<?>> calleesOf(CallableDeclaration<?> caller) {
+        return outgoingEdgesOf(findVertexByDeclaration(caller)).stream()
+                .map(this::getEdgeTarget)
+                .map(Vertex::getDeclaration);
+    }
+
+    /** Locate the vertex that represents in this graph the given declaration. */
+    protected Vertex findVertexByDeclaration(CallableDeclaration<?> declaration) {
+        return vertexSet().stream()
+                .filter(v -> v.declaration == declaration ||
+                        ASTUtils.equalsWithRange(v.declaration, declaration))
+                .findFirst().orElseThrow();
     }
 
     @Override

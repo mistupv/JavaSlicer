@@ -44,15 +44,15 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     }
 
     /** A default action to be used as a placeholder when a {@code null} action is received. */
-    protected static final BiConsumer<GraphNode<?>, NameExpr> BLANK_CONSUMER = (a, b) -> {};
-    protected static final TriConsumer<GraphNode<?>, NameExpr, Expression> BLANK_TRICONSUMER = (a, b, c) -> {};
+    protected static final BiConsumer<GraphNode<?>, Expression> BLANK_BICONSUMER = (a, b) -> {};
+    protected static final TriConsumer<GraphNode<?>, Expression, Expression> BLANK_TRICONSUMER = (a, b, c) -> {};
 
     /** The action to perform when a declaration is found. */
-    protected final BiConsumer<GraphNode<?>, NameExpr> declConsumer;
+    protected final BiConsumer<GraphNode<?>, Expression> declConsumer;
     /** The action to perform when a definition is found. */
-    protected final TriConsumer<GraphNode<?>, NameExpr, Expression> defConsumer;
+    protected final TriConsumer<GraphNode<?>, Expression, Expression> defConsumer;
     /** The action to perform when a usage is found. */
-    protected final BiConsumer<GraphNode<?>, NameExpr> useConsumer;
+    protected final BiConsumer<GraphNode<?>, Expression> useConsumer;
     /** A stack with the last definition expression, to provide it when a variable definition is found. */
     protected final Deque<Expression> definitionStack = new LinkedList<>();
 
@@ -65,10 +65,10 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     /** A variable visitor that will perform the given actions when a variable is found. A node can accept this visitor,
      *  but calls will be ignored if the entry-point is not {@link #startVisit(GraphNode)} or {@link #startVisit(GraphNode, Action)}.
      *  The arguments are the actions to be performed when an action is found in the corresponding node. */
-    public VariableVisitor(BiConsumer<GraphNode<?>, NameExpr> declConsumer, TriConsumer<GraphNode<?>, NameExpr, Expression> defConsumer, BiConsumer<GraphNode<?>, NameExpr> useConsumer) {
-        this.declConsumer = Objects.requireNonNullElse(declConsumer, BLANK_CONSUMER);
+    public VariableVisitor(BiConsumer<GraphNode<?>, Expression> declConsumer, TriConsumer<GraphNode<?>, Expression, Expression> defConsumer, BiConsumer<GraphNode<?>, Expression> useConsumer) {
+        this.declConsumer = Objects.requireNonNullElse(declConsumer, BLANK_BICONSUMER);
         this.defConsumer = Objects.requireNonNullElse(defConsumer, BLANK_TRICONSUMER);
-        this.useConsumer = Objects.requireNonNullElse(useConsumer, BLANK_CONSUMER);
+        this.useConsumer = Objects.requireNonNullElse(useConsumer, BLANK_BICONSUMER);
     }
 
     public void visitAsDefinition(Node node, Expression value) {
@@ -88,11 +88,38 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
 
     @Override
     public void visit(NameExpr n, Action action) {
+        acceptAction(n, action);
+    }
+
+    @Override
+    public void visit(FieldAccessExpr n, Action action) {
+        // Traverse the scope of this variable access
+        n.getScope().accept(this, action);
+        // Register the field access as action
+        Expression scope = n.getScope();
+        boolean traverse = true;
+        while (traverse) {
+            if (scope.isFieldAccessExpr())
+                scope = scope.asFieldAccessExpr().getScope();
+            else if (scope.isEnclosedExpr())
+                scope = scope.asEnclosedExpr().getInner();
+            else if (scope.isCastExpr())
+                scope = scope.asCastExpr().getExpression();
+            else
+                traverse = false;
+        }
+        // Only accept the field access as action if it is a sequence of names (a.b.c.d, this.a.b.c)
+        if (scope.isNameExpr() || scope.isThisExpr())
+            acceptAction(n, action);
+    }
+
+    protected void acceptAction(Expression n, Action action) {
         switch (action) {
             case DECLARATION:
                 declConsumer.accept(graphNode, n);
                 break;
             case DEFINITION:
+                assert !definitionStack.isEmpty();
                 defConsumer.accept(graphNode, n, definitionStack.peek());
                 break;
             case USE:
@@ -107,11 +134,6 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     @Override
     public void visit(CastExpr n, Action action) {
         n.getExpression().accept(this, action);
-    }
-
-    @Override
-    public void visit(FieldAccessExpr n, Action action) {
-        n.getScope().accept(this, action);
     }
 
     // Modified traversal (there may be variable definitions or declarations)
@@ -194,6 +216,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     @Override
     public void visit(CatchClause n, Action arg) {
         n.getParameter().accept(this, arg.or(Action.DECLARATION));
+        n.getBody().accept(this, arg);
     }
 
     @Override
@@ -201,6 +224,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         declConsumer.accept(graphNode, new NameExpr(n.getName().getId()));
         defConsumer.accept(graphNode, new NameExpr(n.getName().getId()), null); // TODO: improve initializer
     }
+
     // =======================================================================
     // ================================ CALLS ================================
     // =======================================================================
