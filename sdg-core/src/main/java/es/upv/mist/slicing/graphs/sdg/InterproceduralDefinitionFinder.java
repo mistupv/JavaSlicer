@@ -27,7 +27,7 @@ public class InterproceduralDefinitionFinder extends InterproceduralActionFinder
     @Override
     protected void handleFormalAction(CallableDeclaration<?> declaration, VariableAction.Definition def) {
         CFG cfg = cfgMap.get(declaration);
-        ResolvedValueDeclaration resolved = def.getNameExpr().resolve();
+        ResolvedValueDeclaration resolved = def.getResolvedValueDeclaration();
         if (!resolved.isParameter() || !resolved.getType().isPrimitive()) {
             FormalIONode formalOut = FormalIONode.createFormalOut(declaration, resolved);
             cfg.getExitNode().addMovableVariable(new VariableAction.Movable(def.toUsage(cfg.getExitNode()), formalOut));
@@ -40,7 +40,7 @@ public class InterproceduralDefinitionFinder extends InterproceduralActionFinder
     protected void handleActualAction(CallGraph.Edge<?> edge, VariableAction.Definition def) {
         Set<VariableAction.Movable> movables = new HashSet<>();
         GraphNode<?> graphNode = edge.getGraphNode();
-        ResolvedValueDeclaration resolved = def.getNameExpr().resolve();
+        ResolvedValueDeclaration resolved = def.getResolvedValueDeclaration();
         Expression arg = extractArgument(def, edge, false);
         if (arg == null)
             return;
