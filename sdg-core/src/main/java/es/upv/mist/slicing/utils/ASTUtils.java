@@ -2,6 +2,7 @@ package es.upv.mist.slicing.utils;
 
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.CallableDeclaration;
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.CastExpr;
@@ -180,4 +181,12 @@ public class ASTUtils {
         throw new IllegalArgumentException("This operation is only valid for reference type cast operations.");
     }
 
+    /** Given an AST node, visit the parent until finding a ClassOrInterfaceDeclaration */
+    public static Node getClassNode(Node n){
+        Node upperNode = n;
+        while (!(upperNode instanceof ClassOrInterfaceDeclaration))
+            upperNode = upperNode.getParentNode().get();
+
+        return upperNode;
+    }
 }

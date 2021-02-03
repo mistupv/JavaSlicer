@@ -42,6 +42,7 @@ public class JSysCFGBuilder extends ACFGBuilder {
     @Override
     public void visit(FieldDeclaration n, Void arg){
         connectTo(n);
+        super.visit(n,arg);
     }
 
     @Override

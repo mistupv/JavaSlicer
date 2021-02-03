@@ -1,7 +1,8 @@
 package es.upv.mist.slicing.nodes;
 
-import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.*;
@@ -11,6 +12,7 @@ import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.stmt.ForEachStmt;
 import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
+import com.github.javaparser.symbolsolver.javaparsermodel.declarations.JavaParserFieldDeclaration;
 import es.upv.mist.slicing.graphs.GraphNodeContentVisitor;
 import es.upv.mist.slicing.utils.ASTUtils;
 import es.upv.mist.slicing.utils.TriConsumer;
@@ -90,6 +92,8 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
 
     @Override
     public void visit(NameExpr n, Action action) {
+        String prefix = this.getNamePrefix(n);
+        n.setName(new SimpleName(prefix + n.getNameAsString()));
         acceptAction(n, action);
     }
 
@@ -218,16 +222,11 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     @Override
     public void visit(FieldDeclaration n, Action action) {
         for (VariableDeclarator v : n.getVariables()) {
-
-            // Change the name of the FieldDeclaration Variable to "this.varName"
-            NameExpr nameExpr = v.getNameAsExpression();
-            nameExpr.setName(new SimpleName("this." + nameExpr.getNameAsString()));
-
-            nameExpr.accept(this, action.or(Action.DECLARATION));
-            if (v.getInitializer().isPresent()) {
-                v.getInitializer().get().accept(this, action);
-                v.getNameAsExpression().accept(this, Action.DEFINITION);
-            }
+            v.getNameAsExpression().accept(this, action.or(Action.DECLARATION));
+            v.getInitializer().ifPresent(init -> {
+                init.accept(this, action);
+                visitAsDefinition(v.getNameAsExpression(), init);
+            });
         }
     }
 
@@ -276,5 +275,29 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         ASTUtils.getResolvableScope(call).ifPresent(s -> s.accept(this, arg));
         graphNode.addCallMarker(call, false);
         return false;
+    }
+
+    /** Checks whether a NameExpr representing a variable
+     * is a Field and returns the correct prefix to reference it */
+    protected String getNamePrefix(NameExpr n){
+        if (graphNode.getAstNode() instanceof FieldDeclaration)
+            return "this.";
+        else {
+            Expression expr = ((ExpressionStmt) graphNode.getAstNode()).getExpression();
+            if (expr instanceof AssignExpr && n.resolve().isField()){
+
+                JavaParserFieldDeclaration fieldDeclaration = (JavaParserFieldDeclaration) n.resolve();
+                Node decClass = ASTUtils.getClassNode(fieldDeclaration.getVariableDeclarator());
+                Node nClass = ASTUtils.getClassNode(n);
+
+                assert (nClass instanceof ClassOrInterfaceDeclaration &&
+                        decClass instanceof ClassOrInterfaceDeclaration);
+
+                if (decClass.equals(nClass))
+                    return "this.";
+                return ((ClassOrInterfaceDeclaration) decClass).getNameAsString() + ".this.";
+            }
+        }
+        return "";
     }
 }
