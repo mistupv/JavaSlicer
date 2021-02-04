@@ -22,6 +22,7 @@ import java.io.PrintWriter;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 public class Slicer {
     protected static final String HELP_HEADER = "Java SDG Slicer: extract a slice from a Java program. At least" +
@@ -217,8 +218,13 @@ public class Slicer {
         // Build the SDG
         NodeList<CompilationUnit> units = new NodeList<>();
         try {
-            for (File directory : dirIncludeSet)
-                units.add(StaticJavaParser.parse(directory));
+            for (File file : dirIncludeSet) {
+                if (file.isDirectory())
+                    for (File f : (Iterable<File>) findAllJavaFiles(file)::iterator)
+                        units.add(StaticJavaParser.parse(f));
+                else
+                    units.add(StaticJavaParser.parse(file));
+            }
             CompilationUnit scUnit = StaticJavaParser.parse(scFile);
             if (!units.contains(scUnit))
                 units.add(scUnit);
@@ -255,6 +261,24 @@ public class Slicer {
             } catch (FileNotFoundException e) {
                 System.err.println("Could not write file " + javaFile);
             }
+        }
+    }
+
+    protected Stream<File> findAllJavaFiles(File directory) {
+        Stream.Builder<File> builder = Stream.builder();
+        findAllJavaFiles(directory, builder);
+        return builder.build();
+    }
+
+    protected void findAllJavaFiles(File directory, Stream.Builder<File> builder) {
+        File[] files = directory.listFiles();
+        if (files == null)
+            return;
+        for (File f : files) {
+            if (f.isDirectory())
+                findAllJavaFiles(f, builder);
+            else if (f.getName().endsWith(".java"))
+                builder.add(f);
         }
     }
 
