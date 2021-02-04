@@ -13,6 +13,7 @@ import es.upv.mist.slicing.graphs.sdg.SDG;
 import es.upv.mist.slicing.slicing.FileLineSlicingCriterion;
 import es.upv.mist.slicing.slicing.Slice;
 import es.upv.mist.slicing.slicing.SlicingCriterion;
+import es.upv.mist.slicing.utils.NodeHashSet;
 import es.upv.mist.slicing.utils.StaticTypeSolver;
 import org.apache.commons.cli.*;
 
@@ -216,7 +217,7 @@ public class Slicer {
         StaticJavaParser.getConfiguration().setAttributeComments(false);
 
         // Build the SDG
-        NodeList<CompilationUnit> units = new NodeList<>();
+        Set<CompilationUnit> units = new NodeHashSet<>();
         try {
             for (File file : dirIncludeSet) {
                 if (file.isDirectory())
@@ -225,9 +226,7 @@ public class Slicer {
                 else
                     units.add(StaticJavaParser.parse(file));
             }
-            CompilationUnit scUnit = StaticJavaParser.parse(scFile);
-            if (!units.contains(scUnit))
-                units.add(scUnit);
+            units.add(StaticJavaParser.parse(scFile));
         } catch (FileNotFoundException e) {
             throw new ParseException(e.getMessage());
         }
@@ -241,7 +240,7 @@ public class Slicer {
             default:
                 throw new IllegalArgumentException("Unknown type of graph. Available graphs are SDG, ASDG, PSDG, ESSDG");
         }
-        sdg.build(units);
+        sdg.build(new NodeList<>(units));
 
         // Slice the SDG
         SlicingCriterion sc = new FileLineSlicingCriterion(scFile, scLine);
