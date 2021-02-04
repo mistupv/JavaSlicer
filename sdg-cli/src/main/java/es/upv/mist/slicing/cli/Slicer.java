@@ -13,6 +13,7 @@ import es.upv.mist.slicing.graphs.sdg.SDG;
 import es.upv.mist.slicing.slicing.FileLineSlicingCriterion;
 import es.upv.mist.slicing.slicing.Slice;
 import es.upv.mist.slicing.slicing.SlicingCriterion;
+import es.upv.mist.slicing.utils.NodeHashSet;
 import es.upv.mist.slicing.utils.StaticTypeSolver;
 import org.apache.commons.cli.*;
 
@@ -22,6 +23,7 @@ import java.io.PrintWriter;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 public class Slicer {
     protected static final String HELP_HEADER = "Java SDG Slicer: extract a slice from a Java program. At least" +
@@ -215,13 +217,16 @@ public class Slicer {
         StaticJavaParser.getConfiguration().setAttributeComments(false);
 
         // Build the SDG
-        NodeList<CompilationUnit> units = new NodeList<>();
+        Set<CompilationUnit> units = new NodeHashSet<>();
         try {
-            for (File directory : dirIncludeSet)
-                units.add(StaticJavaParser.parse(directory));
-            CompilationUnit scUnit = StaticJavaParser.parse(scFile);
-            if (!units.contains(scUnit))
-                units.add(scUnit);
+            for (File file : dirIncludeSet) {
+                if (file.isDirectory())
+                    for (File f : (Iterable<File>) findAllJavaFiles(file)::iterator)
+                        units.add(StaticJavaParser.parse(f));
+                else
+                    units.add(StaticJavaParser.parse(file));
+            }
+            units.add(StaticJavaParser.parse(scFile));
         } catch (FileNotFoundException e) {
             throw new ParseException(e.getMessage());
         }
@@ -235,7 +240,7 @@ public class Slicer {
             default:
                 throw new IllegalArgumentException("Unknown type of graph. Available graphs are SDG, ASDG, PSDG, ESSDG");
         }
-        sdg.build(units);
+        sdg.build(new NodeList<>(units));
 
         // Slice the SDG
         SlicingCriterion sc = new FileLineSlicingCriterion(scFile, scLine);
@@ -255,6 +260,24 @@ public class Slicer {
             } catch (FileNotFoundException e) {
                 System.err.println("Could not write file " + javaFile);
             }
+        }
+    }
+
+    protected Stream<File> findAllJavaFiles(File directory) {
+        Stream.Builder<File> builder = Stream.builder();
+        findAllJavaFiles(directory, builder);
+        return builder.build();
+    }
+
+    protected void findAllJavaFiles(File directory, Stream.Builder<File> builder) {
+        File[] files = directory.listFiles();
+        if (files == null)
+            return;
+        for (File f : files) {
+            if (f.isDirectory())
+                findAllJavaFiles(f, builder);
+            else if (f.getName().endsWith(".java"))
+                builder.add(f);
         }
     }
 
