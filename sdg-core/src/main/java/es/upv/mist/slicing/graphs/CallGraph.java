@@ -40,7 +40,6 @@ import java.util.stream.Stream;
  */
 public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.Edge<?>> implements Buildable<NodeList<CompilationUnit>> {
     private final Map<CallableDeclaration<?>, CFG> cfgMap;
-    private final Map<CallableDeclaration<?>, Vertex> vertexDeclarationMap = ASTUtils.newIdentityHashMap();
     private final ClassGraph classGraph;
 
     private boolean built = false;
@@ -116,27 +115,21 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
         arg.accept(new VoidVisitorAdapter<Void>() {
             @Override
             public void visit(MethodDeclaration n, Void arg) {
-                addDeclaration(n);
+                addVertex(new Vertex(n));
                 super.visit(n, arg);
             }
 
             @Override
             public void visit(ConstructorDeclaration n, Void arg) {
-                addDeclaration(n);
+                addVertex(new Vertex(n));
                 super.visit(n, arg);
             }
         }, null);
     }
 
-    protected void addDeclaration(CallableDeclaration<?> n) {
-        Vertex v = new Vertex(n);
-        vertexDeclarationMap.put(n, v);
-        addVertex(v);
-    }
-
     protected boolean addEdge(CallableDeclaration<?> source, CallableDeclaration<?> target, Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
         Edge<?> edge = new Edge<>(call, findGraphNode(call, source));
-        return addEdge(vertexDeclarationMap.get(source), vertexDeclarationMap.get(target), edge);
+        return addEdge(findVertexByDeclaration(source), findVertexByDeclaration(target), edge);
     }
 
     /** Find the calls to methods and constructors (edges) in the given list of compilation units. */
