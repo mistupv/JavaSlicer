@@ -52,6 +52,16 @@ A more detailed description of the available options can be seen with:
 java -jar sdg-cli.jar --help
 ```
 
+#### A note on third party libraries
+
+Our slicer requires the input Java program to be compilable, so all libraries must be provided using the `-i` flag. For the cases where the source code is not available, you may include the required libraries in the Java classpath by using the following call:
+
+```
+java -cp sdg-cli.jar:your-libraries.jar es.upv.slicing.cli.Slicer -c Example.java#11:sum -t SDG
+```
+
+This approach produces lower quality slices, as the contents of the library calls are unknown.
+
 ## Library usage
 
 A good usage example of `sdg-core` to obtain a slice from source code is available at [Slicer.java#slice()](/sdg-cli/src/main/java/tfm/cli/Slicer.java#L204), where the following steps are performed:
