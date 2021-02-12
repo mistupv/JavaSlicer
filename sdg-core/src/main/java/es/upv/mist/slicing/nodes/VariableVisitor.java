@@ -6,10 +6,7 @@ import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.*;
-import com.github.javaparser.ast.stmt.CatchClause;
-import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
-import com.github.javaparser.ast.stmt.ExpressionStmt;
-import com.github.javaparser.ast.stmt.ForEachStmt;
+import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
 import com.github.javaparser.symbolsolver.javaparsermodel.declarations.JavaParserFieldDeclaration;
@@ -92,7 +89,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
 
     @Override
     public void visit(NameExpr n, Action action) {
-        String prefix = this.getNamePrefix(n);
+        String prefix = this.getNamePrefix(n); // Add a prefix to the name ("this." or "CLASS.this.")
         n.setName(new SimpleName(prefix + n.getNameAsString()));
         acceptAction(n, action);
     }
@@ -280,23 +277,34 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     /** Checks whether a NameExpr representing a variable
      * is a Field and returns the correct prefix to reference it */
     protected String getNamePrefix(NameExpr n){
+        // There are three constructs whose variable cannot be resolved due to: getNameAsExpression() function
+        // FieldDeclaration, VariableDeclarationExpr, and ForEachStmt. They must be treated separately
+
+        // 1. FieldDeclaration
         if (graphNode.getAstNode() instanceof FieldDeclaration)
             return "this.";
-        else {
+        // 2. VariableDeclarationExpr
+        if (graphNode.getAstNode() instanceof ExpressionStmt) {
             Expression expr = ((ExpressionStmt) graphNode.getAstNode()).getExpression();
-            if (expr instanceof AssignExpr && n.resolve().isField()){
+            if (expr instanceof VariableDeclarationExpr)
+                return "";
+        }
+        // 3. ForEachStmt
+        if (graphNode.getAstNode() instanceof ForEachStmt)
+            throw new RuntimeException("ForEachStmt internal structure is still a mystery for me");// TODO: Execute and see the internal structure
 
-                JavaParserFieldDeclaration fieldDeclaration = (JavaParserFieldDeclaration) n.resolve();
-                Node decClass = ASTUtils.getClassNode(fieldDeclaration.getVariableDeclarator());
-                Node nClass = ASTUtils.getClassNode(n);
+        // The rest of nodes can be resolved properly
+        if (n.resolve().isField() && !n.resolve().asField().isStatic()){
+            JavaParserFieldDeclaration fieldDeclaration = (JavaParserFieldDeclaration) n.resolve();
+            Node decClass = ASTUtils.getClassNode(fieldDeclaration.getVariableDeclarator());
+            Node nClass = ASTUtils.getClassNode(n);
 
-                assert (nClass instanceof ClassOrInterfaceDeclaration &&
-                        decClass instanceof ClassOrInterfaceDeclaration);
+            assert (nClass instanceof ClassOrInterfaceDeclaration &&
+                    decClass instanceof ClassOrInterfaceDeclaration);
 
-                if (decClass.equals(nClass))
-                    return "this.";
-                return ((ClassOrInterfaceDeclaration) decClass).getNameAsString() + ".this.";
-            }
+            if (decClass.equals(nClass))
+                return "this.";
+            return ((ClassOrInterfaceDeclaration) decClass).getNameAsString() + ".this.";
         }
         return "";
     }
