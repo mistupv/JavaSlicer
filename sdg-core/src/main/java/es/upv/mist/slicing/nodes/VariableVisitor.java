@@ -76,7 +76,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         visitAsDefinition(node, value, Action.DEFINITION);
     }
 
-    public void visitAsDefinition(Node node, Expression value, Action action) {
+    public void  visitAsDefinition(Node node, Expression value, Action action) {
         definitionStack.push(value);
         node.accept(this, action.or(Action.DEFINITION));
         definitionStack.pop();
@@ -89,8 +89,6 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
 
     @Override
     public void visit(NameExpr n, Action action) {
-        String prefix = this.getNamePrefix(n); // Add a prefix to the name ("this." or "CLASS.this.")
-        n.setName(new SimpleName(prefix + n.getNameAsString()));
         acceptAction(n, action);
     }
 
@@ -117,6 +115,11 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     }
 
     protected void acceptAction(Expression n, Action action) {
+        if (n instanceof NameExpr) { // Add a prefix to the name ("this." or "CLASS.this.") when "n" is a NameExpr
+            NameExpr en = (NameExpr) n;
+            String prefix = this.getNamePrefix(en); // Add a prefix to the name ("this." or "CLASS.this.")
+            en.setName(new SimpleName(prefix + en.getNameAsString()));
+        }
         switch (action) {
             case DECLARATION:
                 declConsumer.accept(graphNode, n);
@@ -177,11 +180,12 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
 
     @Override
     public void visit(AssignExpr n, Action action) {
+        // Value is always visited first since uses occur before definitions
+        n.getValue().accept(this, action);
         // Target will be used if operator is not '='
         if (n.getOperator() != AssignExpr.Operator.ASSIGN)
             n.getTarget().accept(this, action);
         visitAsDefinition(n.getTarget(), n.getValue(), action);
-        n.getValue().accept(this, action);
     }
 
     @Override
