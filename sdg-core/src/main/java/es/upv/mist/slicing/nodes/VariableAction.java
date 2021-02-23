@@ -17,7 +17,8 @@ import java.util.stream.Collectors;
 
 /** An action upon a variable (e.g. usage, definition, declaration) */
 public abstract class VariableAction {
-    protected static final String VARIABLE_PATTERN = "^([a-zA-Z][a-zA-Z0-9_]*|[_a-zA-Z][a-zA-Z0-9_]+)$";
+    protected static final String VARIABLE_PATTERN = "^([a-zA-Z][a-zA-Z0-9_]*|[_a-zA-Z][a-zA-Z0-9_]+" +
+            "|([a-zA-Z][a-zA-Z0-9_]*)([\\.][a-zA-Z][a-zA-Z]*)+)$";
 
     protected final Expression variable;
     protected final GraphNode<?> graphNode;
@@ -68,7 +69,9 @@ public abstract class VariableAction {
 
     /** Whether the argument is performed upon the same variable as this action. */
     public boolean matches(VariableAction action) {
-        return Objects.equals(action.variable, variable);
+        return Objects.equals(action.variable, variable)
+                // Needed to link FieldAccessExpr with NameExpr in case they refer to the same Field Variable (this.x = x + 1)
+                || action.variable.toString().equals(variable.toString());
     }
 
     public boolean isUsage() {
