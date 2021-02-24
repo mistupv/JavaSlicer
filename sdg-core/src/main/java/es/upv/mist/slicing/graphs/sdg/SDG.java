@@ -5,7 +5,6 @@ import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import es.upv.mist.slicing.arcs.pdg.ControlDependencyArc;
 import es.upv.mist.slicing.arcs.pdg.DataDependencyArc;
@@ -18,7 +17,6 @@ import es.upv.mist.slicing.graphs.CallGraph;
 import es.upv.mist.slicing.graphs.ClassGraph;
 import es.upv.mist.slicing.graphs.Graph;
 import es.upv.mist.slicing.graphs.cfg.CFG;
-import es.upv.mist.slicing.graphs.cfg.CFGBuilder;
 import es.upv.mist.slicing.graphs.pdg.PDG;
 import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.nodes.SyntheticNode;
@@ -32,6 +30,8 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+
+import static es.upv.mist.slicing.graphs.cfg.CFGBuilder.VARIABLE_NAME_OUTPUT;
 
 /**
  * The <b>System Dependence Graph</b> represents the statements of a program in
@@ -166,11 +166,11 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
                     continue;
                 GraphNode<?> graphNode = edge.getGraphNode();
                 // A node defines -output-
-                var def = new VariableAction.Definition(new NameExpr(CFGBuilder.VARIABLE_NAME_OUTPUT), graphNode);
+                var def = new VariableAction.Definition(null, VARIABLE_NAME_OUTPUT, graphNode);
                 var defMov = new VariableAction.Movable(def, CallNode.Return.create(edge.getCall()));
                 graphNode.addActionsForCall(Set.of(defMov), edge.getCall(), false);
                 // The container of the call uses -output-
-                var use = new VariableAction.Usage(new NameExpr(CFGBuilder.VARIABLE_NAME_OUTPUT), graphNode);
+                var use = new VariableAction.Usage(null, VARIABLE_NAME_OUTPUT, graphNode);
                 graphNode.addActionsAfterCall(Set.of(use), edge.getCall());
             }
         }

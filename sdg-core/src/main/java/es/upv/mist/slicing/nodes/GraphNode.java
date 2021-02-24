@@ -126,19 +126,19 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
     }
 
     /** Create and append a declaration of a variable to the list of actions of this node. */
-    public void addDeclaredVariable(Expression variable) {
-        variableActions.add(new VariableAction.Declaration(variable, this));
+    public void addDeclaredVariable(Expression variable, String realName) {
+        variableActions.add(new VariableAction.Declaration(variable, realName, this));
     }
 
     /** Create and append a definition of a variable to the list of actions of this node. */
-    public void addDefinedVariable(Expression variable, Expression expression) {
-        VariableAction.Definition def = new VariableAction.Definition(variable, this, expression);
+    public void addDefinedVariable(Expression variable, String realName, Expression expression) {
+        VariableAction.Definition def = new VariableAction.Definition(variable, realName, this, expression);
         variableActions.add(def);
     }
 
     /** Create and append a usage of a variable to the list of actions of this node. */
-    public void addUsedVariable(Expression variable) {
-        VariableAction.Usage use = new VariableAction.Usage(variable, this);
+    public void addUsedVariable(Expression variable, String realName) {
+        VariableAction.Usage use = new VariableAction.Usage(variable, realName, this);
         variableActions.add(use);
     }
 

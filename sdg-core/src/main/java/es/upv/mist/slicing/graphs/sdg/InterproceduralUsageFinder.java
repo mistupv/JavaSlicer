@@ -39,11 +39,11 @@ public class InterproceduralUsageFinder extends InterproceduralActionFinder<Vari
         ResolvedValueDeclaration resolved = use.getResolvedValueDeclaration();
         Expression argument = extractArgument(use, edge, true);
         ActualIONode actualIn = ActualIONode.createActualIn(edge.getCall(), resolved, argument);
-        argument.accept(new VariableVisitor(
-                (n, name) -> movables.add(new VariableAction.Movable(new VariableAction.Declaration(name, graphNode), actualIn)),
-                (n, name, expression) -> movables.add(new VariableAction.Movable(new VariableAction.Definition(name, graphNode, expression), actualIn)),
-                (n, name) -> movables.add(new VariableAction.Movable(new VariableAction.Usage(name, graphNode), actualIn))
-        ), VariableVisitor.Action.USE);
+        new VariableVisitor(
+                (n, exp, name) -> movables.add(new VariableAction.Movable(new VariableAction.Declaration(exp, name, graphNode), actualIn)),
+                (n, exp, name, expression) -> movables.add(new VariableAction.Movable(new VariableAction.Definition(exp, name, graphNode, expression), actualIn)),
+                (n, exp, name) -> movables.add(new VariableAction.Movable(new VariableAction.Usage(exp, name, graphNode), actualIn))
+        ).startVisit(graphNode, VariableVisitor.Action.USE);
         graphNode.addActionsForCall(movables, edge.getCall(), true);
     }
 

@@ -49,7 +49,7 @@ public class InterproceduralDefinitionFinder extends InterproceduralActionFinder
             Set<NameExpr> exprSet = new HashSet<>();
             arg.accept(new OutNodeVariableVisitor(), exprSet);
             for (NameExpr nameExpr : exprSet)
-                movables.add(new VariableAction.Movable(new VariableAction.Definition(nameExpr, graphNode), actualOut));
+                movables.add(new VariableAction.Movable(new VariableAction.Definition(nameExpr, nameExpr.toString(), graphNode), actualOut));
         } else {
             movables.add(new VariableAction.Movable(def.toDefinition(graphNode), actualOut));
         }

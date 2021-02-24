@@ -1,23 +1,26 @@
 package es.upv.mist.slicing.nodes;
 
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
-import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.*;
-import com.github.javaparser.ast.stmt.*;
+import com.github.javaparser.ast.stmt.CatchClause;
+import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
+import com.github.javaparser.ast.stmt.ExpressionStmt;
+import com.github.javaparser.ast.stmt.ForEachStmt;
 import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
 import com.github.javaparser.symbolsolver.javaparsermodel.declarations.JavaParserFieldDeclaration;
 import es.upv.mist.slicing.graphs.GraphNodeContentVisitor;
 import es.upv.mist.slicing.utils.ASTUtils;
+import es.upv.mist.slicing.utils.QuadConsumer;
 import es.upv.mist.slicing.utils.TriConsumer;
 
 import java.util.Deque;
 import java.util.LinkedList;
 import java.util.Objects;
-import java.util.function.BiConsumer;
 
 /** A graph node visitor that extracts the actions performed in a given GraphNode. An initial action mode can
  *  be set, to consider variables found a declaration, definition or usage (default).
@@ -45,15 +48,15 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     }
 
     /** A default action to be used as a placeholder when a {@code null} action is received. */
-    protected static final BiConsumer<GraphNode<?>, Expression> BLANK_BICONSUMER = (a, b) -> {};
-    protected static final TriConsumer<GraphNode<?>, Expression, Expression> BLANK_TRICONSUMER = (a, b, c) -> {};
+    protected static final TriConsumer<GraphNode<?>, Expression, String> BLANK_TRICONSUMER = (a, b, c) -> {};
+    protected static final QuadConsumer<GraphNode<?>, Expression, String, Expression> BLANK_QUADCONSUMER = (a, b, c, d) -> {};
 
     /** The action to perform when a declaration is found. */
-    protected final BiConsumer<GraphNode<?>, Expression> declConsumer;
+    protected final TriConsumer<GraphNode<?>, Expression, String> declConsumer;
     /** The action to perform when a definition is found. */
-    protected final TriConsumer<GraphNode<?>, Expression, Expression> defConsumer;
+    protected final QuadConsumer<GraphNode<?>, Expression, String, Expression> defConsumer;
     /** The action to perform when a usage is found. */
-    protected final BiConsumer<GraphNode<?>, Expression> useConsumer;
+    protected final TriConsumer<GraphNode<?>, Expression, String> useConsumer;
     /** A stack with the last definition expression, to provide it when a variable definition is found. */
     protected final Deque<Expression> definitionStack = new LinkedList<>();
 
@@ -66,10 +69,12 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     /** A variable visitor that will perform the given actions when a variable is found. A node can accept this visitor,
      *  but calls will be ignored if the entry-point is not {@link #startVisit(GraphNode)} or {@link #startVisit(GraphNode, Action)}.
      *  The arguments are the actions to be performed when an action is found in the corresponding node. */
-    public VariableVisitor(BiConsumer<GraphNode<?>, Expression> declConsumer, TriConsumer<GraphNode<?>, Expression, Expression> defConsumer, BiConsumer<GraphNode<?>, Expression> useConsumer) {
-        this.declConsumer = Objects.requireNonNullElse(declConsumer, BLANK_BICONSUMER);
-        this.defConsumer = Objects.requireNonNullElse(defConsumer, BLANK_TRICONSUMER);
-        this.useConsumer = Objects.requireNonNullElse(useConsumer, BLANK_BICONSUMER);
+    public VariableVisitor(TriConsumer<GraphNode<?>, Expression, String> declConsumer,
+                           QuadConsumer<GraphNode<?>, Expression, String, Expression> defConsumer,
+                           TriConsumer<GraphNode<?>, Expression, String> useConsumer) {
+        this.declConsumer = Objects.requireNonNullElse(declConsumer, BLANK_TRICONSUMER);
+        this.defConsumer = Objects.requireNonNullElse(defConsumer, BLANK_QUADCONSUMER);
+        this.useConsumer = Objects.requireNonNullElse(useConsumer, BLANK_TRICONSUMER);
     }
 
     public void visitAsDefinition(Node node, Expression value) {
@@ -115,21 +120,17 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     }
 
     protected void acceptAction(Expression n, Action action) {
-        if (n instanceof NameExpr) { // Add a prefix to the name ("this." or "CLASS.this.") when "n" is a NameExpr
-            NameExpr en = (NameExpr) n;
-            String prefix = this.getNamePrefix(en); // Add a prefix to the name ("this." or "CLASS.this.")
-            en.setName(new SimpleName(prefix + en.getNameAsString()));
-        }
+
         switch (action) {
             case DECLARATION:
-                declConsumer.accept(graphNode, n);
+                declConsumer.accept(graphNode, n, getRealName(n));
                 break;
             case DEFINITION:
                 assert !definitionStack.isEmpty();
-                defConsumer.accept(graphNode, n, definitionStack.peek());
+                defConsumer.accept(graphNode, n, getRealName(n), definitionStack.peek());
                 break;
             case USE:
-                useConsumer.accept(graphNode, n);
+                useConsumer.accept(graphNode, n, getRealName(n));
                 break;
             default:
                 throw new UnsupportedOperationException();
@@ -239,8 +240,8 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
 
     @Override
     public void visit(Parameter n, Action arg) {
-        declConsumer.accept(graphNode, new NameExpr(n.getName().getId()));
-        defConsumer.accept(graphNode, new NameExpr(n.getName().getId()), null); // TODO: improve initializer
+        declConsumer.accept(graphNode, null, n.getNameAsString());
+        defConsumer.accept(graphNode, null, n.getNameAsString(), null); // TODO: improve initializer
     }
 
     // =======================================================================
@@ -276,6 +277,16 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         ASTUtils.getResolvableScope(call).ifPresent(s -> s.accept(this, arg));
         graphNode.addCallMarker(call, false);
         return false;
+    }
+
+    protected String getRealName(Expression n) {
+        if (n.isNameExpr()) { // Add a prefix to the name ("this." or "CLASS.this.") when "n" is a NameExpr
+            NameExpr en = n.asNameExpr();
+            String prefix = this.getNamePrefix(en); // Add a prefix to the name ("this." or "CLASS.this.")
+            if (!prefix.isEmpty())
+                return prefix + n.toString();
+        }
+        return n.toString();
     }
 
     /** Checks whether a NameExpr representing a variable

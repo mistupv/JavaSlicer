@@ -6,7 +6,6 @@ import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.BooleanLiteralExpr;
 import com.github.javaparser.ast.expr.Expression;
-import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.SimpleName;
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitor;
@@ -331,7 +330,7 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         GraphNode<ReturnStmt> node = connectTo(returnStmt);
         returnStmt.getExpression().ifPresent(n -> {
             n.accept(this, arg);
-            node.addDefinedVariable(new NameExpr(VARIABLE_NAME_OUTPUT), n);
+            node.addDefinedVariable(null, VARIABLE_NAME_OUTPUT, n);
         });
         returnList.add(node);
         clearHanging();
@@ -379,7 +378,7 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
      * @see #VARIABLE_NAME_OUTPUT */
     protected void addMethodOutput(CallableDeclaration<?> callableDeclaration, GraphNode<?> exit) {
         if (!(callableDeclaration instanceof MethodDeclaration) || !((MethodDeclaration) callableDeclaration).getType().isVoidType()) {
-            VariableAction usage = new VariableAction.Usage(new NameExpr(VARIABLE_NAME_OUTPUT), exit);
+            VariableAction usage = new VariableAction.Usage(null, VARIABLE_NAME_OUTPUT, exit);
             exit.addMovableVariable(new VariableAction.Movable(usage, OutputNode.create(callableDeclaration)));
         }
     }
