@@ -139,7 +139,7 @@ public class Slicer {
         }
 
         if (cliOpts.hasOption('o'))
-            outputDir = (File) cliOpts.getParsedOptionValue("o");
+            outputDir = new File(cliOpts.getOptionValue("o"));
 
         if (cliOpts.hasOption('i')) {
             for (String str : cliOpts.getOptionValues('i')) {
