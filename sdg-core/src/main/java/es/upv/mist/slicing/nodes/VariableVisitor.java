@@ -11,10 +11,12 @@ import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.stmt.ForEachStmt;
 import com.github.javaparser.resolution.Resolvable;
+import com.github.javaparser.resolution.UnsolvedSymbolException;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
 import com.github.javaparser.symbolsolver.javaparsermodel.declarations.JavaParserFieldDeclaration;
 import es.upv.mist.slicing.graphs.GraphNodeContentVisitor;
 import es.upv.mist.slicing.utils.ASTUtils;
+import es.upv.mist.slicing.utils.Logger;
 import es.upv.mist.slicing.utils.QuadConsumer;
 import es.upv.mist.slicing.utils.TriConsumer;
 
@@ -282,16 +284,20 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     protected String getRealName(Expression n) {
         if (n.isNameExpr()) { // Add a prefix to the name ("this." or "CLASS.this.") when "n" is a NameExpr
             NameExpr en = n.asNameExpr();
-            String prefix = this.getNamePrefix(en); // Add a prefix to the name ("this." or "CLASS.this.")
-            if (!prefix.isEmpty())
-                return prefix + n.toString();
+            try {
+                String prefix = this.getNamePrefix(en); // Add a prefix to the name ("this." or "CLASS.this.")
+                if (!prefix.isEmpty())
+                    return prefix + n.toString();
+            } catch (UnsolvedSymbolException e) {
+                Logger.log("Unable to resolve symbol " + e.getName());
+            }
         }
         return n.toString();
     }
 
     /** Checks whether a NameExpr representing a variable
      * is a Field and returns the correct prefix to reference it */
-    protected String getNamePrefix(NameExpr n){
+    protected String getNamePrefix(NameExpr n) {
         // There are three constructs whose variable cannot be resolved due to: getNameAsExpression() function
         // FieldDeclaration, VariableDeclarationExpr, and ForEachStmt. They must be treated separately
 

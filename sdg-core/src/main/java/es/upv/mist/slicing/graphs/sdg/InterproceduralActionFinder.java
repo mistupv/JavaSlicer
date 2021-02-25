@@ -128,7 +128,6 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
                 else if (r1.isField() && r2.isParameter())
                     return 1;
             } catch (UnsolvedSymbolException e) {
-                Logger.log("Could not resolve a given name expression, it may be a type: " + e.getName());
                 if (r1 == null)
                     return 1;
                 else if (r2 == null)
