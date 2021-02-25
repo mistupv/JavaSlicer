@@ -125,7 +125,7 @@ public abstract class VariableAction {
     public boolean equals(Object obj) {
         return obj instanceof VariableAction &&
                 obj.getClass().equals(getClass()) &&
-                variable.equals(((VariableAction) obj).variable) &&
+                Objects.equals(variable, ((VariableAction) obj).variable) &&
                 realName.equals(((VariableAction) obj).realName);
     }
 
