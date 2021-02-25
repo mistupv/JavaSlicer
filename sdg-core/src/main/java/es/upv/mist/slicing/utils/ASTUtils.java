@@ -185,8 +185,7 @@ public class ASTUtils {
     public static Node getClassNode(Node n){
         Node upperNode = n;
         while (!(upperNode instanceof ClassOrInterfaceDeclaration))
-            upperNode = upperNode.getParentNode().get();
-
+            upperNode = upperNode.getParentNode().orElseThrow();
         return upperNode;
     }
 }

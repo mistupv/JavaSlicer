@@ -6,13 +6,14 @@ import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.*;
+import com.github.javaparser.ast.nodeTypes.NodeWithVariables;
 import com.github.javaparser.ast.stmt.CatchClause;
 import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
-import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.stmt.ForEachStmt;
 import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.UnsolvedSymbolException;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
+import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
 import com.github.javaparser.symbolsolver.javaparsermodel.declarations.JavaParserFieldDeclaration;
 import es.upv.mist.slicing.graphs.GraphNodeContentVisitor;
 import es.upv.mist.slicing.utils.ASTUtils;
@@ -79,11 +80,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         this.useConsumer = Objects.requireNonNullElse(useConsumer, BLANK_TRICONSUMER);
     }
 
-    public void visitAsDefinition(Node node, Expression value) {
-        visitAsDefinition(node, value, Action.DEFINITION);
-    }
-
-    public void  visitAsDefinition(Node node, Expression value, Action action) {
+    public void visitAsDefinition(Node node, Expression value, Action action) {
         definitionStack.push(value);
         node.accept(this, action.or(Action.DEFINITION));
         definitionStack.pop();
@@ -150,8 +147,9 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     public void visit(ForEachStmt n, Action action) {
         n.getIterable().accept(this, Action.USE);
         for (VariableDeclarator variable : n.getVariable().getVariables()) {
-            variable.getNameAsExpression().accept(this, Action.DECLARATION);
-            visitAsDefinition(variable.getNameAsExpression(), null); // TODO: add a better initializer
+            declConsumer.accept(graphNode, null, variable.getNameAsString());
+            // ForEach initializes to each value of the iterable, but that expression is not available.
+            defConsumer.accept(graphNode, null, variable.getNameAsString(), null);
         }
     }
 
@@ -214,22 +212,20 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
 
     @Override
     public void visit(VariableDeclarationExpr n, Action action) {
-        for (VariableDeclarator v : n.getVariables()) {
-            v.getNameAsExpression().accept(this, action.or(Action.DECLARATION));
-            v.getInitializer().ifPresent(init -> {
-                init.accept(this, action);
-                visitAsDefinition(v.getNameAsExpression(), init);
-            });
-        }
+        visitVarDeclaration(n, action);
     }
 
     @Override
     public void visit(FieldDeclaration n, Action action) {
-        for (VariableDeclarator v : n.getVariables()) {
-            v.getNameAsExpression().accept(this, action.or(Action.DECLARATION));
+        visitVarDeclaration(n, action);
+    }
+
+    protected void visitVarDeclaration(NodeWithVariables<?> declaration, Action action) {
+        for (VariableDeclarator v : declaration.getVariables()) {
+            declConsumer.accept(graphNode, null, v.getNameAsString());
             v.getInitializer().ifPresent(init -> {
                 init.accept(this, action);
-                visitAsDefinition(v.getNameAsExpression(), init);
+                defConsumer.accept(graphNode, null, v.getNameAsString(), init);
             });
         }
     }
@@ -281,13 +277,12 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         return false;
     }
 
+    /** Obtain the prefixed name of a variable, to improve matching of variables
+     *  that point to the same object, such as 'x' and 'this.x'. */
     protected String getRealName(Expression n) {
-        if (n.isNameExpr()) { // Add a prefix to the name ("this." or "CLASS.this.") when "n" is a NameExpr
-            NameExpr en = n.asNameExpr();
+        if (n.isNameExpr()) {
             try {
-                String prefix = this.getNamePrefix(en); // Add a prefix to the name ("this." or "CLASS.this.")
-                if (!prefix.isEmpty())
-                    return prefix + n.toString();
+                return getNamePrefix(n.asNameExpr()) + n.toString();
             } catch (UnsolvedSymbolException e) {
                 Logger.log("Unable to resolve symbol " + e.getName());
             }
@@ -295,38 +290,20 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         return n.toString();
     }
 
-    /** Checks whether a NameExpr representing a variable
-     * is a Field and returns the correct prefix to reference it */
+    /** Generate the correct prefix for a NameExpr. Only works for non-static fields. */
     protected String getNamePrefix(NameExpr n) {
-        // There are three constructs whose variable cannot be resolved due to: getNameAsExpression() function
-        // FieldDeclaration, VariableDeclarationExpr, and ForEachStmt. They must be treated separately
-
-        // 1. FieldDeclaration
-        if (graphNode.getAstNode() instanceof FieldDeclaration)
+        // We only care about non-static fields
+        ResolvedValueDeclaration resolved = n.resolve();
+        if (!resolved.isField() || resolved.asField().isStatic())
+            return "";
+        // Obtain the class where the field is declared and the current class
+        JavaParserFieldDeclaration field = (JavaParserFieldDeclaration) resolved.asField();
+        Node decClass = ASTUtils.getClassNode(field.getVariableDeclarator());
+        Node nClass = ASTUtils.getClassNode(n);
+        // If the classes match, the prefix can be simplified
+        if (decClass.equals(nClass))
             return "this.";
-        // 2. VariableDeclarationExpr
-        if (graphNode.getAstNode() instanceof ExpressionStmt) {
-            Expression expr = ((ExpressionStmt) graphNode.getAstNode()).getExpression();
-            if (expr instanceof VariableDeclarationExpr)
-                return "";
-        }
-        // 3. ForEachStmt
-        if (graphNode.getAstNode() instanceof ForEachStmt)
-            throw new RuntimeException("ForEachStmt internal structure is still a mystery for me");// TODO: Execute and see the internal structure
-
-        // The rest of nodes can be resolved properly
-        if (n.resolve().isField() && !n.resolve().asField().isStatic()){
-            JavaParserFieldDeclaration fieldDeclaration = (JavaParserFieldDeclaration) n.resolve();
-            Node decClass = ASTUtils.getClassNode(fieldDeclaration.getVariableDeclarator());
-            Node nClass = ASTUtils.getClassNode(n);
-
-            assert (nClass instanceof ClassOrInterfaceDeclaration &&
-                    decClass instanceof ClassOrInterfaceDeclaration);
-
-            if (decClass.equals(nClass))
-                return "this.";
-            return ((ClassOrInterfaceDeclaration) decClass).getNameAsString() + ".this.";
-        }
-        return "";
+        // Full prefix
+        return ((ClassOrInterfaceDeclaration) decClass).getNameAsString() + ".this.";
     }
 }
