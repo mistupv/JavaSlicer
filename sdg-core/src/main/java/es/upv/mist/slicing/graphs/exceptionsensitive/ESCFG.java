@@ -34,7 +34,7 @@ public class ESCFG extends ACFG {
 
     @Override
     protected CFGBuilder newCFGBuilder() {
-        return new Builder();
+        return new Builder(this);
     }
 
     protected ExceptionExitNode addExceptionExitNode(CallableDeclaration<?> method, ResolvedType type) {
@@ -103,8 +103,9 @@ public class ESCFG extends ACFG {
         /** Map of return nodes from each method call, mapped by the normal return node of said call. */
         protected Map<NormalReturnNode, Set<ReturnNode>> pendingNormalReturnNodes = new HashMap<>();
 
-        protected Builder() {
+        protected Builder(ESCFG escfg) {
             super(ESCFG.this);
+            assert escfg == ESCFG.this;
         }
 
         @Override
@@ -248,23 +249,23 @@ public class ESCFG extends ACFG {
 
         @Override
         public void visit(MethodCallExpr n, Void arg) {
-            visitCall(n);
+            visitCallForExceptions(n);
         }
 
         @Override
         public void visit(ObjectCreationExpr n, Void arg) {
-            visitCall(n);
+            visitCallForExceptions(n);
         }
 
         @Override
         public void visit(ExplicitConstructorInvocationStmt n, Void arg) {
             connectTo(n);
-            visitCall(n);
+            visitCallForExceptions(n);
         }
 
         /** Process a call that may throw exceptions. Generates normal and return nodes, and
          * registers the appropriate exception source. */
-        protected void visitCall(Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
+        protected void visitCallForExceptions(Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
             ResolvedMethodLikeDeclaration resolved = call.resolve();
             if (resolved.getNumberOfSpecifiedExceptions() == 0)
                 return;
