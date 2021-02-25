@@ -65,9 +65,7 @@ public class SlicePruneVisitor extends ModifierVisitor<NodeHashSet<Node>> {
 
     @Override
     public Visitable visit(FieldDeclaration n, NodeHashSet<Node> arg) {
-        boolean keep = arg.contains(n);
-        Visitable v = super.visit(n, arg);
-        return keep ? v : null;
+        return arg.contains(n) ? n : null;
     }
 
 // ========== Method body visitors ==========
