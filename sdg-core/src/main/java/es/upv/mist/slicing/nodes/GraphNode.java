@@ -7,6 +7,7 @@ import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclarati
 import es.upv.mist.slicing.graphs.cfg.CFG;
 import es.upv.mist.slicing.graphs.pdg.PDG;
 import es.upv.mist.slicing.graphs.sdg.SDG;
+import es.upv.mist.slicing.utils.ASTUtils;
 
 import java.util.*;
 
@@ -92,7 +93,8 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
 
     /** Whether this node contains the given call AST node. */
     public boolean containsCall(Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
-        return methodCalls.contains(call);
+        return methodCalls.stream()
+                .anyMatch(callInMethod -> ASTUtils.equalsWithRangeInCU((Node) callInMethod, (Node) call));
     }
 
     /** Append or prepend the given set of actions to the actions of the given call. */
