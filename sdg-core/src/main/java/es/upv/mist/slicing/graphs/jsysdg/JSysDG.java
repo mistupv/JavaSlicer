@@ -2,7 +2,6 @@ package es.upv.mist.slicing.graphs.jsysdg;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.NodeList;
-import es.upv.mist.slicing.arcs.sdg.ReturnArc;
 import es.upv.mist.slicing.graphs.CallGraph;
 import es.upv.mist.slicing.graphs.ClassGraph;
 import es.upv.mist.slicing.graphs.augmented.PSDG;
@@ -10,25 +9,12 @@ import es.upv.mist.slicing.graphs.cfg.CFG;
 import es.upv.mist.slicing.graphs.exceptionsensitive.ESSDG;
 import es.upv.mist.slicing.graphs.exceptionsensitive.ExceptionSensitiveCallConnector;
 import es.upv.mist.slicing.graphs.pdg.PDG;
-import es.upv.mist.slicing.nodes.exceptionsensitive.ExitNode;
-import es.upv.mist.slicing.nodes.exceptionsensitive.ReturnNode;
-import es.upv.mist.slicing.slicing.ExceptionSensitiveSlicingAlgorithm;
-import es.upv.mist.slicing.slicing.SlicingAlgorithm;
 
 public class JSysDG extends ESSDG {
 
     @Override
     protected JSysDG.Builder createBuilder() {
         return new JSysDG.Builder();
-    }
-
-    @Override
-    protected SlicingAlgorithm createSlicingAlgorithm() {
-        return new ExceptionSensitiveSlicingAlgorithm(this);
-    }
-
-    public void addReturnArc(ExitNode source, ReturnNode target) {
-        addEdge(source, target, new ReturnArc());
     }
 
     /** Populates an ESSDG, using ESPDG and ESCFG as default graphs.
