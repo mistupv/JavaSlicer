@@ -1,7 +1,6 @@
 package es.upv.mist.slicing.nodes;
 
 import com.github.javaparser.ast.Node;
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
@@ -13,8 +12,8 @@ import com.github.javaparser.ast.stmt.ForEachStmt;
 import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.UnsolvedSymbolException;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
+import com.github.javaparser.resolution.declarations.ResolvedTypeDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
-import com.github.javaparser.symbolsolver.javaparsermodel.declarations.JavaParserFieldDeclaration;
 import es.upv.mist.slicing.graphs.GraphNodeContentVisitor;
 import es.upv.mist.slicing.utils.ASTUtils;
 import es.upv.mist.slicing.utils.Logger;
@@ -297,13 +296,12 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         if (!resolved.isField() || resolved.asField().isStatic())
             return "";
         // Obtain the class where the field is declared and the current class
-        JavaParserFieldDeclaration field = (JavaParserFieldDeclaration) resolved.asField();
-        Node decClass = ASTUtils.getClassNode(field.getVariableDeclarator());
-        Node nClass = ASTUtils.getClassNode(n);
+        ResolvedTypeDeclaration declaringType = resolved.asField().declaringType();
+        ResolvedTypeDeclaration containerType = ASTUtils.getClassNode(n).resolve();
         // If the classes match, the prefix can be simplified
-        if (decClass.equals(nClass))
+        if (Objects.equals(declaringType, containerType))
             return "this.";
         // Full prefix
-        return ((ClassOrInterfaceDeclaration) decClass).getNameAsString() + ".this.";
+        return declaringType.getClassName() + ".this.";
     }
 }

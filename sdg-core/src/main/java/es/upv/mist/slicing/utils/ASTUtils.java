@@ -182,10 +182,10 @@ public class ASTUtils {
     }
 
     /** Given an AST node, visit the parent until finding a ClassOrInterfaceDeclaration */
-    public static Node getClassNode(Node n){
+    public static ClassOrInterfaceDeclaration getClassNode(Node n){
         Node upperNode = n;
         while (!(upperNode instanceof ClassOrInterfaceDeclaration))
             upperNode = upperNode.getParentNode().orElseThrow();
-        return upperNode;
+        return (ClassOrInterfaceDeclaration) upperNode;
     }
 }
