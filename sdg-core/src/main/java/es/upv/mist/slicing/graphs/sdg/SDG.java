@@ -107,15 +107,19 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
      *  building the PDGs, connecting the calls to declarations and computing the summary arcs.
      *  By default, it uses {@link PDG}s and {@link CFG}s. */
     public class Builder {
+        protected ClassGraph classGraph;
+        protected CallGraph callGraph;
+
         public void build(NodeList<CompilationUnit> nodeList) {
             // See creation strategy at http://kaz2.dsic.upv.es:3000/Fzg46cQvT1GzHQG9hFnP1g#Using-data-flow-in-the-SDG
-            buildCFGs(nodeList);                             // 1
-            ClassGraph classGraph = createClassGraph(nodeList); // TODO: Update order and creation strategy             // 1
-            CallGraph callGraph = createCallGraph(nodeList, classGraph); // 2
-            dataFlowAnalysis(callGraph);                     // 3
-            buildAndCopyPDGs();                              // 4
-            connectCalls(callGraph);                         // 5
-            createSummaryArcs(callGraph);                    // 6
+            // This ordering cannot be altered, as each step requires elements from the previous one.
+            classGraph = createClassGraph(nodeList); // 0
+            buildCFGs(nodeList);                     // 1
+            callGraph = createCallGraph(nodeList);   // 2
+            dataFlowAnalysis();                      // 3
+            buildAndCopyPDGs();                      // 4
+            connectCalls();                          // 5
+            createSummaryArcs();                     // 6
         }
 
         /** Build a CFG per declaration found in the list of compilation units. */
@@ -138,7 +142,7 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
         }
 
         /** Create call graph from the list of compilation units. */
-        protected CallGraph createCallGraph(NodeList<CompilationUnit> nodeList, ClassGraph classGraph) {
+        protected CallGraph createCallGraph(NodeList<CompilationUnit> nodeList) {
             CallGraph callGraph = new CallGraph(cfgMap, classGraph);
             callGraph.build(nodeList);
             return callGraph;
@@ -153,14 +157,14 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
 
 
         /** Perform interprocedural analyses to determine the actual, formal and call return nodes. */
-        protected void dataFlowAnalysis(CallGraph callGraph) {
+        protected void dataFlowAnalysis() {
             new InterproceduralDefinitionFinder(callGraph, cfgMap).save(); // 3.1
             new InterproceduralUsageFinder(callGraph, cfgMap).save();      // 3.2
-            insertCallOutput(callGraph);                                   // 3.3
+            insertCallOutput();                                   // 3.3
         }
 
         /** Insert {@link CallNode.Return call return} nodes onto all appropriate calls. */
-        protected void insertCallOutput(CallGraph callGraph) {
+        protected void insertCallOutput() {
             for (CallGraph.Edge<?> edge : callGraph.edgeSet()) {
                 if (ASTUtils.resolvableIsVoid(edge.getCall()))
                     continue;
@@ -188,12 +192,12 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
         }
 
         /** Add interprocedural arcs, connecting calls, their arguments and results to their corresponding declarations. */
-        protected void connectCalls(CallGraph callGraph) {
+        protected void connectCalls() {
             new CallConnector(SDG.this).connectAllCalls(callGraph);
         }
 
         /** Connect actual-in to actual-out nodes, summarizing the interprocedural arcs. */
-        protected void createSummaryArcs(CallGraph callGraph) {
+        protected void createSummaryArcs() {
             new SummaryArcAnalyzer(SDG.this, callGraph).analyze();
         }
 

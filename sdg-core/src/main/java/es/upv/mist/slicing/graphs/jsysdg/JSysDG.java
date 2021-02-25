@@ -1,9 +1,5 @@
 package es.upv.mist.slicing.graphs.jsysdg;
 
-import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.NodeList;
-import es.upv.mist.slicing.graphs.CallGraph;
-import es.upv.mist.slicing.graphs.ClassGraph;
 import es.upv.mist.slicing.graphs.augmented.PSDG;
 import es.upv.mist.slicing.graphs.cfg.CFG;
 import es.upv.mist.slicing.graphs.exceptionsensitive.ESSDG;
@@ -21,21 +17,6 @@ public class JSysDG extends ESSDG {
      * @see PSDG.Builder
      * @see ExceptionSensitiveCallConnector */
     class Builder extends ESSDG.Builder {
-
-        private ClassGraph classGraph;
-
-        @Override
-        public void build(NodeList<CompilationUnit> nodeList) {
-            // See creation strategy at http://kaz2.dsic.upv.es:3000/Fzg46cQvT1GzHQG9hFnP1g#Using-data-flow-in-the-SDG
-            classGraph = createClassGraph(nodeList);
-            buildCFGs(nodeList);                             // 1
-            CallGraph callGraph = createCallGraph(nodeList, classGraph); // 2
-            dataFlowAnalysis(callGraph);                     // 3
-            buildAndCopyPDGs();                              // 4
-            connectCalls(callGraph);                         // 5
-            createSummaryArcs(callGraph);                    // 6
-        }
-
         @Override
         protected CFG createCFG() {
             return new JSysCFG(classGraph);

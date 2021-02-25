@@ -1,7 +1,6 @@
 package es.upv.mist.slicing.graphs.exceptionsensitive;
 
 import es.upv.mist.slicing.arcs.sdg.ReturnArc;
-import es.upv.mist.slicing.graphs.CallGraph;
 import es.upv.mist.slicing.graphs.augmented.PPDG;
 import es.upv.mist.slicing.graphs.augmented.PSDG;
 import es.upv.mist.slicing.graphs.cfg.CFG;
@@ -45,7 +44,7 @@ public class ESSDG extends PSDG {
         }
 
         @Override
-        protected void connectCalls(CallGraph callGraph) {
+        protected void connectCalls() {
             new ExceptionSensitiveCallConnector(ESSDG.this).connectAllCalls(callGraph);
         }
     }
