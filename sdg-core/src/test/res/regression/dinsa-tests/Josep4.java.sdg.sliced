@@ -1,6 +1,9 @@
 class A {
 
+    int x = 0;
+
     A(int x) {
+        this.x = x;
     }
 
     int getx() {
