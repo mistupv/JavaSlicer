@@ -16,8 +16,8 @@ import java.util.stream.Collectors;
 
 /** An action upon a variable (e.g. usage, definition, declaration) */
 public abstract class VariableAction {
-    protected static final String VARIABLE_PATTERN = "^([a-zA-Z][a-zA-Z0-9_]*|[_a-zA-Z][a-zA-Z0-9_]+" +
-            "|([a-zA-Z][a-zA-Z0-9_]*)([\\.][a-zA-Z][a-zA-Z]*)+)$";
+    protected static final String VARIABLE_PATTERN = "([a-zA-Z][a-zA-Z0-9_]*|_[a-zA-Z0-9_]+)";
+    protected static final String FIELD_PATTERN = "^" + VARIABLE_PATTERN + "(\\." + VARIABLE_PATTERN + ")*" + "$";
 
     protected final Expression variable;
     protected final String realName;
@@ -37,7 +37,7 @@ public abstract class VariableAction {
     /** Whether this action is performed upon an invented variable,
      * introduced by this library (e.g. the active exception or the returned value). */
     public boolean isSynthetic() {
-        return !getVariable().matches(VARIABLE_PATTERN);
+        return !getVariable().matches(FIELD_PATTERN);
     }
 
     public String getVariable() {
