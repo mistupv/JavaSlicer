@@ -3,7 +3,7 @@ package es.upv.mist.slicing;
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.NodeList;
-import es.upv.mist.slicing.graphs.exceptionsensitive.ESSDG;
+import es.upv.mist.slicing.graphs.jsysdg.JSysDG;
 import es.upv.mist.slicing.graphs.sdg.SDG;
 import es.upv.mist.slicing.slicing.FileLineSlicingCriterion;
 import es.upv.mist.slicing.slicing.Slice;
@@ -127,7 +127,7 @@ public class SlicerTest {
     }
 
     private static Slice slice(File javaFile, SlicingCriterion sc) throws FileNotFoundException {
-        SDG sdg = new ESSDG();
+        SDG sdg = new JSysDG();
         sdg.build(new NodeList<>(StaticJavaParser.parse(javaFile)));
         return sdg.slice(sc);
     }
