@@ -25,7 +25,8 @@ public class Utils {
 
     public static Map<String, Attribute> dotLabel(String label) {
         Map<String, Attribute> map = new HashMap<>();
-        map.put("label", DefaultAttribute.createAttribute(label));
+        if (label != null)
+            map.put("label", DefaultAttribute.createAttribute(label));
         return map;
     }
 }
