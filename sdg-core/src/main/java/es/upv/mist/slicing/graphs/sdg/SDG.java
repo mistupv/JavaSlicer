@@ -5,6 +5,7 @@ import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import es.upv.mist.slicing.arcs.pdg.ControlDependencyArc;
 import es.upv.mist.slicing.arcs.pdg.DataDependencyArc;
@@ -168,6 +169,9 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
             for (CallGraph.Edge<?> edge : callGraph.edgeSet()) {
                 if (ASTUtils.resolvableIsVoid(edge.getCall()))
                     continue;
+                // We handle super()/this() in VariableVisitor
+                if (edge.getCall() instanceof ExplicitConstructorInvocationStmt)
+                    continue;
                 GraphNode<?> graphNode = edge.getGraphNode();
                 // A node defines -output-
                 var def = new VariableAction.Definition(null, VARIABLE_NAME_OUTPUT, graphNode);
@@ -175,7 +179,7 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
                 graphNode.addActionsForCall(Set.of(defMov), edge.getCall(), false);
                 // The container of the call uses -output-
                 var use = new VariableAction.Usage(null, VARIABLE_NAME_OUTPUT, graphNode);
-                graphNode.addActionsAfterCall(Set.of(use), edge.getCall());
+                graphNode.addActionsAfterCall(edge.getCall(), use);
             }
         }
 

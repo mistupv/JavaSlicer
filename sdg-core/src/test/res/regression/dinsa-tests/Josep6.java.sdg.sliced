@@ -1,10 +1,14 @@
 class A {
 
+    int xA = 0;
+
     A(int newx) {
+        xA = newx;
     }
 
     public static void main(String[] args) {
         B b1 = new B(5.6);
+        b1.modificarxB(b1);
         int z = b1.getxB();
         System.out.println(z);
     }

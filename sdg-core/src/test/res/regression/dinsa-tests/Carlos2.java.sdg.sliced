@@ -26,9 +26,3 @@ class A {
         return e1;
     }
 }
-
-class Exception2 extends Exception {
-}
-
-class Exception3 extends Exception2 {
-}

@@ -6,6 +6,12 @@ public class BasicBreak {
         int x = 0;
         bucle: while (true) {
             x++;
+            for (int y = 0; y < 10; y++) {
+                if (y == x)
+                    break;
+                if (y * 2 == x)
+                    break bucle;
+            }
             if (x > 10)
                 break;
             x++;

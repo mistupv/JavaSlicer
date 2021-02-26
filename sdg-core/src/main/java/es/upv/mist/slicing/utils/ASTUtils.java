@@ -1,18 +1,14 @@
 package es.upv.mist.slicing.utils;
 
 import com.github.javaparser.ast.Node;
-import com.github.javaparser.ast.body.CallableDeclaration;
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
-import com.github.javaparser.ast.body.ConstructorDeclaration;
-import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.expr.CastExpr;
-import com.github.javaparser.ast.expr.Expression;
-import com.github.javaparser.ast.expr.MethodCallExpr;
-import com.github.javaparser.ast.expr.ObjectCreationExpr;
+import com.github.javaparser.ast.body.*;
+import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
 import com.github.javaparser.ast.stmt.SwitchEntry;
 import com.github.javaparser.ast.stmt.SwitchStmt;
+import com.github.javaparser.ast.type.PrimitiveType;
+import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.declarations.*;
 import com.github.javaparser.resolution.types.ResolvedType;
@@ -187,5 +183,21 @@ public class ASTUtils {
         while (!(upperNode instanceof ClassOrInterfaceDeclaration))
             upperNode = upperNode.getParentNode().orElseThrow();
         return (ClassOrInterfaceDeclaration) upperNode;
+    }
+
+    /** Generates the default initializer, given a field. In Java, reference types
+     *  default to null, booleans to false and all other primitives to 0. */
+    public static Expression initializerForField(FieldDeclaration field) {
+        Type type = field.getVariables().getFirst().orElseThrow().getType();
+        if (type.isReferenceType())
+            return new NullLiteralExpr();
+        if (type.isPrimitiveType()) {
+            PrimitiveType primitive = type.asPrimitiveType();
+            if (primitive.equals(PrimitiveType.booleanType()))
+                return new BooleanLiteralExpr();
+            else
+                return new IntegerLiteralExpr();
+        }
+        throw new IllegalArgumentException("Invalid typing for a field");
     }
 }

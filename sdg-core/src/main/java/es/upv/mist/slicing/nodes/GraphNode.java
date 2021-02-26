@@ -112,14 +112,14 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
         throw new IllegalArgumentException("Could not find markers for " + call.resolve().getSignature() + " in " + this);
     }
 
-    /** Append the given set of actions to after the actions of the given call. */
-    public void addActionsAfterCall(Set<? extends VariableAction> actions, Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
+    /** Append the given actions to after the actions of the given call. */
+    public void addActionsAfterCall(Resolvable<? extends ResolvedMethodLikeDeclaration> call, VariableAction... actions) {
         for (int i = 0; i < variableActions.size(); i++) {
             VariableAction var = variableActions.get(i);
             if (var instanceof VariableAction.CallMarker) {
                 VariableAction.CallMarker marker = (VariableAction.CallMarker) var;
                 if (marker.getCall().equals(call) && !marker.isEnter()) {
-                    variableActions.addAll(i + 1, actions);
+                    variableActions.addAll(i + 1, List.of(actions));
                     return;
                 }
             }

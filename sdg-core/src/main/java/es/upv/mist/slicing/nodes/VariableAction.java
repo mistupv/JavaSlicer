@@ -1,17 +1,23 @@
 package es.upv.mist.slicing.nodes;
 
 import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
+import com.github.javaparser.resolution.types.ResolvedType;
 import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.arcs.pdg.DataDependencyArc;
 import es.upv.mist.slicing.graphs.Graph;
 import es.upv.mist.slicing.graphs.pdg.PDG;
+import org.jgrapht.graph.DefaultEdge;
+import org.jgrapht.graph.SimpleDirectedGraph;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /** An action upon a variable (e.g. usage, definition, declaration) */
@@ -22,16 +28,85 @@ public abstract class VariableAction {
     protected final Expression variable;
     protected final String realName;
     protected final GraphNode<?> graphNode;
+    protected final SimpleDirectedGraph<String, DefaultEdge> objectTree = new SimpleDirectedGraph<>(null, DefaultEdge::new, false);
 
     protected boolean optional = false;
     protected ResolvedValueDeclaration resolvedVariableCache;
 
     public VariableAction(Expression variable, String realName, GraphNode<?> graphNode) {
-        assert variable == null || variable.isNameExpr() || variable.isFieldAccessExpr();
         assert realName != null && !realName.isEmpty();
         this.variable = variable;
         this.realName = realName;
         this.graphNode = graphNode;
+        this.objectTree.addVertex(realName);
+    }
+
+    /** Add a field of this object, such that the same action performed on the object
+     *  is applied to this field too. Fields of fields may be specified separated by dots. */
+    public void addObjectField(String fieldName) {
+        String parent = null;
+        for (String element : fieldName.split("\\.")) {
+            objectTree.addVertex(element);
+            if (parent != null)
+                objectTree.addEdge(parent, element);
+            parent = element;
+        }
+    }
+
+    public VariableAction getRootAction() {
+        assert !isRootAction();
+        assert variable == null || variable.isNameExpr() || variable.isFieldAccessExpr() || variable.isThisExpr();
+        if (this instanceof Movable) {
+            Movable movable = (Movable) this;
+            return new Movable(movable.inner.getRootAction(), (SyntheticNode<?>) graphNode);
+        }
+        Expression nVar;
+        String nRealName = getRootVariable();
+        GraphNode<?> nNode = graphNode;
+        Expression nExpr = isDefinition() ? asDefinition().expression : null;
+        if (variable == null || !(variable instanceof FieldAccessExpr)) {
+            // This appears only when generated from a field: just set the variable to null
+            assert realName.contains(".this.");
+            nVar = null;
+        } else { // We are in a FieldAccessExpr
+            nVar = variable;
+            while (nVar.isFieldAccessExpr())
+                nVar = variable.asFieldAccessExpr().getScope();
+        }
+        if (this instanceof Usage)
+            return new Usage(nVar, nRealName, nNode);
+        if (this instanceof Definition)
+            return new Definition(nVar, nRealName, nNode, nExpr);
+        if (this instanceof Declaration)
+            throw new UnsupportedOperationException("Can't create a root node for a declaration!");
+        throw new IllegalStateException("Invalid action type");
+    }
+
+    public String getRootVariable() {
+        Pattern rootVariable = Pattern.compile("^(?<root>(([_0-9A-Za-z]+\\.)*this)|([_0-9A-Za-z]+)).*$");
+        Matcher matcher = rootVariable.matcher(realName);
+        if (matcher.matches()) {
+            if (matcher.group("root") != null)
+                return matcher.group("root"); // [type.this] or [this]
+            else
+                throw new IllegalStateException("Invalid real name: " + realName);
+        } else {
+            return null;
+        }
+    }
+
+    public boolean isRootAction() {
+        return isSynthetic() || Objects.equals(getRootVariable(), realName);
+    }
+
+    public static boolean typeMatches(VariableAction a, VariableAction b) {
+        return (a.isDeclaration() && b.isDeclaration()) ||
+                (a.isDefinition() && b.isDefinition()) ||
+                (a.isUsage() && b.isUsage());
+    }
+
+    public static boolean rootMatches(VariableAction a, VariableAction b) {
+        return a.getRootVariable().equals(b.getRootVariable());
     }
 
     /** Whether this action is performed upon an invented variable,
@@ -52,16 +127,39 @@ public abstract class VariableAction {
         return variable;
     }
 
+    /**
+     * Returns the resolved value declaration. When the action being performed
+     * is done so on a ThisExpr, the resulting declaration has the following properties:
+     * <ul>
+     *     <li>Can return type and name</li>
+     *     <li>Is not a parameter, it's a field.</li>
+     *     <li>All other methods are left to their default implementations.</li>
+     * </ul>
+     */
     public ResolvedValueDeclaration getResolvedValueDeclaration() {
-        if (variable == null)
-            throw new IllegalStateException("There was no variable to resolve");
         if (resolvedVariableCache == null) {
-            if (variable.isFieldAccessExpr())
-                resolvedVariableCache = variable.asFieldAccessExpr().resolve();
-            else if (variable.isNameExpr())
-                resolvedVariableCache = variable.asNameExpr().resolve();
-            else
-                throw new IllegalStateException("the variable is of an unsupported type");
+            if (variable instanceof Resolvable) {
+                var resolved = ((Resolvable<?>) variable).resolve();
+                if (resolved instanceof ResolvedValueDeclaration)
+                    resolvedVariableCache = (ResolvedValueDeclaration) resolved;
+            }
+            if (resolvedVariableCache == null)
+                resolvedVariableCache = new ResolvedValueDeclaration() {
+                    @Override
+                    public ResolvedType getType() {
+                        return null;
+                    }
+
+                    @Override
+                    public String getName() {
+                        return realName;
+                    }
+
+                    @Override
+                    public boolean isField() {
+                        return true;
+                    }
+                };
         }
         return resolvedVariableCache;
     }

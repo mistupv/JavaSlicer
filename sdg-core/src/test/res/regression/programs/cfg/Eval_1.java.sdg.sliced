@@ -8,6 +8,12 @@ public class Eval_1 {
         int x = 1;
         one: while (x <= 10) {
             x++;
+            while (x <= 10) {
+                if (x > 0) {
+                    continue one;
+                } else
+                    x++;
+            }
         }
         do {
             x--;

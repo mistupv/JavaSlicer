@@ -1,12 +1,10 @@
 public class Bucles {
 
     public static void main(String[] args) {
-        int x = 2;
         try {
             for (int i = 0; i <= 12; i++) {
                 metodoGeneradorExcepciones(x);
             }
-        } catch (ExceptionB a) {
         } catch (ExceptionA a) {
         } catch (Exception a) {
             System.out.println("Se lanza Exception");
@@ -21,10 +19,4 @@ public class Bucles {
         if (x == 2)
             throw new Exception();
     }
-}
-
-class ExceptionA extends Exception {
-}
-
-class ExceptionB extends ExceptionA {
 }

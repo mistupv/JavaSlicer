@@ -4,9 +4,3 @@ class A {
         int SC = 42;
     }
 }
-
-class Exception2 extends Exception {
-}
-
-class Exception3 extends Exception2 {
-}

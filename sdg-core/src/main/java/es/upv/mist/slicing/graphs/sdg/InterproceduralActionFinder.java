@@ -2,7 +2,12 @@ package es.upv.mist.slicing.graphs.sdg;
 
 import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.expr.ThisExpr;
+import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
+import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.UnsolvedSymbolException;
+import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedParameterDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
 import es.upv.mist.slicing.graphs.BackwardDataFlowAnalysis;
@@ -15,6 +20,9 @@ import es.upv.mist.slicing.utils.Logger;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 // TODO: this approach of generating actual nodes may skip an argument; this is only a problem if there is a definition
 // TODO: update placement of actual and formal outputs for ESSDG (see if the definition/usage reaches all/any exits).
@@ -71,23 +79,72 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
     /** Generate the actual node(s) related to this action and call. */
     protected abstract void handleActualAction(CallGraph.Edge<?> edge, A action);
 
-    /** Obtains the expression passed as argument for the given action at the given call. If {@code input}
-     * is false, primitive parameters will be skipped, as their value cannot be redefined.*/
-    protected Expression extractArgument(VariableAction action, CallGraph.Edge<?> edge, boolean input) {
-        ResolvedValueDeclaration resolved = action.getResolvedValueDeclaration();
-        CallableDeclaration<?> callTarget = graph.getEdgeTarget(edge).getDeclaration();
-        if (resolved.isParameter()) {
-            ResolvedParameterDeclaration p = resolved.asParameter();
-            if (!input && p.getType().isPrimitive())
-                return null; // primitives do not have actual-out!
-            int paramIndex = ASTUtils.getMatchingParameterIndex(callTarget, p);
-            return ASTUtils.getResolvableArgs(edge.getCall()).get(paramIndex);
-        } else if (resolved.isField()) {
-            return action.getVariableExpression();
+    // ===========================================================
+    // ============== AUXILIARY METHODS FOR CHILDREN =============
+    // ===========================================================
+
+    /** Given a call, obtains the scope. If none is present it may return null.
+     *  ExpressionConstructorInvocations result in a this expression, as they
+     *  may be seen as dynamic method calls that can modify 'this'. */
+    protected static Expression obtainScope(Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
+        if (call instanceof MethodCallExpr) {
+            var methodCall = (MethodCallExpr) call;
+            return methodCall.getScope().orElse(null);
+        } else if (call instanceof ExplicitConstructorInvocationStmt) {
+            return new ThisExpr();
         } else {
-            throw new IllegalArgumentException("Variable should be either param or field!");
+            throw new IllegalArgumentException("The given call is not of a valid type");
         }
     }
+
+    /** Obtains the expression passed as argument for the given action at the given call. If {@code input}
+     * is false, primitive parameters will be skipped, as their value cannot be redefined.*/
+    protected Expression extractArgument(ResolvedParameterDeclaration p, CallGraph.Edge<?> edge, boolean input) {
+        CallableDeclaration<?> callTarget = graph.getEdgeTarget(edge).getDeclaration();
+        if (!input && p.getType().isPrimitive())
+            return null; // primitives do not have actual-out!
+        int paramIndex = ASTUtils.getMatchingParameterIndex(callTarget, p);
+        return ASTUtils.getResolvableArgs(edge.getCall()).get(paramIndex);
+    }
+
+    /** Generate the name that should be given to an object in a caller method, given an action
+     *  in the callee method. This is used to transform a reference to 'this' into the scope
+     *  of a method. */
+    protected static String obtainAliasedFieldName(VariableAction action, CallGraph.Edge<?> edge) {
+        if (edge.getCall() instanceof MethodCallExpr) {
+            Optional<Expression> optScope = ((MethodCallExpr) edge.getCall()).getScope();
+            return obtainAliasedFieldName(action, edge, optScope.isPresent() ? optScope.get().toString() : "");
+        } else if (edge.getCall() instanceof ExplicitConstructorInvocationStmt) {
+            // The only possibility is 'this' or its fields, so we return empty scope and 'type.this.' is generated
+            return obtainAliasedFieldName(action, edge, "");
+        } else {
+            throw new IllegalArgumentException("The given call is not of a valid type");
+        }
+    }
+
+    /** To be used by {@link #obtainAliasedFieldName(VariableAction, CallGraph.Edge)} exclusively. <br/>
+     *  Given a scope, name inside a method and call, translates the name of a variable, such that 'this' becomes
+     *  the scope of the method. */
+    protected static String obtainAliasedFieldName(VariableAction action, CallGraph.Edge<?> edge, String scope) {
+        if (scope.isEmpty()) {
+            return action.getVariable();
+        } else {
+            String newPrefix = scope;
+            newPrefix = newPrefix.replaceAll("((\\.)super|^super)(\\.)?", "$2this$3");
+            if (newPrefix.equals("this")) {
+                String fqName = ASTUtils.getClassNode(edge.getGraphNode().getAstNode()).getFullyQualifiedName().orElseThrow();
+                newPrefix = fqName + ".this";
+            }
+            String withPrefix = action.getVariable();
+            String withoutPrefix = withPrefix.replaceFirst("^((.*\\.)?this\\.?)", "");
+            String result = newPrefix + withoutPrefix;
+            return result.replaceFirst("this(\\.this)+", "this");
+        }
+    }
+
+    // ===========================================================
+    // =============== COMPUTE DATA FOR FIXED POINT ==============
+    // ===========================================================
 
     @Override
     protected Set<StoredAction<A>> compute(CallGraph.Vertex vertex, Set<CallGraph.Vertex> predecessors) {
@@ -97,10 +154,31 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
         return newValue;
     }
 
-    /** Wrap a variable action in a {@link StoredAction}, to track whether it has been applied to the graph or not. */
-    protected StoredAction<A> wrapAction(A action) {
-        return new StoredAction<>(action);
+    @Override
+    protected Set<StoredAction<A>> initialValue(CallGraph.Vertex vertex) {
+        CFG cfg = cfgMap.get(vertex.getDeclaration());
+        if (cfg == null)
+            return Collections.emptySet();
+        Stream<VariableAction> stream =  cfg.vertexSet().stream()
+                // Ignore root node, it is literally the entrypoint for interprocedural actions.
+                .filter(n -> n != cfg.getRootNode())
+                .flatMap(n -> n.getVariableActions().stream())
+                // We never analyze synthetic variables (all intraprocedural)
+                .filter(Predicate.not(VariableAction::isSynthetic))
+                // We skip over non-root variables (for each 'x.a' action we'll find 'x' later)
+                .filter(VariableAction::isRootAction);
+        return mapAndFilterActionStream(stream, cfg)
+                .map(StoredAction::new)
+                .collect(Collectors.toSet());
     }
+
+    /** Given a stream of VariableAction objects, map it to the finders' type and
+     *  filter unwanted items (only if the filter is specific to that type). */
+    protected abstract Stream<A> mapAndFilterActionStream(Stream<VariableAction> stream, CFG cfg);
+
+    // ===========================================================
+    // ========================= SUBCLASSES ======================
+    // ===========================================================
 
     /** A comparator to sort parameters and fields in the generation of actual nodes. It will sort
      *  {@link StoredAction}s in the following order: fields, then parameters by descending index number.

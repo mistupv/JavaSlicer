@@ -1,12 +1,27 @@
 public class Bucles {
 
     public static void main(String[] args) {
+        try {
+            metodoGeneradorExcepciones();
+        } catch (ExceptionB a) {
+            main(args);
+        } catch (ExceptionA a) {
+            main(args);
+        } catch (Exception a) {
+            main(args);
+        }
         System.out.println("No se lanza ninguna excepcion");
     }
-}
 
-class ExceptionA extends Exception {
-}
-
-class ExceptionB extends ExceptionA {
+    static void metodoGeneradorExcepciones() throws Exception {
+        if (x == 0) {
+            throw new ExceptionA();
+        }
+        if (x == 1) {
+            throw new ExceptionB();
+        }
+        if (x == 2) {
+            throw new Exception();
+        }
+    }
 }
