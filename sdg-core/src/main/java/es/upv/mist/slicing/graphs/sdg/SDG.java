@@ -129,17 +129,22 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
                 @Override
                 public void visit(MethodDeclaration n, Void arg) {
                     CFG cfg = createCFG();
-                    cfg.build(n);
+                    buildCFG(n, cfg);
                     cfgMap.put(n, cfg);
                 }
 
                 @Override
                 public void visit(ConstructorDeclaration n, Void arg) {
                     CFG cfg = createCFG();
-                    cfg.build(n);
+                    buildCFG(n, cfg);
                     cfgMap.put(n, cfg);
                 }
             }, null);
+        }
+
+        /** Given a single empty CFG and a declaration, build the CFG. */
+        protected void buildCFG(CallableDeclaration<?> declaration, CFG cfg) {
+            cfg.build(declaration);
         }
 
         /** Create call graph from the list of compilation units. */

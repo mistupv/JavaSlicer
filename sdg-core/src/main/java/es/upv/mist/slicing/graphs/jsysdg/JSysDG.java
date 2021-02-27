@@ -3,6 +3,7 @@ package es.upv.mist.slicing.graphs.jsysdg;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.NodeList;
+import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.visitor.ModifierVisitor;
@@ -46,8 +47,13 @@ public class JSysDG extends ESSDG {
         }
 
         @Override
+        protected void buildCFG(CallableDeclaration<?> declaration, CFG cfg) {
+            ((JSysCFG) cfg).build(declaration, classGraph, newlyInsertedConstructors);
+        }
+
+        @Override
         protected CFG createCFG() {
-            return new JSysCFG(classGraph, newlyInsertedConstructors);
+            return new JSysCFG();
         }
 
         @Override

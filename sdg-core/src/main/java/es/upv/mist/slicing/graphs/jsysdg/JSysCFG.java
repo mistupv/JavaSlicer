@@ -25,22 +25,20 @@ import java.util.Set;
  * polymorphism and other features.
  */
 public class JSysCFG extends ESCFG {
-    /** ClassGraph associated to the Method represented by the CFG */
-    protected ClassGraph classGraph;
-    /** Set of constructors that must be built with implicit nodes. */
-    protected Set<ConstructorDeclaration> implicitConstructors;
-
-    public JSysCFG(ClassGraph classGraph, Set<ConstructorDeclaration> implicitConstructors) {
-        super();
-        this.classGraph = classGraph;
-        this.implicitConstructors = implicitConstructors;
+    @Override
+    public void build(CallableDeclaration<?> declaration) {
+        throw new UnsupportedOperationException("Use build(CallableDeclaration, ClassGraph, Set<ConstructorDeclaration>)");
     }
 
-    @Override
-    public void buildRootNode(CallableDeclaration<?> rootNodeAst) {
-        super.buildRootNode(rootNodeAst);
-        if (implicitConstructors.contains(rootNodeAst))
-            rootNode.markAsImplicit();
+    public void build(CallableDeclaration<?> declaration, ClassGraph classGraph, Set<ConstructorDeclaration> implicitConstructors) {
+        Builder builder = (Builder) newCFGBuilder();
+        builder.classGraph = classGraph;
+        builder.implicitDeclaration = implicitConstructors.contains(declaration);
+        declaration.accept(builder, null);
+        // Verify that it has been built
+        exitNode = vertexSet().stream().filter(MethodExitNode.class::isInstance).findFirst()
+                .orElseThrow(() -> new IllegalStateException("Built graph has no exit node!"));
+        built = true;
     }
 
     @Override
@@ -49,6 +47,8 @@ public class JSysCFG extends ESCFG {
     }
 
     public class Builder extends ESCFG.Builder {
+        /** ClassGraph associated to the Method represented by the CFG */
+        protected ClassGraph classGraph;
         /** List of implicit instructions inserted explicitly in this CFG.
          *  They should be included in the graph as ImplicitNodes. */
         protected List<Node> methodInsertedInstructions = new LinkedList<>();
@@ -93,8 +93,6 @@ public class JSysCFG extends ESCFG {
 
         @Override
         public void visit(ConstructorDeclaration n, Void arg) {
-            if (implicitConstructors.contains(n))
-                implicitDeclaration = true;
             // Insert call to super() if it is implicit.
             if (!ASTUtils.constructorHasExplicitConstructorInvocation(n)){
                 var superCall = new ExplicitConstructorInvocationStmt(null, null, false, null, new NodeList<>());
@@ -106,11 +104,13 @@ public class JSysCFG extends ESCFG {
             }
             // Perform the same task as previous graphs.
             super.visit(n, arg);
-            // Convert the exit nodes to implicit if appropriate
-            if (implicitDeclaration)
+            // Convert enter/exit nodes to implicit if appropriate
+            if (implicitDeclaration) {
+                getRootNode().markAsImplicit();
                 vertexSet().stream()
                         .filter(MethodExitNode.class::isInstance)
                         .forEach(GraphNode::markAsImplicit);
+            }
         }
     }
 }
