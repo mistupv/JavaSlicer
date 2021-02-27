@@ -28,4 +28,10 @@ public class ExceptionExitNode extends ExitNode {
     public int hashCode() {
         return Objects.hash(super.hashCode(), exceptionType);
     }
+
+    @Override
+    public boolean matchesReturnNode(ReturnNode node) {
+        // TODO: this is a temporary solution. When 1 exception return node per type is implemented, they must be compared
+        return node instanceof ExceptionReturnNode;
+    }
 }

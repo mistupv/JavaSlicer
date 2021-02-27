@@ -7,4 +7,9 @@ public class NormalExitNode extends ExitNode {
     public NormalExitNode(CallableDeclaration<?> astNode) {
         super("normal exit", astNode);
     }
+
+    @Override
+    public boolean matchesReturnNode(ReturnNode node) {
+        return node instanceof NormalReturnNode;
+    }
 }
