@@ -4,7 +4,6 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.visitor.CloneVisitor;
-import es.upv.mist.slicing.graphs.jsysdg.ImplicitNode;
 import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.utils.ASTUtils;
 import es.upv.mist.slicing.utils.NodeHashSet;
@@ -17,16 +16,11 @@ import java.util.*;
 public class Slice {
     /** Nodes contained in this slice, mapped by id. */
     private final Map<Long, GraphNode<?>> map = new HashMap<>();
-    /** The AST nodes contained in this slice. */
-    private final List<Node> nodes = new LinkedList<>();
 
     /** Add a node to this slice. */
     public void add(GraphNode<?> node) {
         assert !map.containsKey(node.getId());
-        if (this.isASTOriginalNode(node)) {
-            map.put(node.getId(), node);
-            nodes.add(node.getAstNode());
-        }
+        map.put(node.getId(), node);
     }
 
     /** Add multiple nodes to this slice. */
@@ -41,7 +35,7 @@ public class Slice {
 
     /** Whether the slice contains the given AST node. */
     public boolean contains(Node node) {
-        return nodes.stream().anyMatch(n -> n == node);
+        return map.values().stream().anyMatch(gn -> gn.getAstNode() == node);
     }
 
     @Override
@@ -65,11 +59,13 @@ public class Slice {
         Map<CompilationUnit, NodeHashSet<Node>> cuMap = ASTUtils.newIdentityHashMap();
         // Add each node to the corresponding bucket of the map
         // Nodes may not belong to a compilation unit (fictional nodes), and they are skipped for the slice.
-        for (Node node : nodes) {
-            Optional<CompilationUnit> cu = node.findCompilationUnit();
+        for (GraphNode<?> graphNode : map.values()) {
+            if (graphNode.isImplicitInstruction())
+                continue;
+            Optional<CompilationUnit> cu = graphNode.getAstNode().findCompilationUnit();
             if (cu.isEmpty()) continue;
             cuMap.computeIfAbsent(cu.get(), compilationUnit -> new NodeHashSet<>());
-            cuMap.get(cu.get()).add(node);
+            cuMap.get(cu.get()).add(graphNode.getAstNode());
         }
         // Traverse the AST of each compilation unit, creating a copy and
         // removing any element not present in the slice.
@@ -85,10 +81,5 @@ public class Slice {
             cus.add(clone);
         }
         return cus;
-    }
-
-    /** Returns whether a node was in the original AST or was added by instrumentation. */
-    private boolean isASTOriginalNode(GraphNode<?> node){
-        return !(node instanceof ImplicitNode);
     }
 }

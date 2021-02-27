@@ -1,5 +1,7 @@
 class A {
 
+    int xA = 0;
+
     int getx() {
         return xA;
     }

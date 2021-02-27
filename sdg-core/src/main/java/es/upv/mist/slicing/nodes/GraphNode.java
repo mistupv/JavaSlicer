@@ -30,6 +30,9 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
     /** The method calls contained  */
     protected final List<Resolvable<? extends ResolvedMethodLikeDeclaration>> methodCalls = new LinkedList<>();
 
+    /** @see #isImplicitInstruction() */
+    protected boolean isImplicit = false;
+
     /** Create a graph node, with id and variable actions generated automatically. */
     public GraphNode(String label, N astNode) {
         this(IdHelper.getInstance().getNextId(), label, astNode);
@@ -85,6 +88,22 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
         if (!getVariableActions().isEmpty())
             label += "\n" + getVariableActions().stream().map(Object::toString).reduce((a, b) -> a + "," + b).orElse("--");
         return label;
+    }
+
+    /** Marks the current node as implicit.
+     *  @see #isImplicitInstruction() */
+    public void markAsImplicit() {
+        this.isImplicit = true;
+        variableActions.stream()
+                .filter(VariableAction.Movable.class::isInstance)
+                .map(VariableAction.Movable.class::cast)
+                .map(VariableAction.Movable::getRealNode)
+                .forEach(GraphNode::markAsImplicit);
+    }
+
+    /** Whether this graph node represents an AST node that didn't exist explicitly, such as 'super()'. */
+    public boolean isImplicitInstruction() {
+        return isImplicit;
     }
 
     // =============================================================
