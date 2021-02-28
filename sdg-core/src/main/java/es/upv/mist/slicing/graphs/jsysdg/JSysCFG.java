@@ -3,13 +3,11 @@ package es.upv.mist.slicing.graphs.jsysdg;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.CallableDeclaration;
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.expr.ThisExpr;
 import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
 import com.github.javaparser.ast.stmt.ReturnStmt;
-import es.upv.mist.slicing.graphs.ClassGraph;
 import es.upv.mist.slicing.graphs.cfg.CFGBuilder;
 import es.upv.mist.slicing.graphs.exceptionsensitive.ESCFG;
 import es.upv.mist.slicing.nodes.GraphNode;
@@ -30,9 +28,8 @@ public class JSysCFG extends ESCFG {
         throw new UnsupportedOperationException("Use build(CallableDeclaration, ClassGraph, Set<ConstructorDeclaration>)");
     }
 
-    public void build(CallableDeclaration<?> declaration, ClassGraph classGraph, Set<ConstructorDeclaration> implicitConstructors) {
+    public void build(CallableDeclaration<?> declaration, Set<ConstructorDeclaration> implicitConstructors) {
         Builder builder = (Builder) newCFGBuilder();
-        builder.classGraph = classGraph;
         builder.implicitDeclaration = implicitConstructors.contains(declaration);
         declaration.accept(builder, null);
         // Verify that it has been built
@@ -47,8 +44,6 @@ public class JSysCFG extends ESCFG {
     }
 
     public class Builder extends ESCFG.Builder {
-        /** ClassGraph associated to the Method represented by the CFG */
-        protected ClassGraph classGraph;
         /** List of implicit instructions inserted explicitly in this CFG.
          *  They should be included in the graph as ImplicitNodes. */
         protected List<Node> methodInsertedInstructions = new LinkedList<>();
@@ -77,10 +72,9 @@ public class JSysCFG extends ESCFG {
             // 1. Connect to the following statements
             connectTo(n);
             // 2. Insert dynamic class code (only for super())
-            if (!n.isThis()) {
-                ClassOrInterfaceDeclaration containerClass = ASTUtils.getClassNode(rootNode.getAstNode());
-                classGraph.getDynInit(containerClass.getNameAsString()).forEach(node -> node.accept(this, arg));
-            }
+            if (!n.isThis())
+                ASTUtils.getClassInit(ASTUtils.getClassNode(rootNode.getAstNode()), false)
+                        .forEach(node -> node.accept(this, arg));
             // 3. Handle exceptions
             super.visitCallForExceptions(n);
         }

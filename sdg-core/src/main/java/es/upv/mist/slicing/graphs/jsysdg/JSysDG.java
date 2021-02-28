@@ -48,7 +48,7 @@ public class JSysDG extends ESSDG {
 
         @Override
         protected void buildCFG(CallableDeclaration<?> declaration, CFG cfg) {
-            ((JSysCFG) cfg).build(declaration, classGraph, newlyInsertedConstructors);
+            ((JSysCFG) cfg).build(declaration, newlyInsertedConstructors);
         }
 
         @Override

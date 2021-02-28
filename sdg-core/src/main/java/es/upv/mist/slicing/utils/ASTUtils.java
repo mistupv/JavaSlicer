@@ -200,4 +200,18 @@ public class ASTUtils {
         }
         throw new IllegalArgumentException("Invalid typing for a field");
     }
+
+    /** Returns a List with FieldDeclarations and InitializerDeclarations static/dynamic items of the given class */
+    public static List<BodyDeclaration<?>> getClassInit(ClassOrInterfaceDeclaration clazz, boolean isStatic) {
+        List<BodyDeclaration<?>> classInit = new LinkedList<>();
+        for (BodyDeclaration<?> member : clazz.getMembers()) {
+            if (member.isFieldDeclaration() &&
+                    member.asFieldDeclaration().isStatic() == isStatic)
+                classInit.add(member);
+            if (member.isInitializerDeclaration() &&
+                    member.asInitializerDeclaration().isStatic() == isStatic)
+                classInit.add(member);
+        }
+        return classInit;
+    }
 }
