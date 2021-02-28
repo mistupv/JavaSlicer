@@ -12,9 +12,9 @@ import es.upv.mist.slicing.nodes.VariableVisitor;
 import es.upv.mist.slicing.nodes.io.ActualIONode;
 import es.upv.mist.slicing.nodes.io.FormalIONode;
 
-import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -34,7 +34,7 @@ public class InterproceduralUsageFinder extends InterproceduralActionFinder<Vari
 
     @Override
     protected void handleActualAction(CallGraph.Edge<?> edge, VariableAction.Usage use) {
-        Set<VariableAction.Movable> movables = new HashSet<>();
+        List<VariableAction.Movable> movables = new LinkedList<>();
         GraphNode<?> graphNode = edge.getGraphNode();
         ResolvedValueDeclaration resolved = use.getResolvedValueDeclaration();
         if (resolved.isParameter()) {

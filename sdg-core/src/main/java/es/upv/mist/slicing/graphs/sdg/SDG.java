@@ -28,9 +28,9 @@ import es.upv.mist.slicing.slicing.*;
 import es.upv.mist.slicing.utils.ASTUtils;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 import static es.upv.mist.slicing.graphs.cfg.CFGBuilder.VARIABLE_NAME_OUTPUT;
 
@@ -181,7 +181,7 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
                 // A node defines -output-
                 var def = new VariableAction.Definition(null, VARIABLE_NAME_OUTPUT, graphNode);
                 var defMov = new VariableAction.Movable(def, CallNode.Return.create(edge.getCall()));
-                graphNode.addActionsForCall(Set.of(defMov), edge.getCall(), false);
+                graphNode.addActionsForCall(List.of(defMov), edge.getCall(), false);
                 // The container of the call uses -output-
                 var use = new VariableAction.Usage(null, VARIABLE_NAME_OUTPUT, graphNode);
                 graphNode.addActionsAfterCall(edge.getCall(), use);

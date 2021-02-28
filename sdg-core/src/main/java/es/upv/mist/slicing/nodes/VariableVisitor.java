@@ -20,8 +20,8 @@ import es.upv.mist.slicing.utils.Logger;
 
 import java.util.Deque;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
 import static es.upv.mist.slicing.graphs.cfg.CFGBuilder.VARIABLE_NAME_OUTPUT;
 
@@ -272,7 +272,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
             // A node defines -output-
             var defOutput = new VariableAction.Definition(null, VARIABLE_NAME_OUTPUT, graphNode);
             var defOutputMov = new VariableAction.Movable(defOutput, CallNode.Return.create(n));
-            graphNode.addActionsForCall(Set.of(defOutputMov), n, false);
+            graphNode.addActionsForCall(List.of(defOutputMov), n, false);
             // The container of the call defines this and then uses -output-
             graphNode.addActionsAfterCall(n,
                     new VariableAction.Definition(null, realName4this, graphNode),
