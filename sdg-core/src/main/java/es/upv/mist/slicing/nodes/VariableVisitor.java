@@ -17,8 +17,6 @@ import es.upv.mist.slicing.graphs.GraphNodeContentVisitor;
 import es.upv.mist.slicing.nodes.io.CallNode;
 import es.upv.mist.slicing.utils.ASTUtils;
 import es.upv.mist.slicing.utils.Logger;
-import es.upv.mist.slicing.utils.QuadConsumer;
-import es.upv.mist.slicing.utils.TriConsumer;
 
 import java.util.Deque;
 import java.util.LinkedList;
@@ -52,16 +50,12 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         }
     }
 
-    /** A default action to be used as a placeholder when a {@code null} action is received. */
-    protected static final TriConsumer<GraphNode<?>, Expression, String> BLANK_TRICONSUMER = (a, b, c) -> {};
-    protected static final QuadConsumer<GraphNode<?>, Expression, String, Expression> BLANK_QUADCONSUMER = (a, b, c, d) -> {};
-
     /** The action to perform when a declaration is found. */
-    protected final TriConsumer<GraphNode<?>, Expression, String> declConsumer;
+    protected final DeclarationConsumer declConsumer;
     /** The action to perform when a definition is found. */
-    protected final QuadConsumer<GraphNode<?>, Expression, String, Expression> defConsumer;
+    protected final DefinitionConsumer defConsumer;
     /** The action to perform when a usage is found. */
-    protected final TriConsumer<GraphNode<?>, Expression, String> useConsumer;
+    protected final UsageConsumer useConsumer;
     /** A stack with the last definition expression, to provide it when a variable definition is found. */
     protected final Deque<Expression> definitionStack = new LinkedList<>();
 
@@ -74,12 +68,10 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     /** A variable visitor that will perform the given actions when a variable is found. A node can accept this visitor,
      *  but calls will be ignored if the entry-point is not {@link #startVisit(GraphNode)} or {@link #startVisit(GraphNode, Action)}.
      *  The arguments are the actions to be performed when an action is found in the corresponding node. */
-    public VariableVisitor(TriConsumer<GraphNode<?>, Expression, String> declConsumer,
-                           QuadConsumer<GraphNode<?>, Expression, String, Expression> defConsumer,
-                           TriConsumer<GraphNode<?>, Expression, String> useConsumer) {
-        this.declConsumer = Objects.requireNonNullElse(declConsumer, BLANK_TRICONSUMER);
-        this.defConsumer = Objects.requireNonNullElse(defConsumer, BLANK_QUADCONSUMER);
-        this.useConsumer = Objects.requireNonNullElse(useConsumer, BLANK_TRICONSUMER);
+    public VariableVisitor(DeclarationConsumer declConsumer, DefinitionConsumer defConsumer, UsageConsumer useConsumer) {
+        this.declConsumer = Objects.requireNonNullElse(declConsumer, DeclarationConsumer.defaultConsumer());
+        this.defConsumer = Objects.requireNonNullElse(defConsumer, DefinitionConsumer.defaultConsumer());
+        this.useConsumer = Objects.requireNonNullElse(useConsumer, UsageConsumer.defaultConsumer());
     }
 
     public void visitAsDefinition(Node node, Expression value, Action action) {
@@ -130,14 +122,14 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     protected void acceptAction(Expression n, Action action) {
         switch (action) {
             case DECLARATION:
-                declConsumer.accept(graphNode, n, getRealName(n));
+                declConsumer.acceptDeclaration(graphNode, n, getRealName(n));
                 break;
             case DEFINITION:
                 assert !definitionStack.isEmpty();
-                defConsumer.accept(graphNode, n, getRealName(n), definitionStack.peek());
+                defConsumer.acceptDefinition(graphNode, n, getRealName(n), definitionStack.peek());
                 break;
             case USE:
-                useConsumer.accept(graphNode, n, getRealName(n));
+                useConsumer.acceptUsage(graphNode, n, getRealName(n));
                 break;
             default:
                 throw new UnsupportedOperationException();
@@ -155,9 +147,9 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     public void visit(ForEachStmt n, Action action) {
         n.getIterable().accept(this, Action.USE);
         for (VariableDeclarator variable : n.getVariable().getVariables()) {
-            declConsumer.accept(graphNode, null, variable.getNameAsString());
+            declConsumer.acceptDeclaration(graphNode, null, variable.getNameAsString());
             // ForEach initializes to each value of the iterable, but that expression is not available.
-            defConsumer.accept(graphNode, null, variable.getNameAsString(), null);
+            defConsumer.acceptDefinition(graphNode, null, variable.getNameAsString(), null);
         }
     }
 
@@ -223,10 +215,10 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         for (VariableDeclarator v : n.getVariables()) {
             String realName;
             realName = v.getNameAsString();
-            declConsumer.accept(graphNode, null, realName);
+            declConsumer.acceptDeclaration(graphNode, null, realName);
             v.getInitializer().ifPresent(init -> {
                 init.accept(this, action);
-                defConsumer.accept(graphNode, null, realName, init);
+                defConsumer.acceptDefinition(graphNode, null, realName, init);
             });
         }
     }
@@ -236,10 +228,10 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         for (VariableDeclarator v : n.getVariables()) {
             String realName;
             realName = getRealNameForFieldDeclaration(v);
-            declConsumer.accept(graphNode, null, realName);
+            declConsumer.acceptDeclaration(graphNode, null, realName);
             Expression init = v.getInitializer().orElseGet(() -> ASTUtils.initializerForField(n));
             init.accept(this, action);
-            defConsumer.accept(graphNode, null, realName, init);
+            defConsumer.acceptDefinition(graphNode, null, realName, init);
         }
     }
 
@@ -251,8 +243,8 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
 
     @Override
     public void visit(Parameter n, Action arg) {
-        declConsumer.accept(graphNode, null, n.getNameAsString());
-        defConsumer.accept(graphNode, null, n.getNameAsString(), null); // TODO: improve initializer
+        declConsumer.acceptDeclaration(graphNode, null, n.getNameAsString());
+        defConsumer.acceptDefinition(graphNode, null, n.getNameAsString(), null); // TODO: improve initializer
     }
 
     // =======================================================================
@@ -310,7 +302,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     /** Adds a declaration for the variable 'this'. */
     protected void declareThis(ExplicitConstructorInvocationStmt call) {
         String variableName = getFQClassName(call) + ".this";
-        declConsumer.accept(graphNode, null, variableName);
+        declConsumer.acceptDeclaration(graphNode, null, variableName);
     }
 
     /** Obtains the fully qualified class name of the class that contains an AST node. */
@@ -390,5 +382,32 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         // Append the last root action if there is any!
         if (lastRootAction != null)
             graphNode.variableActions.add(lastRootAction);
+    }
+
+    @FunctionalInterface
+    public interface DeclarationConsumer {
+        void acceptDeclaration(GraphNode<?> graphNode, Expression variable, String realName);
+
+        static DeclarationConsumer defaultConsumer() {
+            return (a, b, c) -> {};
+        }
+    }
+
+    @FunctionalInterface
+    public interface DefinitionConsumer {
+        void acceptDefinition(GraphNode<?> graphNode, Expression variable, String realName, Expression valueAssigned);
+
+        static DefinitionConsumer defaultConsumer() {
+            return (a, b, c, d) -> {};
+        }
+    }
+
+    @FunctionalInterface
+    public interface UsageConsumer {
+        void acceptUsage(GraphNode<?> graphNode, Expression variable, String realName);
+
+        static UsageConsumer defaultConsumer() {
+            return (a, b, c) -> {};
+        }
     }
 }
