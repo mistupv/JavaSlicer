@@ -1,14 +1,13 @@
 class A {
 
+    int xA = 0;
+
     A(int newx) {
+        xA = newx;
     }
 
     int getx() {
         return xA;
-    }
-
-    void setx(int newx) {
-        xA = newx;
     }
 
     public static void main(String[] args) {

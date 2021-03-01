@@ -5,7 +5,7 @@ import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.expr.NameExpr;
+import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import es.upv.mist.slicing.arcs.pdg.ControlDependencyArc;
 import es.upv.mist.slicing.arcs.pdg.DataDependencyArc;
@@ -18,7 +18,6 @@ import es.upv.mist.slicing.graphs.CallGraph;
 import es.upv.mist.slicing.graphs.ClassGraph;
 import es.upv.mist.slicing.graphs.Graph;
 import es.upv.mist.slicing.graphs.cfg.CFG;
-import es.upv.mist.slicing.graphs.cfg.CFGBuilder;
 import es.upv.mist.slicing.graphs.pdg.PDG;
 import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.nodes.SyntheticNode;
@@ -32,6 +31,8 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+
+import static es.upv.mist.slicing.graphs.cfg.CFGBuilder.VARIABLE_NAME_OUTPUT;
 
 /**
  * The <b>System Dependence Graph</b> represents the statements of a program in
@@ -107,15 +108,19 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
      *  building the PDGs, connecting the calls to declarations and computing the summary arcs.
      *  By default, it uses {@link PDG}s and {@link CFG}s. */
     public class Builder {
+        protected ClassGraph classGraph;
+        protected CallGraph callGraph;
+
         public void build(NodeList<CompilationUnit> nodeList) {
             // See creation strategy at http://kaz2.dsic.upv.es:3000/Fzg46cQvT1GzHQG9hFnP1g#Using-data-flow-in-the-SDG
-            buildCFGs(nodeList);                             // 1
-            ClassGraph classGraph = createClassGraph(nodeList); // TODO: Update order and creation strategy
-            CallGraph callGraph = createCallGraph(nodeList, classGraph); // 2
-            dataFlowAnalysis(callGraph);                     // 3
-            buildAndCopyPDGs();                              // 4
-            connectCalls(callGraph);                         // 5
-            createSummaryArcs(callGraph);                    // 6
+            // This ordering cannot be altered, as each step requires elements from the previous one.
+            classGraph = createClassGraph(nodeList); // 0
+            buildCFGs(nodeList);                     // 1
+            callGraph = createCallGraph(nodeList);   // 2
+            dataFlowAnalysis();                      // 3
+            buildAndCopyPDGs();                      // 4
+            connectCalls();                          // 5
+            createSummaryArcs();                     // 6
         }
 
         /** Build a CFG per declaration found in the list of compilation units. */
@@ -138,7 +143,7 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
         }
 
         /** Create call graph from the list of compilation units. */
-        protected CallGraph createCallGraph(NodeList<CompilationUnit> nodeList, ClassGraph classGraph) {
+        protected CallGraph createCallGraph(NodeList<CompilationUnit> nodeList) {
             CallGraph callGraph = new CallGraph(cfgMap, classGraph);
             callGraph.build(nodeList);
             return callGraph;
@@ -153,25 +158,28 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
 
 
         /** Perform interprocedural analyses to determine the actual, formal and call return nodes. */
-        protected void dataFlowAnalysis(CallGraph callGraph) {
+        protected void dataFlowAnalysis() {
             new InterproceduralDefinitionFinder(callGraph, cfgMap).save(); // 3.1
             new InterproceduralUsageFinder(callGraph, cfgMap).save();      // 3.2
-            insertCallOutput(callGraph);                                   // 3.3
+            insertCallOutput();                                   // 3.3
         }
 
         /** Insert {@link CallNode.Return call return} nodes onto all appropriate calls. */
-        protected void insertCallOutput(CallGraph callGraph) {
+        protected void insertCallOutput() {
             for (CallGraph.Edge<?> edge : callGraph.edgeSet()) {
                 if (ASTUtils.resolvableIsVoid(edge.getCall()))
                     continue;
+                // We handle super()/this() in VariableVisitor
+                if (edge.getCall() instanceof ExplicitConstructorInvocationStmt)
+                    continue;
                 GraphNode<?> graphNode = edge.getGraphNode();
                 // A node defines -output-
-                var def = new VariableAction.Definition(new NameExpr(CFGBuilder.VARIABLE_NAME_OUTPUT), graphNode);
+                var def = new VariableAction.Definition(null, VARIABLE_NAME_OUTPUT, graphNode);
                 var defMov = new VariableAction.Movable(def, CallNode.Return.create(edge.getCall()));
                 graphNode.addActionsForCall(Set.of(defMov), edge.getCall(), false);
                 // The container of the call uses -output-
-                var use = new VariableAction.Usage(new NameExpr(CFGBuilder.VARIABLE_NAME_OUTPUT), graphNode);
-                graphNode.addActionsAfterCall(Set.of(use), edge.getCall());
+                var use = new VariableAction.Usage(null, VARIABLE_NAME_OUTPUT, graphNode);
+                graphNode.addActionsAfterCall(edge.getCall(), use);
             }
         }
 
@@ -188,12 +196,12 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
         }
 
         /** Add interprocedural arcs, connecting calls, their arguments and results to their corresponding declarations. */
-        protected void connectCalls(CallGraph callGraph) {
+        protected void connectCalls() {
             new CallConnector(SDG.this).connectAllCalls(callGraph);
         }
 
         /** Connect actual-in to actual-out nodes, summarizing the interprocedural arcs. */
-        protected void createSummaryArcs(CallGraph callGraph) {
+        protected void createSummaryArcs() {
             new SummaryArcAnalyzer(SDG.this, callGraph).analyze();
         }
 

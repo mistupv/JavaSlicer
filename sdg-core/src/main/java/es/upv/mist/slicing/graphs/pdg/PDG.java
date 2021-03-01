@@ -122,6 +122,8 @@ public class PDG extends GraphWithRootNode<CallableDeclaration<?>> {
                             callNodeStack.pop();
                         } else {
                             CallNode callNode = CallNode.create(((VariableAction.CallMarker) action).getCall());
+                            if (graphNode.isImplicitInstruction())
+                                callNode.markAsImplicit();
                             addVertex(callNode);
                             addControlDependencyArc(graphNode, callNode);
                             callNodeStack.push(callNode);

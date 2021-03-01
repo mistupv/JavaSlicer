@@ -2,11 +2,16 @@ public class Bucles {
 
     public static void main(String[] args) {
         int x = 2;
+        try {
+            if (x == 0)
+                throw new ExceptionA();
+            if (x == 1)
+                throw new ExceptionB();
+            if (x == 2)
+                throw new Exception();
+        } catch (ExceptionA a) {
+        } catch (Exception a) {
+            System.out.println("Se lanza Exception");
+        }
     }
-}
-
-class ExceptionA extends Exception {
-}
-
-class ExceptionB extends ExceptionA {
 }

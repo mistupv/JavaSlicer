@@ -7,6 +7,7 @@ import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclarati
 import es.upv.mist.slicing.graphs.cfg.CFG;
 import es.upv.mist.slicing.graphs.pdg.PDG;
 import es.upv.mist.slicing.graphs.sdg.SDG;
+import es.upv.mist.slicing.utils.ASTUtils;
 
 import java.util.*;
 
@@ -28,6 +29,9 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
     protected final List<VariableAction> variableActions;
     /** The method calls contained  */
     protected final List<Resolvable<? extends ResolvedMethodLikeDeclaration>> methodCalls = new LinkedList<>();
+
+    /** @see #isImplicitInstruction() */
+    protected boolean isImplicit = false;
 
     /** Create a graph node, with id and variable actions generated automatically. */
     public GraphNode(String label, N astNode) {
@@ -86,13 +90,30 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
         return label;
     }
 
+    /** Marks the current node as implicit.
+     *  @see #isImplicitInstruction() */
+    public void markAsImplicit() {
+        this.isImplicit = true;
+        variableActions.stream()
+                .filter(VariableAction.Movable.class::isInstance)
+                .map(VariableAction.Movable.class::cast)
+                .map(VariableAction.Movable::getRealNode)
+                .forEach(GraphNode::markAsImplicit);
+    }
+
+    /** Whether this graph node represents an AST node that didn't exist explicitly, such as 'super()'. */
+    public boolean isImplicitInstruction() {
+        return isImplicit;
+    }
+
     // =============================================================
     // ===================  Variables and Calls  ===================
     // =============================================================
 
     /** Whether this node contains the given call AST node. */
     public boolean containsCall(Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
-        return methodCalls.contains(call);
+        return methodCalls.stream()
+                .anyMatch(callInMethod -> ASTUtils.equalsWithRangeInCU((Node) callInMethod, (Node) call));
     }
 
     /** Append or prepend the given set of actions to the actions of the given call. */
@@ -110,14 +131,14 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
         throw new IllegalArgumentException("Could not find markers for " + call.resolve().getSignature() + " in " + this);
     }
 
-    /** Append the given set of actions to after the actions of the given call. */
-    public void addActionsAfterCall(Set<? extends VariableAction> actions, Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
+    /** Append the given actions to after the actions of the given call. */
+    public void addActionsAfterCall(Resolvable<? extends ResolvedMethodLikeDeclaration> call, VariableAction... actions) {
         for (int i = 0; i < variableActions.size(); i++) {
             VariableAction var = variableActions.get(i);
             if (var instanceof VariableAction.CallMarker) {
                 VariableAction.CallMarker marker = (VariableAction.CallMarker) var;
                 if (marker.getCall().equals(call) && !marker.isEnter()) {
-                    variableActions.addAll(i + 1, actions);
+                    variableActions.addAll(i + 1, List.of(actions));
                     return;
                 }
             }
@@ -126,19 +147,19 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
     }
 
     /** Create and append a declaration of a variable to the list of actions of this node. */
-    public void addDeclaredVariable(Expression variable) {
-        variableActions.add(new VariableAction.Declaration(variable, this));
+    public void addDeclaredVariable(Expression variable, String realName) {
+        variableActions.add(new VariableAction.Declaration(variable, realName, this));
     }
 
     /** Create and append a definition of a variable to the list of actions of this node. */
-    public void addDefinedVariable(Expression variable, Expression expression) {
-        VariableAction.Definition def = new VariableAction.Definition(variable, this, expression);
+    public void addDefinedVariable(Expression variable, String realName, Expression expression) {
+        VariableAction.Definition def = new VariableAction.Definition(variable, realName, this, expression);
         variableActions.add(def);
     }
 
     /** Create and append a usage of a variable to the list of actions of this node. */
-    public void addUsedVariable(Expression variable) {
-        VariableAction.Usage use = new VariableAction.Usage(variable, this);
+    public void addUsedVariable(Expression variable, String realName) {
+        VariableAction.Usage use = new VariableAction.Usage(variable, realName, this);
         variableActions.add(use);
     }
 

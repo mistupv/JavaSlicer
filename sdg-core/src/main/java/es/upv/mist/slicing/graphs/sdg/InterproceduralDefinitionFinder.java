@@ -3,6 +3,7 @@ package es.upv.mist.slicing.graphs.sdg;
 import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.NameExpr;
+import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
 import es.upv.mist.slicing.graphs.CallGraph;
 import es.upv.mist.slicing.graphs.cfg.CFG;
@@ -11,12 +12,10 @@ import es.upv.mist.slicing.nodes.VariableAction;
 import es.upv.mist.slicing.nodes.io.ActualIONode;
 import es.upv.mist.slicing.nodes.io.FormalIONode;
 
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /** An interprocedural definition finder, which adds the associated actions to formal and actual nodes in the CFGs. */
 public class InterproceduralDefinitionFinder extends InterproceduralActionFinder<VariableAction.Definition> {
@@ -41,34 +40,39 @@ public class InterproceduralDefinitionFinder extends InterproceduralActionFinder
         Set<VariableAction.Movable> movables = new HashSet<>();
         GraphNode<?> graphNode = edge.getGraphNode();
         ResolvedValueDeclaration resolved = def.getResolvedValueDeclaration();
-        Expression arg = extractArgument(def, edge, false);
-        if (arg == null)
-            return;
-        ActualIONode actualOut = ActualIONode.createActualOut(edge.getCall(), resolved, arg);
         if (resolved.isParameter()) {
-            Set<NameExpr> exprSet = new HashSet<>();
-            arg.accept(new OutNodeVariableVisitor(), exprSet);
-            for (NameExpr nameExpr : exprSet)
-                movables.add(new VariableAction.Movable(new VariableAction.Definition(nameExpr, graphNode), actualOut));
+            Expression arg = extractArgument(resolved.asParameter(), edge, false);
+            if (arg == null)
+                return;
+            ActualIONode actualOut = ActualIONode.createActualOut(edge.getCall(), resolved, arg);
+            if (resolved.isParameter()) {
+                Set<NameExpr> exprSet = new HashSet<>();
+                arg.accept(new OutNodeVariableVisitor(), exprSet);
+                for (NameExpr nameExpr : exprSet)
+                    movables.add(new VariableAction.Movable(new VariableAction.Definition(nameExpr, nameExpr.toString(), graphNode), actualOut));
+            } else {
+                movables.add(new VariableAction.Movable(def.toDefinition(graphNode), actualOut));
+            }
+        } else if (resolved.isField()) {
+            // Known limitation: static fields
+            // An object creation expression doesn't alter an existing object via actual-out
+            // it is returned and assigned via -output-.
+            if (edge.getCall() instanceof ObjectCreationExpr)
+                return;
+            String aliasedName = obtainAliasedFieldName(def, edge);
+            ActualIONode actualOut = ActualIONode.createActualOut(edge.getCall(), resolved, null);
+            var movableDef  = new VariableAction.Definition(obtainScope(edge.getCall()), aliasedName, graphNode, null);
+            movables.add(new VariableAction.Movable(movableDef, actualOut));
         } else {
-            movables.add(new VariableAction.Movable(def.toDefinition(graphNode), actualOut));
+            throw new IllegalStateException("Definition must be either from a parameter or a field!");
         }
         graphNode.addActionsForCall(movables, edge.getCall(), false);
     }
 
     @Override
-    protected Set<StoredAction<VariableAction.Definition>> initialValue(CallGraph.Vertex vertex) {
-        CFG cfg = cfgMap.get(vertex.getDeclaration());
-        if (cfg == null)
-            return Collections.emptySet();
-        return cfg.vertexSet().stream()
-                .filter(n -> n != cfg.getRootNode())
-                .flatMap(n -> n.getVariableActions().stream())
-                .filter(VariableAction::isDefinition)
-                .filter(Predicate.not(VariableAction::isSynthetic))
+    protected Stream<VariableAction.Definition> mapAndFilterActionStream(Stream<VariableAction> stream, CFG cfg) {
+        return stream.filter(VariableAction::isDefinition)
                 .map(VariableAction::asDefinition)
-                .filter(def -> cfg.findDeclarationFor(def).isEmpty())
-                .map(this::wrapAction)
-                .collect(Collectors.toSet());
+                .filter(def -> cfg.findDeclarationFor(def).isEmpty());
     }
 }

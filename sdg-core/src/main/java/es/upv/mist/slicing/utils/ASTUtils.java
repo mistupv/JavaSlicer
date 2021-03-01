@@ -1,17 +1,14 @@
 package es.upv.mist.slicing.utils;
 
 import com.github.javaparser.ast.Node;
-import com.github.javaparser.ast.body.CallableDeclaration;
-import com.github.javaparser.ast.body.ConstructorDeclaration;
-import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.expr.CastExpr;
-import com.github.javaparser.ast.expr.Expression;
-import com.github.javaparser.ast.expr.MethodCallExpr;
-import com.github.javaparser.ast.expr.ObjectCreationExpr;
+import com.github.javaparser.ast.body.*;
+import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
 import com.github.javaparser.ast.stmt.SwitchEntry;
 import com.github.javaparser.ast.stmt.SwitchStmt;
+import com.github.javaparser.ast.type.PrimitiveType;
+import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.declarations.*;
 import com.github.javaparser.resolution.types.ResolvedType;
@@ -125,6 +122,11 @@ public class ASTUtils {
         return shouldVisitArgumentsForMethodCalls(call) || graphNode == null;
     }
 
+    public static boolean constructorHasExplicitConstructorInvocation(ConstructorDeclaration declaration) {
+        return !getCallableBody(declaration).getStatements().isEmpty() &&
+                getCallableBody(declaration).getStatements().getFirst().get() instanceof ExplicitConstructorInvocationStmt;
+    }
+
     /**
      * Creates a new set that is suitable for JavaParser nodes. This
      * set behaves by comparing by identity (==) instead of equality (equals()).
@@ -175,4 +177,27 @@ public class ASTUtils {
         throw new IllegalArgumentException("This operation is only valid for reference type cast operations.");
     }
 
+    /** Given an AST node, visit the parent until finding a ClassOrInterfaceDeclaration */
+    public static ClassOrInterfaceDeclaration getClassNode(Node n){
+        Node upperNode = n;
+        while (!(upperNode instanceof ClassOrInterfaceDeclaration))
+            upperNode = upperNode.getParentNode().orElseThrow();
+        return (ClassOrInterfaceDeclaration) upperNode;
+    }
+
+    /** Generates the default initializer, given a field. In Java, reference types
+     *  default to null, booleans to false and all other primitives to 0. */
+    public static Expression initializerForField(FieldDeclaration field) {
+        Type type = field.getVariables().getFirst().orElseThrow().getType();
+        if (type.isReferenceType())
+            return new NullLiteralExpr();
+        if (type.isPrimitiveType()) {
+            PrimitiveType primitive = type.asPrimitiveType();
+            if (primitive.equals(PrimitiveType.booleanType()))
+                return new BooleanLiteralExpr();
+            else
+                return new IntegerLiteralExpr();
+        }
+        throw new IllegalArgumentException("Invalid typing for a field");
+    }
 }

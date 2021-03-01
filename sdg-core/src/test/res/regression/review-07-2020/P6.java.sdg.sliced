@@ -1,5 +1,16 @@
 public class Bucles {
 
+    public static void main(String[] args) {
+        try {
+            for (int i = 0; i <= 12; i++) {
+                metodoGeneradorExcepciones(x);
+            }
+        } catch (ExceptionA a) {
+        } catch (Exception a) {
+            System.out.println("Se lanza Exception");
+        }
+    }
+
     static void metodoGeneradorExcepciones(int x) throws Exception {
         if (x == 0)
             throw new ExceptionA();
@@ -8,10 +19,4 @@ public class Bucles {
         if (x == 2)
             throw new Exception();
     }
-}
-
-class ExceptionA extends Exception {
-}
-
-class ExceptionB extends ExceptionA {
 }

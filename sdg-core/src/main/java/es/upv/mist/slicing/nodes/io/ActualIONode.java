@@ -8,7 +8,6 @@ import com.github.javaparser.resolution.declarations.ResolvedConstructorDeclarat
 import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
-import com.github.javaparser.resolution.types.ResolvedType;
 
 import java.util.Objects;
 
@@ -17,8 +16,8 @@ public class ActualIONode extends IONode<Node> {
     protected final Expression argument;
 
     protected ActualIONode(Resolvable<? extends ResolvedMethodLikeDeclaration> astNode, ResolvedValueDeclaration variable, Expression argument, boolean isInput) {
-        super(createLabel(isInput, variable.getType(), variable.getName(), argument), (Node) astNode, variable.getType(), variable.getName(), isInput);
-        this.argument = Objects.requireNonNull(argument);
+        super(createLabel(isInput, variable.getName(), argument), (Node) astNode, variable.getName(), isInput);
+        this.argument = argument;
     }
 
     public Expression getArgument() {
@@ -30,7 +29,6 @@ public class ActualIONode extends IONode<Node> {
         return getClass().equals(ActualIONode.class) && o.getClass().equals(FormalIONode.class)
                 // 2. Our variables must match (type + name)
                 && Objects.equals(variableName, o.variableName)
-                && Objects.equals(variableType, o.variableType)
                 // 3. in matches in, out matches out
                 && isInput() == o.isInput()
                 // 4. The method call must resolve to the method declaration of the argument.
@@ -58,9 +56,9 @@ public class ActualIONode extends IONode<Node> {
         return Objects.hash(super.hashCode(), argument);
     }
 
-    protected static String createLabel(boolean isInput, ResolvedType paramType, String paramName, Expression arg) {
+    protected static String createLabel(boolean isInput, String paramName, Expression arg) {
         if (isInput)
-            return String.format("%s %s_in = %s", paramType.describe(), paramName, arg.toString());
+            return String.format("%s_in = %s", paramName, arg);
         else
             return String.format("%s = %s_out", arg, paramName);
     }

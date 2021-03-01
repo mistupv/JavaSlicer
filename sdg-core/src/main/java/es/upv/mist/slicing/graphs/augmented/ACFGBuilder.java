@@ -1,7 +1,6 @@
 package es.upv.mist.slicing.graphs.augmented;
 
 import com.github.javaparser.ast.body.CallableDeclaration;
-import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.stmt.*;
 import es.upv.mist.slicing.graphs.cfg.CFGBuilder;
 import es.upv.mist.slicing.nodes.GraphNode;
@@ -134,7 +133,7 @@ public class ACFGBuilder extends CFGBuilder {
         GraphNode<ReturnStmt> node = connectTo(returnStmt);
         returnStmt.getExpression().ifPresent(n -> {
             n.accept(this, arg);
-            node.addDefinedVariable(new NameExpr(VARIABLE_NAME_OUTPUT), n);
+            node.addDefinedVariable(null, VARIABLE_NAME_OUTPUT, n);
         });
         returnList.add(node);
         clearHanging();

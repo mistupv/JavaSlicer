@@ -6,5 +6,12 @@ public class Bucles_Josep {
         int x = 0;
         int y = 0, z = 0;
         z = x + y;
+        while (z == 0) {
+            if (z == 0) {
+                z++;
+            } else {
+                z--;
+            }
+        }
     }
 }

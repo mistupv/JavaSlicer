@@ -115,6 +115,7 @@ public class ExceptionSensitiveSlicingAlgorithm implements SlicingAlgorithm {
     protected boolean ppdgIgnore(Arc arc) {
         GraphNode<?> target = graph.getEdgeTarget(arc);
         return arc.isUnconditionalControlDependencyArc() &&
+                graph.isPseudoPredicate(target) &&
                 reachedStream(target).allMatch(Arc::isUnconditionalControlDependencyArc) &&
                 !target.equals(slicingCriterion);
     }

@@ -3,10 +3,7 @@ package es.upv.mist.slicing.slicing;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
-import com.github.javaparser.ast.body.ConstructorDeclaration;
-import com.github.javaparser.ast.body.FieldDeclaration;
-import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.expr.BooleanLiteralExpr;
 import com.github.javaparser.ast.nodeTypes.NodeWithBody;
 import com.github.javaparser.ast.stmt.*;
@@ -44,7 +41,8 @@ public class SlicePruneVisitor extends ModifierVisitor<NodeHashSet<Node>> {
     public Visitable visit(ClassOrInterfaceDeclaration n, NodeHashSet<Node> arg) {
         boolean keep = arg.contains(n);
         Visitable v = super.visit(n, arg);
-        return keep || !((Node) v).getChildNodes().isEmpty() ? v : null;
+        boolean containsDeclarations = ((Node) v).getChildNodes().stream().anyMatch(BodyDeclaration.class::isInstance);
+        return keep || containsDeclarations ? v : null;
     }
 
     // ========== Class body visitors ==========
@@ -65,9 +63,7 @@ public class SlicePruneVisitor extends ModifierVisitor<NodeHashSet<Node>> {
 
     @Override
     public Visitable visit(FieldDeclaration n, NodeHashSet<Node> arg) {
-        boolean keep = arg.contains(n);
-        Visitable v = super.visit(n, arg);
-        return keep ? v : null;
+        return arg.contains(n) ? n : null;
     }
 
 // ========== Method body visitors ==========
