@@ -1,6 +1,7 @@
 public class Bucles {
 
     public static void main(String[] args) {
+        int x = 2;
         try {
             for (int i = 0; i <= 12; i++) {
                 metodoGeneradorExcepciones(x);
