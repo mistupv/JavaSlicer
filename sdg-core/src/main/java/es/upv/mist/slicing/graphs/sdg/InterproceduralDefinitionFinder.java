@@ -12,9 +12,7 @@ import es.upv.mist.slicing.nodes.VariableAction;
 import es.upv.mist.slicing.nodes.io.ActualIONode;
 import es.upv.mist.slicing.nodes.io.FormalIONode;
 
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Stream;
 
 /** An interprocedural definition finder, which adds the associated actions to formal and actual nodes in the CFGs. */
@@ -37,7 +35,7 @@ public class InterproceduralDefinitionFinder extends InterproceduralActionFinder
 
     @Override
     protected void handleActualAction(CallGraph.Edge<?> edge, VariableAction.Definition def) {
-        Set<VariableAction.Movable> movables = new HashSet<>();
+        List<VariableAction.Movable> movables = new LinkedList<>();
         GraphNode<?> graphNode = edge.getGraphNode();
         ResolvedValueDeclaration resolved = def.getResolvedValueDeclaration();
         if (resolved.isParameter()) {

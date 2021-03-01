@@ -9,7 +9,10 @@ import es.upv.mist.slicing.graphs.pdg.PDG;
 import es.upv.mist.slicing.graphs.sdg.SDG;
 import es.upv.mist.slicing.utils.ASTUtils;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Objects;
 
 /**
  * Represents a node in the various graphs ({@link CFG CFG}, {@link PDG PDG} and {@link SDG SDG}),
@@ -117,7 +120,7 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
     }
 
     /** Append or prepend the given set of actions to the actions of the given call. */
-    public void addActionsForCall(Set<VariableAction.Movable> actions, Resolvable<? extends ResolvedMethodLikeDeclaration> call, boolean prepend) {
+    public void addActionsForCall(List<VariableAction.Movable> actions, Resolvable<? extends ResolvedMethodLikeDeclaration> call, boolean prepend) {
         for (int i = 0; i < variableActions.size(); i++) {
             VariableAction var = variableActions.get(i);
             if (var instanceof VariableAction.CallMarker) {
