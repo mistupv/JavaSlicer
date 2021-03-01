@@ -14,6 +14,7 @@ import es.upv.mist.slicing.graphs.BackwardDataFlowAnalysis;
 import es.upv.mist.slicing.graphs.CallGraph;
 import es.upv.mist.slicing.graphs.cfg.CFG;
 import es.upv.mist.slicing.nodes.VariableAction;
+import es.upv.mist.slicing.nodes.VariableAction.ObjectTree;
 import es.upv.mist.slicing.utils.ASTUtils;
 import es.upv.mist.slicing.utils.Logger;
 
@@ -21,7 +22,6 @@ import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 // TODO: this approach of generating actual nodes may skip an argument; this is only a problem if there is a definition
@@ -31,8 +31,10 @@ import java.util.stream.Stream;
  * declarations define, use or declare which variables, interprocedurally.
  * @param <A> The action to be searched for
  */
-public abstract class InterproceduralActionFinder<A extends VariableAction> extends BackwardDataFlowAnalysis<CallGraph.Vertex, CallGraph.Edge<?>, Set<InterproceduralActionFinder.StoredAction<A>>> {
+public abstract class InterproceduralActionFinder<A extends VariableAction> extends BackwardDataFlowAnalysis<CallGraph.Vertex, CallGraph.Edge<?>, Map<A, ObjectTree>> {
     protected final Map<CallableDeclaration<?>, CFG> cfgMap;
+    /** A map from vertex and action to its corresponding stored action, to avoid generating duplicate nodes. */
+    protected final Map<CallGraph.Vertex, Map<A, StoredAction>> actionStoredMap = new HashMap<>();
 
     public InterproceduralActionFinder(CallGraph callGraph, Map<CallableDeclaration<?>, CFG> cfgMap) {
         super(callGraph);
@@ -49,18 +51,26 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
         graph.vertexSet().forEach(this::saveDeclaration);
     }
 
+    /** Obtains the StoredAction object with information on which actions have been stored. */
+    protected StoredAction getStored(CallGraph.Vertex vertex, A action) {
+        return actionStoredMap.get(vertex).get(action);
+    }
+
     /** Save the current set of actions associated to the given declaration. It will avoid saving
      *  duplicates by default, so this method may be called multiple times safely. */
     protected void saveDeclaration(CallGraph.Vertex vertex) {
-        Set<StoredAction<A>> storedActions = vertexDataMap.get(vertex);
-
+        var actions = vertexDataMap.get(vertex);
+        // Update stored action map
+        actionStoredMap.computeIfAbsent(vertex, v -> new HashMap<>());
+        for (A a : actions.keySet())
+            actionStoredMap.get(vertex).computeIfAbsent(a, __ -> new StoredAction());
         // FORMAL: per declaration (1)
-        for (StoredAction<A> sa : storedActions)
-            sa.storeFormal(a -> sandBoxedHandler(vertex.getDeclaration(), a, this::handleFormalAction));
+        for (A a : actions.keySet())
+            getStored(vertex, a).storeFormal(() -> sandBoxedHandler(vertex, a, this::handleFormalAction));
         // ACTUAL: per call (n)
         for (CallGraph.Edge<?> edge : graph.incomingEdgesOf(vertex))
-            storedActions.stream().sorted(new ParameterFieldSorter(edge))
-                    .forEach(sa -> sa.storeActual(edge, (e, a) -> sandBoxedHandler(e, a, this::handleActualAction)));
+            actions.keySet().stream().sorted(new ParameterFieldSorter(edge)).forEach(a ->
+                    getStored(vertex, a).storeActual(edge, e -> sandBoxedHandler(e, a, this::handleActualAction)));
     }
 
     /** A sandbox to avoid resolution errors when a variable is included that is a class name
@@ -74,7 +84,7 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
     }
 
     /** Generate the formal node(s) related to this action and declaration. */
-    protected abstract void handleFormalAction(CallableDeclaration<?> declaration, A action);
+    protected abstract void handleFormalAction(CallGraph.Vertex vertex, A action);
 
     /** Generate the actual node(s) related to this action and call. */
     protected abstract void handleActualAction(CallGraph.Edge<?> edge, A action);
@@ -147,19 +157,19 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
     // ===========================================================
 
     @Override
-    protected Set<StoredAction<A>> compute(CallGraph.Vertex vertex, Set<CallGraph.Vertex> predecessors) {
+    protected Map<A, ObjectTree> compute(CallGraph.Vertex vertex, Set<CallGraph.Vertex> predecessors) {
         saveDeclaration(vertex);
-        Set<StoredAction<A>> newValue = new HashSet<>(vertexDataMap.get(vertex));
-        newValue.addAll(initialValue(vertex));
+        Map<A, ObjectTree> newValue = new HashMap<>(vertexDataMap.get(vertex));
+        newValue.putAll(initialValue(vertex));
         return newValue;
     }
 
     @Override
-    protected Set<StoredAction<A>> initialValue(CallGraph.Vertex vertex) {
+    protected Map<A, ObjectTree> initialValue(CallGraph.Vertex vertex) {
         CFG cfg = cfgMap.get(vertex.getDeclaration());
         if (cfg == null)
-            return Collections.emptySet();
-        Stream<VariableAction> stream =  cfg.vertexSet().stream()
+            return Collections.emptyMap();
+        Stream<VariableAction> actionStream =  cfg.vertexSet().stream()
                 // Ignore root node, it is literally the entrypoint for interprocedural actions.
                 .filter(n -> n != cfg.getRootNode())
                 .flatMap(n -> n.getVariableActions().stream())
@@ -167,9 +177,16 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
                 .filter(Predicate.not(VariableAction::isSynthetic))
                 // We skip over non-root variables (for each 'x.a' action we'll find 'x' later)
                 .filter(VariableAction::isRootAction);
-        return mapAndFilterActionStream(stream, cfg)
-                .map(StoredAction::new)
-                .collect(Collectors.toSet());
+        Stream<A> filteredStream = mapAndFilterActionStream(actionStream, cfg);
+        Map<A, ObjectTree> map = new HashMap<>();
+        for (Iterator<A> it = filteredStream.iterator(); it.hasNext(); ) {
+            A a = it.next();
+            if (map.containsKey(a))
+                map.get(a).addAll(a.getObjectTree());
+            else
+                map.put(a, (ObjectTree) a.getObjectTree().clone());
+        }
+        return map;
     }
 
     /** Given a stream of VariableAction objects, map it to the finders' type and
@@ -183,19 +200,19 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
     /** A comparator to sort parameters and fields in the generation of actual nodes. It will sort
      *  {@link StoredAction}s in the following order: fields, then parameters by descending index number.
      *  The actual nodes will be generated in that order and inserted in reverse order in the graph node. */
-    private class ParameterFieldSorter implements Comparator<StoredAction<A>> {
+    private class ParameterFieldSorter implements Comparator<A> {
         protected final CallGraph.Edge<?> edge;
         public ParameterFieldSorter(CallGraph.Edge<?> edge) {
             this.edge = edge;
         }
 
         @Override
-        public int compare(StoredAction<A> o1, StoredAction<A> o2) {
+        public int compare(A o1, A o2) {
             ResolvedValueDeclaration r1 = null;
             ResolvedValueDeclaration r2 = null;
             try {
-                r1 = o1.getAction().getResolvedValueDeclaration();
-                r2 = o2.getAction().getResolvedValueDeclaration();
+                r1 = o1.getResolvedValueDeclaration();
+                r2 = o2.getResolvedValueDeclaration();
                 if (r1.isParameter() && r2.isParameter())
                     return -Integer.compare(ASTUtils.getMatchingParameterIndex(graph.getEdgeTarget(edge).getDeclaration(), r1.asParameter()),
                             ASTUtils.getMatchingParameterIndex(graph.getEdgeTarget(edge).getDeclaration(), r2.asParameter()));
@@ -219,47 +236,30 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
 
     /** A wrapper around a variable action, which keeps track of whether formal and actual nodes
      *  have been saved to the graph or not. */
-    protected static class StoredAction<A extends VariableAction> {
-        protected final A action;
+    protected static class StoredAction {
         /** Whether the action has been saved as actual node for each call. */
         private final Map<CallGraph.Edge<?>, Boolean> actualStoredMap = new HashMap<>();
 
         /** Whether the action has been saved as formal node. */
         protected boolean formalStored = false;
 
-        private StoredAction(A action) {
-            this.action = action;
-        }
-
-        public A getAction() {
-            return action;
-        }
+        private StoredAction() {}
 
         /** If this action has not yet been saved as formal node, use the argument to do so, then mark it as stored. */
-        private void storeFormal(Consumer<A> save) {
+        private void storeFormal(Runnable save) {
             if (!formalStored) {
-                save.accept(action);
+                save.run();
                 formalStored = true;
             }
         }
 
         /** If this action has not yet been saved as actual node for the given edge,
          * use the consumer to do so, then mark it as stored. */
-        private void storeActual(CallGraph.Edge<?> edge, BiConsumer<CallGraph.Edge<?>, A> save) {
+        private void storeActual(CallGraph.Edge<?> edge, Consumer<CallGraph.Edge<?>> save) {
             if (!actualStoredMap.getOrDefault(edge, false)) {
-                save.accept(edge, action);
+                save.accept(edge);
                 actualStoredMap.put(edge, true);
             }
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(action);
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            return obj instanceof StoredAction && Objects.equals(action, ((StoredAction<?>) obj).action);
         }
     }
 }

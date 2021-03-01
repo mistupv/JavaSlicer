@@ -28,29 +28,32 @@ public abstract class VariableAction {
     protected final Expression variable;
     protected final String realName;
     protected final GraphNode<?> graphNode;
-    protected final SimpleDirectedGraph<String, DefaultEdge> objectTree = new SimpleDirectedGraph<>(null, DefaultEdge::new, false);
+    protected final ObjectTree objectTree;
 
     protected boolean optional = false;
     protected ResolvedValueDeclaration resolvedVariableCache;
 
     public VariableAction(Expression variable, String realName, GraphNode<?> graphNode) {
+        this(variable, realName, graphNode,  new ObjectTree());
+    }
+
+    public VariableAction(Expression variable, String realName, GraphNode<?> graphNode, ObjectTree objectTree) {
         assert realName != null && !realName.isEmpty();
+        assert objectTree != null;
         this.variable = variable;
         this.realName = realName;
         this.graphNode = graphNode;
-        this.objectTree.addVertex(realName);
+        this.objectTree = objectTree;
+    }
+
+    public ObjectTree getObjectTree() {
+        return objectTree;
     }
 
     /** Add a field of this object, such that the same action performed on the object
      *  is applied to this field too. Fields of fields may be specified separated by dots. */
     public void addObjectField(String fieldName) {
-        String parent = null;
-        for (String element : fieldName.split("\\.")) {
-            objectTree.addVertex(element);
-            if (parent != null)
-                objectTree.addEdge(parent, element);
-            parent = element;
-        }
+        objectTree.addField(fieldName);
     }
 
     public VariableAction getRootAction() {
@@ -205,18 +208,18 @@ public abstract class VariableAction {
     }
 
     /** Creates a new usage action with the same variable and the given node. */
-    public final Usage toUsage(GraphNode<?> graphNode) {
-        return new Usage(variable, realName, graphNode);
+    public final Usage toUsage(GraphNode<?> graphNode, ObjectTree objectTree) {
+        return new Usage(variable, realName, graphNode, objectTree);
     }
 
     /** Creates a new definition action with the same variable and the given node. */
-    public final Definition toDefinition(GraphNode<?> graphNode) {
-        return new Definition(variable, realName, graphNode);
+    public final Definition toDefinition(GraphNode<?> graphNode, ObjectTree objectTree) {
+        return new Definition(variable, realName, graphNode, objectTree);
     }
 
     /** Creates a new declaration action with the same variable and the given node. */
-    public final Declaration toDeclaration(GraphNode<?> graphNode) {
-        return new Declaration(variable, realName, graphNode);
+    public final Declaration toDeclaration(GraphNode<?> graphNode, ObjectTree objectTree) {
+        return new Declaration(variable, realName, graphNode, objectTree);
     }
 
     @Override
@@ -276,6 +279,10 @@ public abstract class VariableAction {
             super(variable, realName, graphNode);
         }
 
+        public Usage(Expression variable, String realName, GraphNode<?> graphNode, ObjectTree objectTree) {
+            super(variable, realName, graphNode, objectTree);
+        }
+
         @Override
         public String toString() {
             return "USE" + super.toString();
@@ -288,11 +295,20 @@ public abstract class VariableAction {
         protected final Expression expression;
 
         public Definition(Expression variable, String realName, GraphNode<?> graphNode) {
-            this(variable, realName, graphNode, null);
+            this(variable, realName, graphNode, (Expression) null);
         }
 
         public Definition(Expression variable, String realName, GraphNode<?> graphNode, Expression expression) {
             super(variable, realName, graphNode);
+            this.expression = expression;
+        }
+
+        public Definition(Expression variable, String realName, GraphNode<?> graphNode, ObjectTree objectTree) {
+            this(variable, realName, graphNode, null, objectTree);
+        }
+
+        public Definition(Expression variable, String realName, GraphNode<?> graphNode, Expression expression, ObjectTree objectTree) {
+            super(variable, realName, graphNode, objectTree);
             this.expression = expression;
         }
 
@@ -311,6 +327,10 @@ public abstract class VariableAction {
     public static class Declaration extends VariableAction {
         public Declaration(Expression variable, String realName, GraphNode<?> graphNode) {
             super(variable, realName, graphNode);
+        }
+
+        public Declaration(Expression variable, String realName, GraphNode<?> graphNode, ObjectTree objectTree) {
+            super(variable, realName, graphNode, objectTree);
         }
 
         @Override
@@ -337,6 +357,11 @@ public abstract class VariableAction {
                 throw new IllegalArgumentException("'inner' must be an unmovable action");
             this.realNode = pdgNode;
             this.inner = inner;
+        }
+
+        @Override
+        public void addObjectField(String fieldName) {
+            throw new UnsupportedOperationException("Movable actions don't support the object tree");
         }
 
         /** The final location of this action. This node may not yet be present
@@ -430,6 +455,30 @@ public abstract class VariableAction {
         @Override
         public int hashCode() {
             return Objects.hash(super.hashCode(), realNode, inner);
+        }
+    }
+
+    public static class ObjectTree extends SimpleDirectedGraph<String, DefaultEdge> {
+        private static final String ROOT = "-root-";
+
+        public ObjectTree() {
+            super(null, DefaultEdge::new, false);
+            addVertex(ROOT);
+        }
+
+        public void addField(String fieldName) {
+            String parent = ROOT;
+            String[] splitField = fieldName.split("\\.");
+            for (int i = 1; i < splitField.length; i++) {
+                addVertex(splitField[i]);
+                addEdge(parent, splitField[i]);
+                parent = splitField[i];
+            }
+        }
+
+        public void addAll(ObjectTree tree) {
+            tree.vertexSet().forEach(this::addVertex);
+            tree.edgeSet().forEach(e -> addEdge(tree.getEdgeSource(e), tree.getEdgeTarget(e)));
         }
     }
 }

@@ -275,7 +275,7 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
 
         @Override
         public String toString() {
-            return super.toString();
+            return declaration.toString();
         }
     }
 
