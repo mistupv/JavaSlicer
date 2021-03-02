@@ -362,6 +362,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
             if (lastRootAction == null) {
                 // generate our own root action
                 lastRootAction = action.getRootAction();
+                lastRootAction.addObjectField(action.getVariable());
                 // It can be representing a fieldAccessExpr or a fieldDeclaration
                 // in the first, we can use the expression to obtain the 'type.this' or 'object_name'
                 // in the second, the expression is null but we can extract 'type.this' from realName
@@ -376,6 +377,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
                     i++;
                     // generate our own root action
                     lastRootAction = action.getRootAction();
+                    lastRootAction.addObjectField(action.getVariable());
                 }
             }
         }

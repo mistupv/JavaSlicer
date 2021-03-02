@@ -14,7 +14,6 @@ import es.upv.mist.slicing.graphs.BackwardDataFlowAnalysis;
 import es.upv.mist.slicing.graphs.CallGraph;
 import es.upv.mist.slicing.graphs.cfg.CFG;
 import es.upv.mist.slicing.nodes.VariableAction;
-import es.upv.mist.slicing.nodes.VariableAction.ObjectTree;
 import es.upv.mist.slicing.utils.ASTUtils;
 import es.upv.mist.slicing.utils.Logger;
 
@@ -31,7 +30,7 @@ import java.util.stream.Stream;
  * declarations define, use or declare which variables, interprocedurally.
  * @param <A> The action to be searched for
  */
-public abstract class InterproceduralActionFinder<A extends VariableAction> extends BackwardDataFlowAnalysis<CallGraph.Vertex, CallGraph.Edge<?>, Map<A, ObjectTree>> {
+public abstract class InterproceduralActionFinder<A extends VariableAction> extends BackwardDataFlowAnalysis<CallGraph.Vertex, CallGraph.Edge<?>, Set<A>> {
     protected final Map<CallableDeclaration<?>, CFG> cfgMap;
     /** A map from vertex and action to its corresponding stored action, to avoid generating duplicate nodes. */
     protected final Map<CallGraph.Vertex, Map<A, StoredAction>> actionStoredMap = new HashMap<>();
@@ -62,14 +61,14 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
         var actions = vertexDataMap.get(vertex);
         // Update stored action map
         actionStoredMap.computeIfAbsent(vertex, v -> new HashMap<>());
-        for (A a : actions.keySet())
+        for (A a : actions)
             actionStoredMap.get(vertex).computeIfAbsent(a, __ -> new StoredAction());
         // FORMAL: per declaration (1)
-        for (A a : actions.keySet())
+        for (A a : actions)
             getStored(vertex, a).storeFormal(() -> sandBoxedHandler(vertex, a, this::handleFormalAction));
         // ACTUAL: per call (n)
         for (CallGraph.Edge<?> edge : graph.incomingEdgesOf(vertex))
-            actions.keySet().stream().sorted(new ParameterFieldSorter(edge)).forEach(a ->
+            actions.stream().sorted(new ParameterFieldSorter(edge)).forEach(a ->
                     getStored(vertex, a).storeActual(edge, e -> sandBoxedHandler(e, a, this::handleActualAction)));
     }
 
@@ -157,18 +156,18 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
     // ===========================================================
 
     @Override
-    protected Map<A, ObjectTree> compute(CallGraph.Vertex vertex, Set<CallGraph.Vertex> predecessors) {
+    protected Set<A> compute(CallGraph.Vertex vertex, Set<CallGraph.Vertex> predecessors) {
         saveDeclaration(vertex);
-        Map<A, ObjectTree> newValue = new HashMap<>(vertexDataMap.get(vertex));
-        newValue.putAll(initialValue(vertex));
+        Set<A> newValue = new HashSet<>(vertexDataMap.get(vertex));
+        newValue.addAll(initialValue(vertex));
         return newValue;
     }
 
     @Override
-    protected Map<A, ObjectTree> initialValue(CallGraph.Vertex vertex) {
+    protected Set<A> initialValue(CallGraph.Vertex vertex) {
         CFG cfg = cfgMap.get(vertex.getDeclaration());
         if (cfg == null)
-            return Collections.emptyMap();
+            return Collections.emptySet();
         Stream<VariableAction> actionStream =  cfg.vertexSet().stream()
                 // Ignore root node, it is literally the entrypoint for interprocedural actions.
                 .filter(n -> n != cfg.getRootNode())
@@ -178,15 +177,18 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
                 // We skip over non-root variables (for each 'x.a' action we'll find 'x' later)
                 .filter(VariableAction::isRootAction);
         Stream<A> filteredStream = mapAndFilterActionStream(actionStream, cfg);
-        Map<A, ObjectTree> map = new HashMap<>();
+        Set<A> set = new HashSet<>();
         for (Iterator<A> it = filteredStream.iterator(); it.hasNext(); ) {
             A a = it.next();
-            if (map.containsKey(a))
-                map.get(a).addAll(a.getObjectTree());
-            else
-                map.put(a, (ObjectTree) a.getObjectTree().clone());
+            if (set.contains(a)) {
+                for (A aFromSet : set)
+                    if (aFromSet.hashCode() == a.hashCode() && Objects.equals(aFromSet, a))
+                        aFromSet.getObjectTree().addAll(a.getObjectTree());
+            } else {
+                set.add(a.createCopy());
+            }
         }
-        return map;
+        return set;
     }
 
     /** Given a stream of VariableAction objects, map it to the finders' type and

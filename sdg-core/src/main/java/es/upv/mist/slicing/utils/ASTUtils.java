@@ -42,10 +42,14 @@ public class ASTUtils {
     }
 
     public static boolean equalsWithRange(Node n1, Node n2) {
+        if (n1 == null || n2 == null)
+            return n1 == n2;
         return Objects.equals(n1.getRange(), n2.getRange()) && Objects.equals(n1, n2);
     }
 
     public static boolean equalsWithRangeInCU(Node n1, Node n2) {
+        if (n1 == null || n2 == null)
+            return n1 == n2;
         return n1.findCompilationUnit().equals(n2.findCompilationUnit())
                 && equalsWithRange(n1, n2);
     }

@@ -8,7 +8,10 @@ import es.upv.mist.slicing.graphs.CallGraph;
 import es.upv.mist.slicing.graphs.cfg.CFG;
 import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.nodes.VariableAction;
-import es.upv.mist.slicing.nodes.VariableAction.*;
+import es.upv.mist.slicing.nodes.VariableAction.Declaration;
+import es.upv.mist.slicing.nodes.VariableAction.Definition;
+import es.upv.mist.slicing.nodes.VariableAction.Movable;
+import es.upv.mist.slicing.nodes.VariableAction.Usage;
 import es.upv.mist.slicing.nodes.VariableVisitor;
 import es.upv.mist.slicing.nodes.io.ActualIONode;
 import es.upv.mist.slicing.nodes.io.FormalIONode;
@@ -30,8 +33,7 @@ public class InterproceduralUsageFinder extends InterproceduralActionFinder<Usag
         CFG cfg = cfgMap.get(vertex.getDeclaration());
         ResolvedValueDeclaration resolved = use.getResolvedValueDeclaration();
         FormalIONode formalIn = FormalIONode.createFormalIn(vertex.getDeclaration(), resolved);
-        ObjectTree objTree = vertexDataMap.get(vertex).get(use);
-        Movable movable = new Movable(use.toDefinition(cfg.getRootNode(), objTree), formalIn);
+        Movable movable = new Movable(use.toDefinition(cfg.getRootNode()), formalIn);
         cfg.getRootNode().addMovableVariable(movable);
     }
 
@@ -40,7 +42,6 @@ public class InterproceduralUsageFinder extends InterproceduralActionFinder<Usag
         List<Movable> movables = new LinkedList<>();
         GraphNode<?> graphNode = edge.getGraphNode();
         ResolvedValueDeclaration resolved = use.getResolvedValueDeclaration();
-        ObjectTree objTree = vertexDataMap.get(graph.getEdgeTarget(edge)).get(use);
         if (resolved.isParameter()) {
             Expression argument = extractArgument(resolved.asParameter(), edge, true);
             ActualIONode actualIn = ActualIONode.createActualIn(edge.getCall(), resolved, argument);
@@ -57,7 +58,7 @@ public class InterproceduralUsageFinder extends InterproceduralActionFinder<Usag
             // TODO: this check is not specific enough
             // Only copy the tree to the movables if there is only 1 movable: it is an object.
             if (movables.size() == 1)
-                movables.get(0).getObjectTree().addAll(objTree);
+                movables.get(0).getObjectTree().addAll(use.getObjectTree());
         } else if (resolved.isField()) {
             // Known limitation: static fields
             // An object creation expression input an existing object via actual-in because it creates it.
@@ -65,7 +66,7 @@ public class InterproceduralUsageFinder extends InterproceduralActionFinder<Usag
                 return;
             String aliasedName = obtainAliasedFieldName(use, edge);
             ActualIONode actualIn = ActualIONode.createActualIn(edge.getCall(), resolved, null);
-            var movableUse = new Usage(obtainScope(edge.getCall()), aliasedName, graphNode, objTree);
+            var movableUse = new Usage(obtainScope(edge.getCall()), aliasedName, graphNode, use.getObjectTree());
             movables.add(new Movable(movableUse, actualIn));
         } else {
             throw new IllegalStateException("Definition must be either from a parameter or a field!");

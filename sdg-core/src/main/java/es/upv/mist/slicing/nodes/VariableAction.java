@@ -10,12 +10,11 @@ import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.arcs.pdg.DataDependencyArc;
 import es.upv.mist.slicing.graphs.Graph;
 import es.upv.mist.slicing.graphs.pdg.PDG;
-import org.jgrapht.graph.DefaultEdge;
-import org.jgrapht.graph.SimpleDirectedGraph;
+import es.upv.mist.slicing.nodes.oo.MemberNode;
+import es.upv.mist.slicing.utils.Utils;
 
 import java.lang.reflect.InvocationTargetException;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -208,18 +207,33 @@ public abstract class VariableAction {
     }
 
     /** Creates a new usage action with the same variable and the given node. */
-    public final Usage toUsage(GraphNode<?> graphNode, ObjectTree objectTree) {
-        return new Usage(variable, realName, graphNode, objectTree);
+    public final Usage toUsage(GraphNode<?> graphNode) {
+        return new Usage(variable, realName, graphNode, (ObjectTree) getObjectTree().clone());
     }
 
     /** Creates a new definition action with the same variable and the given node. */
-    public final Definition toDefinition(GraphNode<?> graphNode, ObjectTree objectTree) {
-        return new Definition(variable, realName, graphNode, objectTree);
+    public final Definition toDefinition(GraphNode<?> graphNode) {
+        return new Definition(variable, realName, graphNode, (ObjectTree) getObjectTree().clone());
     }
 
     /** Creates a new declaration action with the same variable and the given node. */
-    public final Declaration toDeclaration(GraphNode<?> graphNode, ObjectTree objectTree) {
-        return new Declaration(variable, realName, graphNode, objectTree);
+    public final Declaration toDeclaration(GraphNode<?> graphNode) {
+        return new Declaration(variable, realName, graphNode, (ObjectTree) getObjectTree().clone());
+    }
+
+    @SuppressWarnings("unchecked")
+    public final <A extends VariableAction> A createCopy() {
+        if (this instanceof Usage)
+            return (A) toUsage(null);
+        if (this instanceof Definition)
+            return (A) toDefinition(null);
+        if (this instanceof Declaration)
+            return (A) toDeclaration(null);
+        if (this instanceof Movable) {
+            Movable m = (Movable) this;
+            return (A) new Movable(m.inner.createCopy(), null);
+        }
+        throw new IllegalStateException("This kind of variable action can't be copied");
     }
 
     @Override
@@ -359,6 +373,10 @@ public abstract class VariableAction {
             this.inner = inner;
         }
 
+        public ObjectTree getObjectTree() {
+            return inner.getObjectTree();
+        }
+
         @Override
         public void addObjectField(String fieldName) {
             throw new UnsupportedOperationException("Movable actions don't support the object tree");
@@ -458,27 +476,178 @@ public abstract class VariableAction {
         }
     }
 
-    public static class ObjectTree extends SimpleDirectedGraph<String, DefaultEdge> {
-        private static final String ROOT = "-root-";
+    public static class ObjectTree implements Cloneable {
+        private static final Pattern FIELD_SPLIT = Pattern.compile("^(?<root>(([_0-9A-Za-z]+\\.)*this)|([_0-9A-Za-z]+))(\\.(?<fields>.+))?$");
+
+        private final String memberName;
+        private final MemberNode memberNode;
+        private final Map<String, ObjectTree> childrenMap = new HashMap<>();
 
         public ObjectTree() {
-            super(null, DefaultEdge::new, false);
-            addVertex(ROOT);
+            memberName = null;
+            memberNode = null;
+        }
+
+        private ObjectTree(String memberName, ObjectTree parent) {
+            this.memberName = memberName;
+            this.memberNode = new MemberNode(memberName, parent.memberNode);
         }
 
         public void addField(String fieldName) {
-            String parent = ROOT;
-            String[] splitField = fieldName.split("\\.");
-            for (int i = 1; i < splitField.length; i++) {
-                addVertex(splitField[i]);
-                addEdge(parent, splitField[i]);
-                parent = splitField[i];
+            String members = removeRoot(fieldName);
+            addNonRootField(members);
+        }
+
+        private void addNonRootField(String members) {
+            if (members.contains(".")) {
+                int firstDot = members.indexOf('.');
+                String first = members.substring(0, firstDot);
+                String rest = members.substring(firstDot + 1);
+                childrenMap.computeIfAbsent(first, f -> new ObjectTree(f, this));
+                childrenMap.get(first).addNonRootField(rest);
+            } else {
+                childrenMap.computeIfAbsent(members, f -> new ObjectTree(f, this));
             }
         }
 
         public void addAll(ObjectTree tree) {
-            tree.vertexSet().forEach(this::addVertex);
-            tree.edgeSet().forEach(e -> addEdge(tree.getEdgeSource(e), tree.getEdgeTarget(e)));
+            for (Map.Entry<String, ObjectTree> entry : tree.childrenMap.entrySet())
+                if (childrenMap.containsKey(entry.getKey()))
+                    childrenMap.get(entry.getKey()).addAll(entry.getValue());
+                else
+                    childrenMap.put(entry.getKey(), entry.getValue().clone(this));
+        }
+
+        public boolean hasMember(String member) {
+            String field = removeRoot(member);
+            return hasNonRootMember(field);
+        }
+
+        private boolean hasNonRootMember(String members) {
+            if (members.contains(".")) {
+                int firstDot = members.indexOf('.');
+                String first = members.substring(0, firstDot);
+                String rest = members.substring(firstDot + 1);
+                return childrenMap.containsKey(first) && childrenMap.get(first).hasNonRootMember(rest);
+            } else {
+                return childrenMap.containsKey(members);
+            }
+        }
+
+        public MemberNode getNodeFor(String member) {
+            String field = removeRoot(member);
+            return getNodeForNonRoot(field);
+        }
+
+        private MemberNode getNodeForNonRoot(String members) {
+            if (members.contains(".")) {
+                int firstDot = members.indexOf('.');
+                String first = members.substring(0, firstDot);
+                String rest = members.substring(firstDot + 1);
+                assert childrenMap.containsKey(first);
+                return childrenMap.get(first).getNodeForNonRoot(rest);
+            } else {
+                assert childrenMap.containsKey(members);
+                return childrenMap.get(members).memberNode;
+            }
+        }
+
+        public boolean isEmpty() {
+            return childrenMap.isEmpty();
+        }
+
+        public Iterable<String> nameIterable() {
+            return () -> new Iterator<>() {
+                final Iterator<ObjectTree> it = treeIterator();
+
+                @Override
+                public boolean hasNext() {
+                    return it.hasNext();
+                }
+
+                @Override
+                public String next() {
+                    return it.next().memberName;
+                }
+            };
+        }
+
+        public Iterable<MemberNode> nodeIterable() {
+            return () -> new Iterator<>() {
+                final Iterator<ObjectTree> it = treeIterator();
+
+                @Override
+                public boolean hasNext() {
+                    return it.hasNext();
+                }
+
+                @Override
+                public MemberNode next() {
+                    return it.next().memberNode;
+                }
+            };
+        }
+
+        private Iterator<ObjectTree> treeIterator() {
+            return new Iterator<>() {
+                final Set<ObjectTree> remaining = new HashSet<>(childrenMap.values());
+                Iterator<ObjectTree> childIterator = null;
+
+                @Override
+                public boolean hasNext() {
+                    if (childIterator == null || !childIterator.hasNext())
+                        return !remaining.isEmpty();
+                    else
+                        return true;
+                }
+
+                @Override
+                public ObjectTree next() {
+                    if (childIterator == null || !childIterator.hasNext()) {
+                        ObjectTree tree = Utils.setPop(remaining);
+                        childIterator = tree.treeIterator();
+                        return tree;
+                    } else {
+                        return childIterator.next();
+                    }
+                }
+            };
+        }
+
+        @Override
+        public Object clone() {
+            ObjectTree clone = new ObjectTree();
+            for (Map.Entry<String, ObjectTree> entry : childrenMap.entrySet())
+                clone.childrenMap.put(entry.getKey(), entry.getValue().clone(clone));
+            return clone;
+        }
+
+        private ObjectTree clone(ObjectTree parent) {
+            ObjectTree clone = new ObjectTree(memberName, parent);
+            for (Map.Entry<String, ObjectTree> entry : childrenMap.entrySet())
+                clone.childrenMap.put(entry.getKey(), entry.getValue().clone(clone));
+            return clone;
+        }
+
+        protected String removeRoot(String fieldWithRoot) {
+            Matcher matcher = FIELD_SPLIT.matcher(fieldWithRoot);
+            if (matcher.matches() && matcher.group("fields") != null)
+                return matcher.group("fields");
+            throw new IllegalArgumentException("Field should be of the form <obj>.<field>, <Type>.this.<field>, where <obj> may not contain dots.");
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            ObjectTree tree = (ObjectTree) o;
+            return Objects.equals(memberName, tree.memberName) &&
+                    childrenMap.values().equals(tree.childrenMap.values());
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(memberName, childrenMap);
         }
     }
 }

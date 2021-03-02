@@ -11,7 +11,6 @@ import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.nodes.VariableAction;
 import es.upv.mist.slicing.nodes.VariableAction.Definition;
 import es.upv.mist.slicing.nodes.VariableAction.Movable;
-import es.upv.mist.slicing.nodes.VariableAction.ObjectTree;
 import es.upv.mist.slicing.nodes.io.ActualIONode;
 import es.upv.mist.slicing.nodes.io.FormalIONode;
 
@@ -28,14 +27,13 @@ public class InterproceduralDefinitionFinder extends InterproceduralActionFinder
     protected void handleFormalAction(CallGraph.Vertex vertex, Definition def) {
         CFG cfg = cfgMap.get(vertex.getDeclaration());
         ResolvedValueDeclaration resolved = def.getResolvedValueDeclaration();
-        ObjectTree objTree = vertexDataMap.get(vertex).get(def);
         if (!resolved.isParameter() || !resolved.getType().isPrimitive()) {
             FormalIONode formalOut = FormalIONode.createFormalOut(vertex.getDeclaration(), resolved);
-            Movable movable = new Movable(def.toUsage(cfg.getExitNode(), objTree), formalOut);
+            Movable movable = new Movable(def.toUsage(cfg.getExitNode()), formalOut);
             cfg.getExitNode().addMovableVariable(movable);
         }
         FormalIONode formalIn = FormalIONode.createFormalInDecl(vertex.getDeclaration(), resolved);
-        cfg.getRootNode().addMovableVariable(new Movable(def.toDeclaration(cfg.getRootNode(), objTree), formalIn));
+        cfg.getRootNode().addMovableVariable(new Movable(def.toDeclaration(cfg.getRootNode()), formalIn));
     }
 
     @Override
@@ -43,7 +41,6 @@ public class InterproceduralDefinitionFinder extends InterproceduralActionFinder
         List<Movable> movables = new LinkedList<>();
         GraphNode<?> graphNode = edge.getGraphNode();
         ResolvedValueDeclaration resolved = def.getResolvedValueDeclaration();
-        ObjectTree objTree = vertexDataMap.get(graph.getEdgeTarget(edge)).get(def);
         if (resolved.isParameter()) {
             Expression arg = extractArgument(resolved.asParameter(), edge, false);
             if (arg == null)
@@ -53,9 +50,9 @@ public class InterproceduralDefinitionFinder extends InterproceduralActionFinder
                 Set<NameExpr> exprSet = new HashSet<>();
                 arg.accept(new OutNodeVariableVisitor(), exprSet);
                 for (NameExpr nameExpr : exprSet)
-                    movables.add(new Movable(new Definition(nameExpr, nameExpr.toString(), graphNode, objTree), actualOut));
+                    movables.add(new Movable(new Definition(nameExpr, nameExpr.toString(), graphNode, def.getObjectTree()), actualOut));
             } else {
-                movables.add(new Movable(def.toDefinition(graphNode, objTree), actualOut));
+                movables.add(new Movable(def.toDefinition(graphNode), actualOut));
             }
         } else if (resolved.isField()) {
             // Known limitation: static fields
@@ -65,7 +62,7 @@ public class InterproceduralDefinitionFinder extends InterproceduralActionFinder
                 return;
             String aliasedName = obtainAliasedFieldName(def, edge);
             ActualIONode actualOut = ActualIONode.createActualOut(edge.getCall(), resolved, null);
-            var movableDef  = new Definition(obtainScope(edge.getCall()), aliasedName, graphNode, objTree);
+            var movableDef  = new Definition(obtainScope(edge.getCall()), aliasedName, graphNode, def.getObjectTree());
             movables.add(new Movable(movableDef, actualOut));
         } else {
             throw new IllegalStateException("Definition must be either from a parameter or a field!");
