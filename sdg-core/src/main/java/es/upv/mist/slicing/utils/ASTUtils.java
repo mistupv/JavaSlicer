@@ -3,10 +3,7 @@ package es.upv.mist.slicing.utils;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.expr.*;
-import com.github.javaparser.ast.stmt.BlockStmt;
-import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
-import com.github.javaparser.ast.stmt.SwitchEntry;
-import com.github.javaparser.ast.stmt.SwitchStmt;
+import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.resolution.Resolvable;
@@ -41,6 +38,14 @@ public class ASTUtils {
         return null;
     }
 
+    public static boolean equalsInDeclaration(Node n1, Node n2) {
+        if (n1 == n2)
+            return true;
+        CallableDeclaration<?> d1 = getDeclarationNode(n1);
+        CallableDeclaration<?> d2 = getDeclarationNode(n2);
+        return n1.equals(n2) && equalsWithRange(d1, d2);
+    }
+
     public static boolean equalsWithRange(Node n1, Node n2) {
         if (n1 == null || n2 == null)
             return n1 == n2;
@@ -61,6 +66,23 @@ public class ASTUtils {
         if (resolved instanceof ResolvedConstructorDeclaration)
             return false;
         throw new IllegalArgumentException("Call didn't resolve to either method or constructor!");
+    }
+
+    public static boolean resolvableIsPrimitive(Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
+        var resolved = call.resolve();
+        if (resolved instanceof ResolvedMethodDeclaration)
+            return ((ResolvedMethodDeclaration) resolved).getReturnType().isPrimitive();
+        if (resolved instanceof ResolvedConstructorDeclaration)
+            return false;
+        throw new IllegalArgumentException("Call didn't resolve to either method or constructor!");
+    }
+
+    public static boolean declarationReturnIsObject(CallableDeclaration<?> declaration) {
+        if (declaration.isMethodDeclaration())
+            return declaration.asMethodDeclaration().getType().isClassOrInterfaceType();
+        if (declaration.isConstructorDeclaration())
+            return true;
+        throw new IllegalArgumentException("Declaration wan't method or constructor");
     }
 
     public static int getMatchingParameterIndex(CallableDeclaration<?> declaration, ResolvedParameterDeclaration param) {
@@ -187,6 +209,14 @@ public class ASTUtils {
         while (!(upperNode instanceof ClassOrInterfaceDeclaration))
             upperNode = upperNode.getParentNode().orElseThrow();
         return (ClassOrInterfaceDeclaration) upperNode;
+    }
+
+    public static CallableDeclaration<?> getDeclarationNode(Node n) {
+        assert n instanceof Statement || n instanceof Expression || n instanceof CallableDeclaration;
+        Node upperNode = n;
+        while (!(upperNode instanceof CallableDeclaration))
+            upperNode = upperNode.getParentNode().orElseThrow();
+        return (CallableDeclaration<?>) upperNode;
     }
 
     /** Generates the default initializer, given a field. In Java, reference types

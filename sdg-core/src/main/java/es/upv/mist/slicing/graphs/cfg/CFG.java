@@ -54,6 +54,10 @@ public class CFG extends GraphWithRootNode<CallableDeclaration<?>> {
         addEdge(from, to, arc);
     }
 
+    public boolean isPredicate(GraphNode<?> graphNode) {
+        return outgoingEdgesOf(graphNode).size() > 1;
+    }
+
     /** Obtain the definitions that may have reached the given variable action. */
     public List<VariableAction> findLastDefinitionsFrom(VariableAction variable) {
         return findLastVarActionsFrom(variable, VariableAction::isDefinition);
@@ -93,12 +97,13 @@ public class CFG extends GraphWithRootNode<CallableDeclaration<?>> {
             stream = stream.takeWhile(va -> va != var);
         List<VariableAction> list = stream.filter(var::matches).filter(filter).collect(Collectors.toList());
         if (!list.isEmpty()) {
-            for (int i = list.size() - 1; i >= 0; i--) {
+            boolean found = false;
+            for (int i = list.size() - 1; i >= 0 && !found; i--) {
                 result.add(list.get(i));
                 if (!list.get(i).isOptional())
-                    break;
+                    found = true;
             }
-            if (!list.get(0).isOptional())
+            if (found)
                 return true;
         }
 

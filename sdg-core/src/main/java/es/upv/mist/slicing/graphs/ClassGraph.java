@@ -4,10 +4,13 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
+import com.github.javaparser.resolution.UnsolvedSymbolException;
 import com.github.javaparser.resolution.declarations.ResolvedClassDeclaration;
 import com.github.javaparser.resolution.types.ResolvedReferenceType;
 import es.upv.mist.slicing.arcs.Arc;
+import es.upv.mist.slicing.nodes.VariableAction.ObjectTree;
 import es.upv.mist.slicing.utils.ASTUtils;
+import es.upv.mist.slicing.utils.Logger;
 import es.upv.mist.slicing.utils.Utils;
 import org.jgrapht.graph.DirectedPseudograph;
 import org.jgrapht.nio.dot.DOTExporter;
@@ -17,6 +20,18 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, ClassGraph.ClassArc> implements Buildable<NodeList<CompilationUnit>> {
+    private static ClassGraph instance = null;
+
+    public static ClassGraph getNewInstance() {
+        instance = null;
+        return getInstance();
+    }
+
+    public static ClassGraph getInstance() {
+        if (instance == null)
+            instance = new ClassGraph();
+        return instance;
+    }
 
     /** The key of the vertex map needs to be a String because extendedTypes represent extended classes
      * as ClassOrInterfaceType objects while class declarations define classes as ClassOrInterfaceDeclaration
@@ -25,7 +40,7 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, ClassGrap
 
     private boolean built = false;
 
-    public ClassGraph() {
+    private ClassGraph() {
         super(null, null, false);
     }
 
@@ -111,6 +126,79 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, ClassGrap
                 .filter(BodyDeclaration::isClassOrInterfaceDeclaration)
                 .map(BodyDeclaration::asClassOrInterfaceDeclaration)
                 .findFirst();
+    }
+
+    public Optional<ObjectTree> generateObjectTreeForReturnOf(CallableDeclaration<?> callableDeclaration) {
+        if (callableDeclaration.isMethodDeclaration()) {
+            MethodDeclaration method = callableDeclaration.asMethodDeclaration();
+            if (method.getType().isClassOrInterfaceType())
+                try {
+                    return Optional.of(generateObjectTreeFor(method.getType().asClassOrInterfaceType().resolve()));
+                } catch (UnsolvedSymbolException e) {
+                    return Optional.empty();
+                }
+            else
+                return Optional.empty();
+        } else if (callableDeclaration.isConstructorDeclaration()) {
+            return Optional.of(generateObjectTreeFor(ASTUtils.getClassNode(callableDeclaration)));
+        } else {
+            throw new IllegalArgumentException("Invalid callable declaration type");
+        }
+    }
+
+    public ObjectTree generateObjectTreeFor(ClassOrInterfaceDeclaration declaration) {
+        return generateObjectTreeFor(vertexDeclarationMap.get(mapKey(declaration)));
+    }
+
+    public ObjectTree generateObjectTreeFor(ResolvedReferenceType type) {
+        Vertex classVertex = vertexDeclarationMap.get(mapKey(type));
+        if (classVertex == null) {
+            Logger.log("ResolvedReferenceType could not be found in class graph: " + type.describe());
+            return new ObjectTree();
+        }
+        return generateObjectTreeFor(classVertex);
+    }
+
+    protected ObjectTree generateObjectTreeFor(Vertex classVertex) {
+        return generateObjectTreeFor(classVertex, new ObjectTree(), "-root-");
+    }
+
+    protected ObjectTree generateObjectTreeFor(Vertex classVertex, ObjectTree tree, String level) {
+        Map<String, Vertex> classFields = findAllFieldsOf(classVertex);
+        for (Map.Entry<String, Vertex> entry : classFields.entrySet()) {
+            tree.addField(level + '.' + entry.getKey());
+            if (entry.getValue() != null)
+                generateObjectTreeFor(entry.getValue(), tree, level + '.' + entry.getKey());
+        }
+        return tree;
+    }
+
+    protected Map<String, Vertex> findAllFieldsOf(Vertex classVertex) {
+        assert classVertex.declaration instanceof ClassOrInterfaceDeclaration;
+        assert !classVertex.declaration.asClassOrInterfaceDeclaration().isInterface();
+        ClassOrInterfaceDeclaration clazz = classVertex.getDeclaration().asClassOrInterfaceDeclaration();
+        Map<String, Vertex> fieldMap = new HashMap<>();
+        while (clazz != null) {
+            for (FieldDeclaration field : clazz.getFields()) {
+                for (VariableDeclarator var : field.getVariables()) {
+                    if (fieldMap.containsKey(var.getNameAsString()))
+                        continue;
+                    Vertex v = null;
+                    if (var.getType().isClassOrInterfaceType()) {
+                        try {
+                            v = vertexDeclarationMap.get(mapKey(var.getType().asClassOrInterfaceType().resolve()));
+                        } catch (UnsolvedSymbolException ignored) {
+                        }
+                    }
+                    fieldMap.put(var.getNameAsString(), v);
+                }
+            }
+            Optional<ClassOrInterfaceDeclaration> parent = parentOf(clazz);
+            if (parent.isEmpty())
+                break;
+            clazz = parent.get();
+        }
+        return fieldMap;
     }
 
     @Override

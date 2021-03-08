@@ -17,6 +17,10 @@ public abstract class IONode<T extends Node> extends SyntheticNode<T> {
         this.isInput = isInput;
     }
 
+    public String getVariableName() {
+        return variableName;
+    }
+
     public boolean isInput() {
         return isInput;
     }

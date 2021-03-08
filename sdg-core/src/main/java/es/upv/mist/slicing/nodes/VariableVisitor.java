@@ -1,19 +1,26 @@
 package es.upv.mist.slicing.nodes;
 
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.*;
-import com.github.javaparser.ast.stmt.CatchClause;
-import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
-import com.github.javaparser.ast.stmt.ForEachStmt;
+import com.github.javaparser.ast.nodeTypes.NodeWithArguments;
+import com.github.javaparser.ast.stmt.*;
+import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.UnsolvedSymbolException;
+import com.github.javaparser.resolution.declarations.AssociableToAST;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedTypeDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
+import com.github.javaparser.symbolsolver.javaparsermodel.declarations.JavaParserMethodDeclaration;
+import es.upv.mist.slicing.graphs.ClassGraph;
+import es.upv.mist.slicing.graphs.ExpressionObjectTreeFinder;
 import es.upv.mist.slicing.graphs.GraphNodeContentVisitor;
+import es.upv.mist.slicing.nodes.VariableAction.ObjectTree;
+import es.upv.mist.slicing.nodes.io.ActualIONode;
 import es.upv.mist.slicing.nodes.io.CallNode;
 import es.upv.mist.slicing.utils.ASTUtils;
 import es.upv.mist.slicing.utils.Logger;
@@ -21,9 +28,10 @@ import es.upv.mist.slicing.utils.Logger;
 import java.util.Deque;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Objects;
+import java.util.Optional;
 
 import static es.upv.mist.slicing.graphs.cfg.CFGBuilder.VARIABLE_NAME_OUTPUT;
+import static es.upv.mist.slicing.nodes.VariableVisitor.Action.*;
 
 /** A graph node visitor that extracts the actions performed in a given GraphNode. An initial action mode can
  *  be set, to consider variables found a declaration, definition or usage (default).
@@ -50,39 +58,21 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         }
     }
 
-    /** The action to perform when a declaration is found. */
-    protected final DeclarationConsumer declConsumer;
-    /** The action to perform when a definition is found. */
-    protected final DefinitionConsumer defConsumer;
-    /** The action to perform when a usage is found. */
-    protected final UsageConsumer useConsumer;
     /** A stack with the last definition expression, to provide it when a variable definition is found. */
     protected final Deque<Expression> definitionStack = new LinkedList<>();
-
-    /** A variable visitor that will add each action to the list of actions of the graph node.
-     *  The entry-point for this graph MUST be {@link #startVisit(GraphNode)} or {@link #startVisit(GraphNode, Action)} */
-    public VariableVisitor() {
-        this(GraphNode::addDeclaredVariable, GraphNode::addDefinedVariable, GraphNode::addUsedVariable);
-    }
-
-    /** A variable visitor that will perform the given actions when a variable is found. A node can accept this visitor,
-     *  but calls will be ignored if the entry-point is not {@link #startVisit(GraphNode)} or {@link #startVisit(GraphNode, Action)}.
-     *  The arguments are the actions to be performed when an action is found in the corresponding node. */
-    public VariableVisitor(DeclarationConsumer declConsumer, DefinitionConsumer defConsumer, UsageConsumer useConsumer) {
-        this.declConsumer = Objects.requireNonNullElse(declConsumer, DeclarationConsumer.defaultConsumer());
-        this.defConsumer = Objects.requireNonNullElse(defConsumer, DefinitionConsumer.defaultConsumer());
-        this.useConsumer = Objects.requireNonNullElse(useConsumer, UsageConsumer.defaultConsumer());
-    }
+    /** If this stack is non-empty, every action created must be of type Movable, and its real node must be
+     *  the top of this stack. Used for actual-in nodes. */
+    protected final Deque<SyntheticNode<?>> realNodeStack = new LinkedList<>();
 
     public void visitAsDefinition(Node node, Expression value, Action action) {
         definitionStack.push(value);
-        node.accept(this, action.or(Action.DEFINITION));
+        node.accept(this, action.or(DEFINITION));
         definitionStack.pop();
     }
 
     @Override
     public void startVisit(GraphNode<?> node) {
-        startVisit(node, Action.USE);
+        startVisit(node, USE);
         groupActionsByRoot(node);
     }
 
@@ -93,6 +83,11 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
 
     @Override
     public void visit(ThisExpr n, Action arg) {
+        acceptAction(n, arg);
+    }
+
+    @Override
+    public void visit(SuperExpr n, Action arg) {
         acceptAction(n, arg);
     }
 
@@ -120,20 +115,42 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     }
 
     protected void acceptAction(Expression n, Action action) {
+        acceptAction(n, getRealName(n), action, false);
+    }
+
+    protected void acceptAction(String realName, Action action) {
+        acceptAction(null, realName, action, false);
+    }
+
+    protected void acceptAction(Expression n, String realName, Action action) {
+        acceptAction(n, realName, action, false);
+    }
+
+    protected void acceptActionNullDefinition(String realName) {
+        acceptAction(null, realName, DEFINITION, true);
+    }
+
+    protected void acceptAction(Expression n, String realName, Action action, boolean canDefBeNull) {
+        VariableAction va;
         switch (action) {
             case DECLARATION:
-                declConsumer.acceptDeclaration(graphNode, n, getRealName(n));
+                va = new VariableAction.Declaration(n, realName, graphNode);
                 break;
             case DEFINITION:
-                assert !definitionStack.isEmpty();
-                defConsumer.acceptDefinition(graphNode, n, getRealName(n), definitionStack.peek());
+                assert !definitionStack.isEmpty() || canDefBeNull;
+                va = new VariableAction.Definition(n, realName, graphNode, definitionStack.peek());
                 break;
             case USE:
-                useConsumer.acceptUsage(graphNode, n, getRealName(n));
+                va = new VariableAction.Usage(n, realName, graphNode);
                 break;
             default:
                 throw new UnsupportedOperationException();
         }
+        if (!realNodeStack.isEmpty()) {
+            realNodeStack.peek().addVariableAction(va);
+            va = new VariableAction.Movable(va, realNodeStack.peek());
+        }
+        graphNode.addVariableAction(va);
     }
 
     // Partially traversed (only expressions that may contain variables are traversed)
@@ -144,12 +161,22 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
 
     // Modified traversal (there may be variable definitions or declarations)
     @Override
+    public void visit(ReturnStmt n, Action arg) {
+        super.visit(n, arg);
+        if (n.getExpression().isPresent()) {
+            definitionStack.push(n.getExpression().get());
+            acceptAction(VARIABLE_NAME_OUTPUT, DEFINITION);
+            definitionStack.pop();
+        }
+    }
+
+    @Override
     public void visit(ForEachStmt n, Action action) {
-        n.getIterable().accept(this, Action.USE);
+        n.getIterable().accept(this, USE);
         for (VariableDeclarator variable : n.getVariable().getVariables()) {
-            declConsumer.acceptDeclaration(graphNode, null, variable.getNameAsString());
+            acceptAction(variable.getNameAsString(), DECLARATION);
             // ForEach initializes to each value of the iterable, but that expression is not available.
-            defConsumer.acceptDefinition(graphNode, null, variable.getNameAsString(), null);
+            acceptActionNullDefinition(variable.getNameAsString());
         }
     }
 
@@ -183,10 +210,69 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     public void visit(AssignExpr n, Action action) {
         // Value is always visited first since uses occur before definitions
         n.getValue().accept(this, action);
-        // Target will be used if operator is not '='
-        if (n.getOperator() != AssignExpr.Operator.ASSIGN)
-            n.getTarget().accept(this, action);
-        visitAsDefinition(n.getTarget(), n.getValue(), action);
+        if (n.getValue().calculateResolvedType().isPrimitive()) {
+            // Target will be used if operator is not '='
+            if (n.getOperator() != AssignExpr.Operator.ASSIGN)
+                n.getTarget().accept(this, action);
+            visitAsDefinition(n.getTarget(), n.getValue(), action);
+        } else {
+            List<String> realNameWithoutRootList = new LinkedList<>();
+            n.getTarget().accept(new VoidVisitorAdapter<Void>() {
+                @Override
+                public void visit(NameExpr nameExpr, Void arg) {
+                    String realName = getRealName(nameExpr);
+                    definitionStack.push(n.getValue());
+                    if (!realName.contains(".")) {
+                        acceptAction(nameExpr, realName, DEFINITION);
+                        realNameWithoutRootList.add("");
+                    } else {
+                        String root = ObjectTree.removeFields(realName);
+                        acceptAction(root, DEFINITION);
+                        List<VariableAction> list = graphNode.getVariableActions();
+                        VariableAction def = list.get(graphNode.getVariableActions().size() - 1);
+                        def.getObjectTree().addField(realName);
+                        realNameWithoutRootList.add(realName);
+                    }
+                    definitionStack.pop();
+                }
+
+                @Override
+                public void visit(FieldAccessExpr fieldAccessExpr, Void arg) {
+                    Expression scope = fieldAccessExpr.getScope();
+                    boolean traverse = true;
+                    while (traverse) {
+                        if (scope.isFieldAccessExpr())
+                            scope = scope.asFieldAccessExpr().getScope();
+                        else if (scope.isEnclosedExpr())
+                            scope = scope.asEnclosedExpr().getInner();
+                        else if (scope.isCastExpr())
+                            scope = scope.asCastExpr().getExpression();
+                        else
+                            traverse = false;
+                    }
+                    if (!scope.isNameExpr() && !scope.isThisExpr())
+                        throw new IllegalStateException("only valid assignments are this[.<field>]+ =, and <var>[.<field>]+");
+                    String realName = getRealName(fieldAccessExpr);
+                    String root = ObjectTree.removeFields(realName);
+                    definitionStack.push(n.getValue());
+                    acceptAction(root, DEFINITION);
+                    definitionStack.pop();
+                    List<VariableAction> list = graphNode.getVariableActions();
+                    VariableAction def = list.get(graphNode.getVariableActions().size() - 1);
+                    def.getObjectTree().addField(realName);
+                    realNameWithoutRootList.add(ObjectTree.removeRoot(realName));
+                }
+
+                @Override
+                public void visit(ArrayAccessExpr n, Void arg) {
+                    throw new UnsupportedOperationException("Arrays are not yet supported as target of assignment.");
+                }
+            }, null);
+            assert realNameWithoutRootList.size() == 1;
+            List<VariableAction> list = graphNode.getVariableActions();
+            ExpressionObjectTreeFinder finder = new ExpressionObjectTreeFinder(graphNode);
+            finder.handleAssignExpr(n, list.get(graphNode.getVariableActions().size() - 1), realNameWithoutRootList.get(0));
+        }
     }
 
     @Override
@@ -198,14 +284,14 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
             case PREFIX_DECREMENT:
             case PREFIX_INCREMENT:
                 n.getExpression().accept(this, action);
-                visitAsDefinition(n.getExpression(), null, action); // TODO: improve initializer
+                visitAsDefinition(n.getExpression(), null, action);
                 break;
         }
         n.getExpression().accept(this, action);
         switch (n.getOperator()) {
             case POSTFIX_INCREMENT:
             case POSTFIX_DECREMENT:
-                visitAsDefinition(n.getExpression(), null, action); // TODO: improve initializer
+                visitAsDefinition(n.getExpression(), null, action);
                 break;
         }
     }
@@ -213,45 +299,51 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     @Override
     public void visit(VariableDeclarationExpr n, Action action) {
         for (VariableDeclarator v : n.getVariables()) {
-            String realName;
-            realName = v.getNameAsString();
-            declConsumer.acceptDeclaration(graphNode, null, realName);
+            acceptAction(v.getNameAsString(), DECLARATION);
             v.getInitializer().ifPresent(init -> {
                 init.accept(this, action);
-                defConsumer.acceptDefinition(graphNode, null, realName, init);
+                acceptActionNullDefinition(v.getNameAsString());
             });
+            v.accept(this, action);
         }
     }
 
     @Override
     public void visit(FieldDeclaration n, Action action) {
         for (VariableDeclarator v : n.getVariables()) {
-            String realName;
-            realName = getRealNameForFieldDeclaration(v);
-            declConsumer.acceptDeclaration(graphNode, null, realName);
+            String realName = getRealNameForFieldDeclaration(v);
+            acceptAction(realName, DECLARATION);
             Expression init = v.getInitializer().orElseGet(() -> ASTUtils.initializerForField(n));
             init.accept(this, action);
-            defConsumer.acceptDefinition(graphNode, null, realName, init);
+            definitionStack.push(init);
+            acceptAction(realName, DEFINITION);
+            definitionStack.pop();
+            v.accept(this, action);
         }
     }
 
     @Override
+    public void visit(VariableDeclarator n, Action arg) {
+        if (n.getType().isClassOrInterfaceType() && n.getInitializer().isPresent())
+            new ExpressionObjectTreeFinder(graphNode).handleVariableDeclarator(n);
+    }
+
+    @Override
     public void visit(CatchClause n, Action arg) {
-        n.getParameter().accept(this, arg.or(Action.DECLARATION));
+        n.getParameter().accept(this, arg.or(DECLARATION));
         n.getBody().accept(this, arg);
     }
 
     @Override
     public void visit(Parameter n, Action arg) {
-        declConsumer.acceptDeclaration(graphNode, null, n.getNameAsString());
-        defConsumer.acceptDefinition(graphNode, null, n.getNameAsString(), null); // TODO: improve initializer
+        acceptAction(n.getNameAsString(), DECLARATION);
+        acceptActionNullDefinition(n.getNameAsString());
     }
 
     // =======================================================================
     // ================================ CALLS ================================
     // =======================================================================
 
-    // If the call will be linked (there is an AST node), skip parameters, add markers and add to node
     // TODO: non-linked calls should mark both parameters and scope as DEF+USE (problem: 'System.out.println(z)')
 
     @Override
@@ -264,20 +356,11 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     public void visit(ExplicitConstructorInvocationStmt n, Action arg) {
         String realName4this = getFQClassName(n) + ".this";
         if (visitCall(n, arg)) {
-            declareThis(n);
+            acceptAction(getFQClassName(n) + ".this", DECLARATION);
             super.visit(n, arg);
-            // Define this even when the super() call is not resolved.
-            graphNode.addDefinedVariable(null, realName4this, null);
-        } else {
-            // A node defines -output-
-            var defOutput = new VariableAction.Definition(null, VARIABLE_NAME_OUTPUT, graphNode);
-            var defOutputMov = new VariableAction.Movable(defOutput, CallNode.Return.create(n));
-            graphNode.addActionsForCall(List.of(defOutputMov), n, false);
-            // The container of the call defines this and then uses -output-
-            graphNode.addActionsAfterCall(n,
-                    new VariableAction.Definition(null, realName4this, graphNode),
-                    new VariableAction.Usage(null, VARIABLE_NAME_OUTPUT, graphNode));
         }
+        // Regardless of whether it resolves or not, 'this' is defined
+        acceptActionNullDefinition(realName4this);
     }
 
     @Override
@@ -287,22 +370,75 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     }
 
     /** Tries to resolve and add the corresponding call markers. */
-    protected boolean visitCall(Resolvable<? extends ResolvedMethodLikeDeclaration> call, Action arg) {
+    protected boolean visitCall(Resolvable<? extends ResolvedMethodLikeDeclaration> call, Action action) {
+        // If we don't have the AST for the call, we should visit the rest of the call.
         if (ASTUtils.shouldVisitArgumentsForMethodCalls(call, graphNode))
             return true;
+        CallableDeclaration<?> decl = ASTUtils.getResolvedAST(call.resolve()).orElseThrow();
+        // Start
         graphNode.addCallMarker(call, true);
-        if (call instanceof ExplicitConstructorInvocationStmt) {
-            declareThis((ExplicitConstructorInvocationStmt) call);
+        // Scope
+        if (call instanceof ExplicitConstructorInvocationStmt)
+            acceptAction(getFQClassName((ExplicitConstructorInvocationStmt) call) + ".this", DECLARATION);
+        if (call instanceof MethodCallExpr && !((JavaParserMethodDeclaration) call.resolve()).isStatic()) {
+            ActualIONode scopeIn = ActualIONode.createActualIn(call, getFQClassName(decl) + ".this", ((MethodCallExpr) call).getScope().orElse(null));
+            graphNode.addSyntheticNode(scopeIn);
+            realNodeStack.push(scopeIn);
+            ASTUtils.getResolvableScope(call).ifPresentOrElse(
+                    scope -> scope.accept(this, action),
+                    () -> acceptAction(getFQClassName(decl) + ".this", USE));
+            realNodeStack.pop();
         }
-        ASTUtils.getResolvableScope(call).ifPresent(s -> s.accept(this, arg));
+        // Args
+        NodeWithArguments<?> callWithArgs = (NodeWithArguments<?>) call;
+        for (int i = 0; i < callWithArgs.getArguments().size(); i++) {
+            Expression argument = callWithArgs.getArguments().get(i);
+            ActualIONode actualIn = ActualIONode.createActualIn(call, decl.getParameter(i).getNameAsString(), argument);
+            graphNode.addSyntheticNode(actualIn);
+            realNodeStack.push(actualIn);
+            argument.accept(this, action);
+            realNodeStack.pop();
+        }
+        // Return
+        insertOutputDefAndUse(call);
+        // End
         graphNode.addCallMarker(call, false);
-        return false;
+        return false; // We have manually visited each element, don't call super.visit(...)
     }
 
-    /** Adds a declaration for the variable 'this'. */
-    protected void declareThis(ExplicitConstructorInvocationStmt call) {
-        String variableName = getFQClassName(call) + ".this";
-        declConsumer.acceptDeclaration(graphNode, null, variableName);
+    protected void insertOutputDefAndUse(Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
+        if (ASTUtils.resolvableIsVoid(call))
+            return;
+        Expression callExpr = call instanceof Expression ? (Expression) call : null;
+        // A node defines -output-
+        var fields = getFieldsForReturn(call);
+        VariableAction.Definition def;
+        if (fields.isPresent())
+            def = new VariableAction.Definition(callExpr, VARIABLE_NAME_OUTPUT, graphNode, (ObjectTree) fields.get().clone());
+        else
+            def = new VariableAction.Definition(callExpr, VARIABLE_NAME_OUTPUT, graphNode);
+        var defMov = new VariableAction.Movable(def, CallNode.Return.create(call));
+        graphNode.addVariableAction(defMov);
+        // The container of the call uses -output-, unless the call is wrapped in an ExpressionStmt
+        Optional<Node> parentNode = ((Node) call).getParentNode();
+        if (parentNode.isEmpty() || !(parentNode.get() instanceof ExpressionStmt)) {
+            VariableAction.Usage use;
+            if (fields.isPresent())
+                use = new VariableAction.Usage(callExpr, VARIABLE_NAME_OUTPUT, graphNode, (ObjectTree) fields.get().clone());
+            else
+                use = new VariableAction.Usage(callExpr, VARIABLE_NAME_OUTPUT, graphNode);
+            graphNode.addVariableAction(use);
+        }
+    }
+
+    protected Optional<ObjectTree> getFieldsForReturn(Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
+        ResolvedMethodLikeDeclaration resolved = call.resolve();
+        if (resolved instanceof AssociableToAST) {
+            Optional<? extends Node> n = ((AssociableToAST<? extends Node>) resolved).toAst();
+            if (n.isPresent() && n.get() instanceof CallableDeclaration)
+                return ClassGraph.getInstance().generateObjectTreeForReturnOf((CallableDeclaration<?>) n.get());
+        }
+        return Optional.empty();
     }
 
     /** Obtains the fully qualified class name of the class that contains an AST node. */
@@ -325,9 +461,24 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
             } catch (UnsolvedSymbolException e) {
                 Logger.log("Unable to resolve symbol " + e.getName());
             }
+        } else if (n.isSuperExpr()) {
+            if (n.asSuperExpr().getTypeName().isPresent())
+                return n.asSuperExpr().calculateResolvedType().asReferenceType().getQualifiedName() + ".this";
+            return getFQClassName(n) + ".this";
         } else if (n.isThisExpr()) {
             var hasTypeName = n.asThisExpr().getTypeName().isPresent();
             return (hasTypeName ? n.asThisExpr().resolve().getQualifiedName() : getFQClassName(n)) + ".this";
+        } else if (n.isFieldAccessExpr()) { // this.a.b
+            Expression scope = n.asFieldAccessExpr().getScope();
+            StringBuilder builder = new StringBuilder(n.asFieldAccessExpr().getNameAsString());
+            while (scope instanceof FieldAccessExpr) {
+                builder.insert(0, '.');
+                builder.insert(0, scope.asFieldAccessExpr().getNameAsString());
+                scope = scope.asFieldAccessExpr().getScope();
+            }
+            builder.insert(0, '.');
+            builder.insert(0, getRealName(scope));
+            return builder.toString();
         }
         return n.toString();
     }
@@ -362,54 +513,21 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
             if (lastRootAction == null) {
                 // generate our own root action
                 lastRootAction = action.getRootAction();
-                lastRootAction.addObjectField(action.getVariable());
                 // It can be representing a fieldAccessExpr or a fieldDeclaration
                 // in the first, we can use the expression to obtain the 'type.this' or 'object_name'
                 // in the second, the expression is null but we can extract 'type.this' from realName
-            } else {
-                // Check if action matches the previously generated root action
-                if (VariableAction.rootMatches(action, lastRootAction)
-                        && VariableAction.typeMatches(action, lastRootAction)) {
-                    lastRootAction.addObjectField(action.getVariable());
-                } else {
-                    // No match: add the root before the current element and update counter
-                    graphNode.variableActions.add(i, lastRootAction);
-                    i++;
-                    // generate our own root action
-                    lastRootAction = action.getRootAction();
-                    lastRootAction.addObjectField(action.getVariable());
-                }
+            } else if (!VariableAction.rootMatches(action, lastRootAction)
+                    || !VariableAction.typeMatches(action, lastRootAction)) {
+                // No match: add the root before the current element and update counter
+                graphNode.variableActions.add(i, lastRootAction);
+                i++;
+                // generate our own root action
+                lastRootAction = action.getRootAction();
             }
+            lastRootAction.addObjectField(action.getVariable());
         }
         // Append the last root action if there is any!
         if (lastRootAction != null)
             graphNode.variableActions.add(lastRootAction);
-    }
-
-    @FunctionalInterface
-    public interface DeclarationConsumer {
-        void acceptDeclaration(GraphNode<?> graphNode, Expression variable, String realName);
-
-        static DeclarationConsumer defaultConsumer() {
-            return (a, b, c) -> {};
-        }
-    }
-
-    @FunctionalInterface
-    public interface DefinitionConsumer {
-        void acceptDefinition(GraphNode<?> graphNode, Expression variable, String realName, Expression valueAssigned);
-
-        static DefinitionConsumer defaultConsumer() {
-            return (a, b, c, d) -> {};
-        }
-    }
-
-    @FunctionalInterface
-    public interface UsageConsumer {
-        void acceptUsage(GraphNode<?> graphNode, Expression variable, String realName);
-
-        static UsageConsumer defaultConsumer() {
-            return (a, b, c) -> {};
-        }
     }
 }

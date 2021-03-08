@@ -16,7 +16,11 @@ public class ActualIONode extends IONode<Node> {
     protected final Expression argument;
 
     protected ActualIONode(Resolvable<? extends ResolvedMethodLikeDeclaration> astNode, ResolvedValueDeclaration variable, Expression argument, boolean isInput) {
-        super(createLabel(isInput, variable.getName(), argument), (Node) astNode, variable.getName(), isInput);
+        this(astNode, variable.getName(), argument, isInput);
+    }
+
+    protected ActualIONode(Resolvable<? extends ResolvedMethodLikeDeclaration> astNode, String variable, Expression argument, boolean isInput) {
+        super(createLabel(isInput, variable, argument), (Node) astNode, variable, isInput);
         this.argument = argument;
     }
 
@@ -65,6 +69,10 @@ public class ActualIONode extends IONode<Node> {
 
     public static ActualIONode createActualIn(Resolvable<? extends ResolvedMethodLikeDeclaration> methodCallExpr, ResolvedValueDeclaration resolvedDeclaration, Expression argument) {
         return new ActualIONode(methodCallExpr, resolvedDeclaration, argument, true);
+    }
+
+    public static ActualIONode createActualIn(Resolvable<? extends ResolvedMethodLikeDeclaration> methodCallExpr, String variable, Expression argument) {
+        return new ActualIONode(methodCallExpr, variable, argument, true);
     }
 
     public static ActualIONode createActualOut(Resolvable<? extends ResolvedMethodLikeDeclaration> methodCallExpr, ResolvedValueDeclaration resolvedDeclaration, Expression argument) {

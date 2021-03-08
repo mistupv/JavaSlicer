@@ -34,4 +34,9 @@ public class ACFG extends CFG {
     public boolean isPseudoPredicate(GraphNode<?> node) {
         return outgoingEdgesOf(node).stream().filter(Arc::isNonExecutableControlFlowArc).count() == 1;
     }
+
+    @Override
+    public boolean isPredicate(GraphNode<?> graphNode) {
+        return super.isPredicate(graphNode) && !isPseudoPredicate(graphNode);
+    }
 }

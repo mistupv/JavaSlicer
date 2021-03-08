@@ -51,8 +51,8 @@ public class ExceptionSensitiveSlicingAlgorithm implements SlicingAlgorithm {
         this.slicingCriterion = slicingCriterion;
         Slice slice = new Slice();
         slice.add(slicingCriterion);
-        pass(slice, SDG_PASS_1.or(this::ppdgIgnore).or(this::essdgIgnore));
-        pass(slice, SDG_PASS_2.or(this::ppdgIgnore).or(this::essdgIgnore));
+        pass(slice, SDG_PASS_1.or(this::commonIgnoreConditions));
+        pass(slice, SDG_PASS_2.or(this::commonIgnoreConditions));
         return slice;
     }
 
@@ -63,6 +63,10 @@ public class ExceptionSensitiveSlicingAlgorithm implements SlicingAlgorithm {
         slice.add(slicingCriterion);
         pass(slice, INTRAPROCEDURAL);
         return slice;
+    }
+
+    protected boolean commonIgnoreConditions(Arc arc) {
+        return ppdgIgnore(arc) || essdgIgnore(arc);
     }
 
     /**

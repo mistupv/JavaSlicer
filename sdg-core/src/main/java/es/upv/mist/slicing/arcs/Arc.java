@@ -89,6 +89,10 @@ public abstract class Arc extends DefaultEdge {
         throw new UnsupportedOperationException("Not a DataDependencyArc");
     }
 
+    public boolean isObjectFlow() {
+        return false;
+    }
+
     // =========================== SDG ===========================
 
     /** Whether or not this is an interprocedural arc that connects a call site to its declaration. */

@@ -1,20 +1,25 @@
 package es.upv.mist.slicing.nodes.oo;
 
 import com.github.javaparser.ast.Node;
+import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.nodes.SyntheticNode;
 
 import java.util.LinkedList;
 
 public class MemberNode extends SyntheticNode<Node> {
-    protected final MemberNode parent;
+    protected GraphNode<?> parent;
 
-    public MemberNode(String instruction, MemberNode parent) {
+    public MemberNode(String instruction, GraphNode<?> parent) {
         super(instruction, null, new LinkedList<>());
         this.parent = parent;
     }
 
-    public MemberNode getParent() {
+    public GraphNode<?> getParent() {
         return parent;
+    }
+
+    public void setParent(GraphNode<?> parent) {
+        this.parent = parent;
     }
 
     @Override

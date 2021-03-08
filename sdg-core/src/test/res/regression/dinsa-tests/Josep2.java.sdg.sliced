@@ -21,7 +21,7 @@ public class Josep2 {
 
 class Numeros {
 
-    int noHaceFalta = 1;
+    int haceFalta = 1;
 
     int random() {
         return haceFalta;

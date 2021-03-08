@@ -2,22 +2,35 @@ package es.upv.mist.slicing.nodes;
 
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
+import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.resolution.Resolvable;
+import com.github.javaparser.resolution.UnsolvedSymbolException;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
 import com.github.javaparser.resolution.types.ResolvedType;
 import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.arcs.pdg.DataDependencyArc;
+import es.upv.mist.slicing.arcs.pdg.FlowDependencyArc;
+import es.upv.mist.slicing.arcs.pdg.ObjectFlowDependencyArc;
+import es.upv.mist.slicing.arcs.sdg.ParameterInOutArc;
 import es.upv.mist.slicing.graphs.Graph;
+import es.upv.mist.slicing.graphs.jsysdg.JSysDG;
+import es.upv.mist.slicing.graphs.jsysdg.JSysPDG;
 import es.upv.mist.slicing.graphs.pdg.PDG;
+import es.upv.mist.slicing.nodes.io.CallNode;
+import es.upv.mist.slicing.nodes.io.OutputNode;
 import es.upv.mist.slicing.nodes.oo.MemberNode;
+import es.upv.mist.slicing.utils.ASTUtils;
 import es.upv.mist.slicing.utils.Utils;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.*;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import static es.upv.mist.slicing.graphs.cfg.CFGBuilder.VARIABLE_NAME_OUTPUT;
 
 /** An action upon a variable (e.g. usage, definition, declaration) */
 public abstract class VariableAction {
@@ -31,6 +44,13 @@ public abstract class VariableAction {
 
     protected boolean optional = false;
     protected ResolvedValueDeclaration resolvedVariableCache;
+
+    /// Variables that control the automatic connection of ObjectTrees between VariableAction
+    /** A list of pairs representing connections to be made between trees in the PDG.
+     *  The variable action that contains the tree we must connect to in the PDG.
+     *  The string, or member where the tree connection must start (in PDG). E.g.: our tree is "a.b.c" and this variable is "a",
+     *  the members "a.b" and "a.b.c" will be connected to "b" and "b.c" in treeConnectionTarget's tree.. */
+    protected final List<ObjectTreeConnection> pdgTreeConnections = new LinkedList<>();
 
     public VariableAction(Expression variable, String realName, GraphNode<?> graphNode) {
         this(variable, realName, graphNode,  new ObjectTree());
@@ -52,7 +72,20 @@ public abstract class VariableAction {
     /** Add a field of this object, such that the same action performed on the object
      *  is applied to this field too. Fields of fields may be specified separated by dots. */
     public void addObjectField(String fieldName) {
-        objectTree.addField(fieldName);
+        getObjectTree().addField(fieldName);
+    }
+
+    public void setPDGTreeConnectionTo(VariableAction targetAction, String sourcePrefixWithoutRoot, String targetPrefixWithoutRoot) {
+        pdgTreeConnections.add(new ObjectTreeConnection(this, targetAction, sourcePrefixWithoutRoot, targetPrefixWithoutRoot));
+    }
+
+    public void applyPDGTreeConnections(JSysPDG pdg) {
+        pdgTreeConnections.forEach(c -> c.applyPDG(pdg));
+    }
+
+    public void applySDGTreeConnection(JSysDG sdg, VariableAction targetAction) {
+        ObjectTreeConnection connection = new ObjectTreeConnection(this, targetAction, "", "");
+        connection.applySDG(sdg);
     }
 
     public VariableAction getRootAction() {
@@ -60,7 +93,7 @@ public abstract class VariableAction {
         assert variable == null || variable.isNameExpr() || variable.isFieldAccessExpr() || variable.isThisExpr();
         if (this instanceof Movable) {
             Movable movable = (Movable) this;
-            return new Movable(movable.inner.getRootAction(), (SyntheticNode<?>) graphNode);
+            return new Movable(movable.inner.getRootAction(), movable.getRealNode());
         }
         Expression nVar;
         String nRealName = getRootVariable();
@@ -117,6 +150,18 @@ public abstract class VariableAction {
         return !getVariable().matches(FIELD_PATTERN);
     }
 
+    public boolean isPrimitive() {                                          // if (otherwise) handleAsCallReturn
+        if (realName.equals(VARIABLE_NAME_OUTPUT)) {
+            if (graphNode.getAstNode() instanceof ReturnStmt) {
+                return !ASTUtils.declarationReturnIsObject(ASTUtils.getDeclarationNode(graphNode.getAstNode()));
+            } else {
+                return ASTUtils.resolvableIsPrimitive(graphNode.locateCallForVariableAction(this).getCall());
+            }
+        }
+        ResolvedValueDeclaration resolved = getResolvedValueDeclaration();  // if (graphNode.getAstNode() instanceof ReturnStmt) handleAsTypeOfCurrentMethod
+        return resolved.getType() != null && resolved.getType().isPrimitive();
+    }
+
     public String getVariable() {
         return realName;
     }
@@ -141,9 +186,33 @@ public abstract class VariableAction {
     public ResolvedValueDeclaration getResolvedValueDeclaration() {
         if (resolvedVariableCache == null) {
             if (variable instanceof Resolvable) {
-                var resolved = ((Resolvable<?>) variable).resolve();
-                if (resolved instanceof ResolvedValueDeclaration)
-                    resolvedVariableCache = (ResolvedValueDeclaration) resolved;
+                try {
+                    var resolved = ((Resolvable<?>) variable).resolve();
+                    if (resolved instanceof ResolvedValueDeclaration)
+                        resolvedVariableCache = (ResolvedValueDeclaration) resolved;
+                } catch (UnsolvedSymbolException ignored) {
+                    resolvedVariableCache = new ResolvedValueDeclaration() {
+                        @Override
+                        public ResolvedType getType() {
+                            return null;
+                        }
+
+                        @Override
+                        public String getName() {
+                            return realName;
+                        }
+
+                        @Override
+                        public boolean isType() {
+                            return true;
+                        }
+
+                        @Override
+                        public boolean isField() {
+                            return true;
+                        }
+                    };
+                }
             }
             if (resolvedVariableCache == null)
                 resolvedVariableCache = new ResolvedValueDeclaration() {
@@ -377,15 +446,22 @@ public abstract class VariableAction {
             return inner.getObjectTree();
         }
 
-        @Override
-        public void addObjectField(String fieldName) {
-            throw new UnsupportedOperationException("Movable actions don't support the object tree");
-        }
-
         /** The final location of this action. This node may not yet be present
          *  in the graph, if {@link #move(Graph)} has not been invoked. */
         public SyntheticNode<?> getRealNode() {
             return realNode;
+        }
+
+        @Override
+        public boolean isPrimitive() {
+            if (realName.equals(VARIABLE_NAME_OUTPUT)) {
+                if (realNode instanceof CallNode.Return) {
+                    return ASTUtils.resolvableIsPrimitive((Resolvable<? extends ResolvedMethodLikeDeclaration>) realNode.getAstNode());
+                } else if (realNode instanceof OutputNode) {
+                    return !ASTUtils.declarationReturnIsObject(ASTUtils.getDeclarationNode(realNode.getAstNode()));
+                }
+            }
+            return super.isPrimitive();
         }
 
         /** Move the action from its node to its real node. The real node is added to the graph,
@@ -396,11 +472,11 @@ public abstract class VariableAction {
             VariableAction newAction;
             try {
                 if (inner instanceof Definition && inner.asDefinition().getExpression() != null)
-                    newAction = inner.getClass().getConstructor(Expression.class, String.class, GraphNode.class, Expression.class)
-                            .newInstance(variable, realName, realNode, inner.asDefinition().expression);
+                    newAction = inner.getClass().getConstructor(Expression.class, String.class, GraphNode.class, Expression.class, ObjectTree.class)
+                            .newInstance(variable, realName, realNode, inner.asDefinition().expression, getObjectTree());
                 else
-                    newAction = inner.getClass().getConstructor(Expression.class, String.class, GraphNode.class)
-                            .newInstance(variable, realName, realNode);
+                    newAction = inner.getClass().getConstructor(Expression.class, String.class, GraphNode.class, ObjectTree.class)
+                            .newInstance(variable, realName, realNode, getObjectTree());
             } catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
                 throw new UnsupportedOperationException("The VariableAction constructor has changed!", e);
             }
@@ -477,20 +553,31 @@ public abstract class VariableAction {
     }
 
     public static class ObjectTree implements Cloneable {
-        private static final Pattern FIELD_SPLIT = Pattern.compile("^(?<root>(([_0-9A-Za-z]+\\.)*this)|([_0-9A-Za-z]+))(\\.(?<fields>.+))?$");
+        private static final String ROOT_NAME = "-root-";
+        private static final Pattern FIELD_SPLIT = Pattern.compile("^(?<root>(([_0-9A-Za-z]+\\.)*this)|([_0-9A-Za-z]+)|(-root-))(\\.(?<fields>.+))?$");
 
-        private final String memberName;
-        private final MemberNode memberNode;
         private final Map<String, ObjectTree> childrenMap = new HashMap<>();
 
+        private MemberNode memberNode;
+
         public ObjectTree() {
-            memberName = null;
             memberNode = null;
         }
 
         private ObjectTree(String memberName, ObjectTree parent) {
-            this.memberName = memberName;
             this.memberNode = new MemberNode(memberName, parent.memberNode);
+        }
+
+        protected String getMemberName() {
+            return memberNode == null ? ROOT_NAME : memberNode.getLabel();
+        }
+
+        public MemberNode getMemberNode() {
+            return memberNode;
+        }
+
+        public void setMemberNode(MemberNode memberNode) {
+            this.memberNode = memberNode;
         }
 
         public void addField(String fieldName) {
@@ -516,6 +603,37 @@ public abstract class VariableAction {
                     childrenMap.get(entry.getKey()).addAll(entry.getValue());
                 else
                     childrenMap.put(entry.getKey(), entry.getValue().clone(this));
+        }
+
+        /**
+         * Copies a subtree from source into another subtree in target.
+         * @param source The source of the nodes.
+         * @param target The tree where nodes will be added
+         * @param sourcePrefix The prefix to be consumed before copying nodes. Without root.
+         * @param targetPrefix The prefix to be consumed before copying nodes. Without root.
+         */
+        public static void copyTree(ObjectTree source, ObjectTree target, String sourcePrefix, String targetPrefix) {
+            ObjectTree a = source.findObjectTreeOfMember(sourcePrefix);
+            ObjectTree b = target.findObjectTreeOfMember(targetPrefix);
+            a.addAll(b);
+        }
+
+        private ObjectTree findObjectTreeOfMember(String member) {
+            ObjectTree result = this;
+            while (!member.isEmpty()) {
+                int firstDot = member.indexOf('.');
+                String first, rest;
+                if (firstDot != -1) {
+                    first = member.substring(0, firstDot);
+                    rest = member.substring(firstDot + 1);
+                } else {
+                    first = member;
+                    rest = "";
+                }
+                result = result.childrenMap.get(first);
+                member = rest;
+            }
+            return result;
         }
 
         public boolean hasMember(String member) {
@@ -567,7 +685,19 @@ public abstract class VariableAction {
 
                 @Override
                 public String next() {
-                    return it.next().memberName;
+                    ObjectTree element = it.next();
+                    StringBuilder builder = new StringBuilder();
+                    MemberNode node = element.memberNode;
+                    if (node == null)
+                        return ROOT_NAME;
+                    else
+                        builder.append(node.getLabel());
+                    while (node.getParent() != null && node.getParent() instanceof MemberNode && node.getParent().getLabel().matches("^(USE|DEF|DEC)\\{")) {
+                        node = (MemberNode) node.getParent();
+                        builder.insert(0, '.');
+                        builder.insert(0, node.getLabel());
+                    }
+                    return builder.insert(0, "-root-.").toString();
                 }
             };
         }
@@ -614,6 +744,11 @@ public abstract class VariableAction {
             };
         }
 
+        private Iterable<ObjectTree> treeIterable() {
+            return this::treeIterator;
+        }
+
+        @SuppressWarnings("MethodDoesntCallSuperMethod")
         @Override
         public Object clone() {
             ObjectTree clone = new ObjectTree();
@@ -623,16 +758,23 @@ public abstract class VariableAction {
         }
 
         private ObjectTree clone(ObjectTree parent) {
-            ObjectTree clone = new ObjectTree(memberName, parent);
+            ObjectTree clone = new ObjectTree(getMemberName(), parent);
             for (Map.Entry<String, ObjectTree> entry : childrenMap.entrySet())
                 clone.childrenMap.put(entry.getKey(), entry.getValue().clone(clone));
             return clone;
         }
 
-        protected String removeRoot(String fieldWithRoot) {
+        public static String removeRoot(String fieldWithRoot) {
             Matcher matcher = FIELD_SPLIT.matcher(fieldWithRoot);
             if (matcher.matches() && matcher.group("fields") != null)
                 return matcher.group("fields");
+            throw new IllegalArgumentException("Field should be of the form <obj>.<field>, <Type>.this.<field>, where <obj> may not contain dots.");
+        }
+
+        public static String removeFields(String fieldWithRoot) {
+            Matcher matcher = FIELD_SPLIT.matcher(fieldWithRoot);
+            if (matcher.matches() && matcher.group("root") != null)
+                return matcher.group("root");
             throw new IllegalArgumentException("Field should be of the form <obj>.<field>, <Type>.this.<field>, where <obj> may not contain dots.");
         }
 
@@ -641,13 +783,63 @@ public abstract class VariableAction {
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
             ObjectTree tree = (ObjectTree) o;
-            return Objects.equals(memberName, tree.memberName) &&
+            return Objects.equals(getMemberName(), tree.getMemberName()) &&
                     childrenMap.values().equals(tree.childrenMap.values());
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(memberName, childrenMap);
+            return Objects.hash(getMemberName(), childrenMap);
         }
+    }
+
+    static class ObjectTreeConnection {
+        protected final VariableAction sourceAction;
+        protected final VariableAction targetAction;
+        protected final String sourceMember;
+        protected final String targetMember;
+
+        protected boolean applied = false;
+
+        public ObjectTreeConnection(VariableAction sourceAction, VariableAction targetAction, String sourceMember, String targetMember) {
+            this.sourceAction = sourceAction;
+            this.targetAction = targetAction;
+            this.sourceMember = sourceMember;
+            this.targetMember = targetMember;
+        }
+
+        public void applySDG(JSysDG graph) {
+            if (!applied) {
+                connectTrees(graph, ParameterInOutArc::new, ParameterInOutArc.ObjectFlow::new);
+                applied = true;
+            }
+        }
+
+        public void applyPDG(JSysPDG graph) {
+            if (!applied) {
+                connectTrees(graph, FlowDependencyArc::new, ObjectFlowDependencyArc::new);
+                applied = true;
+            }
+        }
+
+        protected void connectTrees(Graph graph, Supplier<Arc> flowSupplier, Supplier<Arc> objFlowSupplier) {
+            ObjectTree source = sourceAction.getObjectTree().findObjectTreeOfMember(sourceMember);
+            ObjectTree target = targetAction.getObjectTree().findObjectTreeOfMember(targetMember);
+            assert sourceMember.isEmpty() || source.getMemberName() != null;
+            assert targetMember.isEmpty() || target.getMemberName() != null;
+            GraphNode<?> rootSrc = source.getMemberNode() != null ? source.getMemberNode() : sourceAction.getGraphNode();
+            GraphNode<?> rootTgt = target.getMemberNode() != null ? target.getMemberNode() : targetAction.getGraphNode();
+            graph.addEdge(rootSrc, rootTgt, objFlowSupplier.get());
+            for (ObjectTree tree : target.treeIterable()) {
+                MemberNode src = source.getNodeForNonRoot(tree.getMemberName());
+                MemberNode tgt = tree.getMemberNode();
+                if (tree.childrenMap.isEmpty())
+                    graph.addEdge(src, tgt, flowSupplier.get());
+                else
+                    graph.addEdge(src, tgt, objFlowSupplier.get());
+            }
+        }
+
+
     }
 }

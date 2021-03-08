@@ -1,24 +1,26 @@
 package es.upv.mist.slicing.graphs.sdg;
 
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
+import com.github.javaparser.ast.expr.ThisExpr;
 import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
 import es.upv.mist.slicing.graphs.CallGraph;
+import es.upv.mist.slicing.graphs.ExpressionObjectTreeFinder;
 import es.upv.mist.slicing.graphs.cfg.CFG;
 import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.nodes.VariableAction;
-import es.upv.mist.slicing.nodes.VariableAction.Declaration;
 import es.upv.mist.slicing.nodes.VariableAction.Definition;
 import es.upv.mist.slicing.nodes.VariableAction.Movable;
+import es.upv.mist.slicing.nodes.VariableAction.ObjectTree;
 import es.upv.mist.slicing.nodes.VariableAction.Usage;
-import es.upv.mist.slicing.nodes.VariableVisitor;
 import es.upv.mist.slicing.nodes.io.ActualIONode;
 import es.upv.mist.slicing.nodes.io.FormalIONode;
+import es.upv.mist.slicing.utils.ASTUtils;
 
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -34,44 +36,52 @@ public class InterproceduralUsageFinder extends InterproceduralActionFinder<Usag
         ResolvedValueDeclaration resolved = use.getResolvedValueDeclaration();
         FormalIONode formalIn = FormalIONode.createFormalIn(vertex.getDeclaration(), resolved);
         Movable movable = new Movable(use.toDefinition(cfg.getRootNode()), formalIn);
-        cfg.getRootNode().addMovableVariable(movable);
+        cfg.getRootNode().addVariableAction(movable);
     }
 
     @Override
     protected void handleActualAction(CallGraph.Edge<?> edge, Usage use) {
-        List<Movable> movables = new LinkedList<>();
         GraphNode<?> graphNode = edge.getGraphNode();
         ResolvedValueDeclaration resolved = use.getResolvedValueDeclaration();
         if (resolved.isParameter()) {
-            Expression argument = extractArgument(resolved.asParameter(), edge, true);
-            ActualIONode actualIn = ActualIONode.createActualIn(edge.getCall(), resolved, argument);
-            argument.accept(new VariableVisitor(
-                    (n, exp, name) -> movables.add(new Movable(new Declaration(exp, name, graphNode), actualIn)),
-                    (n, exp, name, expression) -> movables.add(new Movable(new Definition(exp, name, graphNode, expression), actualIn)),
-                    (n, exp, name) -> movables.add(new Movable(new Usage(exp, name, graphNode), actualIn))
-            ), VariableVisitor.Action.USE);
-            // a) es un objeto: movables==1 ('a', 'this')
-            // b) es una combinacion otras cosas ('a[1]', 'a.call()', construccion de string)
-            // void f(A a) { log(a.x); } <-- f(theA); // se copia el arbol de log(a) a f(theA) :D
-            // void f(A a) { log(a.x); } <-- f(as[1]); // no se debe copiar el arbol a as
-            // void f(A a) { log(a.x); } <-- f(call()); // el arbol va de log a call (por su retorno)
-            // TODO: this check is not specific enough
-            // Only copy the tree to the movables if there is only 1 movable: it is an object.
-            if (movables.size() == 1)
-                movables.get(0).getObjectTree().addAll(use.getObjectTree());
+            ActualIONode actualIn = locateActualInNode(edge, resolved.getName());
+            Definition def = new Definition(null, "-arg-in-", graphNode, (ObjectTree) use.getObjectTree().clone());
+            Movable movDef = new Movable(def, actualIn);
+            actualIn.addVariableAction(movDef);
+            graphNode.addVariableActionAfterLastMatchingRealNode(movDef, actualIn);
+            ExpressionObjectTreeFinder finder = new ExpressionObjectTreeFinder(graphNode);
+            finder.locateAndMarkTransferenceToRoot(actualIn.getArgument(), def);
         } else if (resolved.isField()) {
-            // Known limitation: static fields
-            // An object creation expression input an existing object via actual-in because it creates it.
-            if (edge.getCall() instanceof ObjectCreationExpr)
-                return;
-            String aliasedName = obtainAliasedFieldName(use, edge);
-            ActualIONode actualIn = ActualIONode.createActualIn(edge.getCall(), resolved, null);
-            var movableUse = new Usage(obtainScope(edge.getCall()), aliasedName, graphNode, use.getObjectTree());
-            movables.add(new Movable(movableUse, actualIn));
+            boolean isStatic = resolved.isType() || (resolved.getType() != null && resolved.asField().isStatic());
+            if (isStatic) {
+                // Known limitation: static fields
+            } else {
+                // An object creation expression input an existing object via actual-in because it creates it.
+                if (edge.getCall() instanceof ObjectCreationExpr)
+                    return;
+                ActualIONode actualIn = locateActualInNode(edge, resolved.getName());
+                Definition def = new Definition(null, "-scope-in-", graphNode, (ObjectTree) use.getObjectTree().clone());
+                Movable movDef = new Movable(def, actualIn);
+                Expression scope = Objects.requireNonNullElseGet(actualIn.getArgument(), ThisExpr::new);
+                actualIn.addVariableAction(movDef);
+                graphNode.addVariableActionAfterLastMatchingRealNode(movDef, actualIn);
+                ExpressionObjectTreeFinder finder = new ExpressionObjectTreeFinder(graphNode);
+                finder.locateAndMarkTransferenceToRoot(scope, def);
+            }
         } else {
             throw new IllegalStateException("Definition must be either from a parameter or a field!");
         }
-        graphNode.addActionsForCall(movables, edge.getCall(), true);
+    }
+
+    protected ActualIONode locateActualInNode(CallGraph.Edge<?> edge, String name) {
+        return edge.getGraphNode().getSyntheticNodesInMovables().stream()
+                .filter(ActualIONode.class::isInstance)
+                .map(ActualIONode.class::cast)
+                .filter(ActualIONode::isInput)
+                .filter(actual -> actual.getVariableName().equals(name))
+                .filter(actual -> ASTUtils.equalsWithRange(actual.getAstNode(), (Node) edge.getCall()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("can't locate actual-in node"));
     }
 
     @Override

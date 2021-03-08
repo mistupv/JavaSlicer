@@ -94,10 +94,10 @@ public class CallConnector {
     }
 
     /** Connects a method call return node to its method output counterpart. Arc in reverse direction. */
-    protected void connectOutput(GraphNode<? extends CallableDeclaration<?>> methodDeclaration, GraphNode<?> methodOutputNode) {
+    protected void connectOutput(GraphNode<? extends CallableDeclaration<?>> methodDeclaration, GraphNode<?> callReturnNode) {
         sdg.outgoingEdgesOf(methodDeclaration).stream()
                 .map(sdg::getEdgeTarget)
                 .filter(OutputNode.class::isInstance)
-                .forEach(n -> sdg.addParameterInOutArc(n, methodOutputNode));
+                .forEach(n -> sdg.addParameterInOutArc(n, callReturnNode));
     }
 }

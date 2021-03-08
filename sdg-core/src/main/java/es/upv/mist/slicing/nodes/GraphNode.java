@@ -9,10 +9,9 @@ import es.upv.mist.slicing.graphs.pdg.PDG;
 import es.upv.mist.slicing.graphs.sdg.SDG;
 import es.upv.mist.slicing.utils.ASTUtils;
 
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
+
+import static es.upv.mist.slicing.graphs.exceptionsensitive.ESCFG.ACTIVE_EXCEPTION_VARIABLE;
 
 /**
  * Represents a node in the various graphs ({@link CFG CFG}, {@link PDG PDG} and {@link SDG SDG}),
@@ -32,6 +31,9 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
     protected final List<VariableAction> variableActions;
     /** The method calls contained  */
     protected final List<Resolvable<? extends ResolvedMethodLikeDeclaration>> methodCalls = new LinkedList<>();
+    /** Nodes that are generated as a result of the instruction represented by this GraphNode and that may
+     *  be included in Movable actions. */
+    protected final Set<SyntheticNode<?>> syntheticNodesInMovables = new HashSet<>();
 
     /** @see #isImplicitInstruction() */
     protected boolean isImplicit = false;
@@ -149,20 +151,63 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
         throw new IllegalArgumentException("Could not find markers for " + call.resolve().getSignature() + " in " + this);
     }
 
-    /** Create and append a declaration of a variable to the list of actions of this node. */
-    public void addDeclaredVariable(Expression variable, String realName) {
-        variableActions.add(new VariableAction.Declaration(variable, realName, this));
+    public void addSyntheticNode(SyntheticNode<?> node) {
+        syntheticNodesInMovables.add(node);
     }
 
-    /** Create and append a definition of a variable to the list of actions of this node. */
-    public void addDefinedVariable(Expression variable, String realName, Expression expression) {
-        VariableAction.Definition def = new VariableAction.Definition(variable, realName, this, expression);
+    public Collection<SyntheticNode<?>> getSyntheticNodesInMovables() {
+        return Collections.unmodifiableSet(syntheticNodesInMovables);
+    }
+
+    public void addVariableAction(VariableAction action) {
+        if (action instanceof VariableAction.Movable)
+            syntheticNodesInMovables.add(((VariableAction.Movable) action).getRealNode());
+        variableActions.add(action);
+    }
+
+    @SuppressWarnings("unchecked")
+    public void addVariableActionAfterLastMatchingRealNode(VariableAction.Movable action, SyntheticNode<?> realNode) {
+        boolean found = false;
+        for (int i = 0; i < variableActions.size(); i++) {
+            VariableAction a = variableActions.get(i);
+            if (a instanceof VariableAction.Movable
+                    && ((VariableAction.Movable) a).getRealNode() == realNode) {
+                found = true;
+            } else if (found) {
+                // The previous one matched, this one does not. Add before this one.
+                variableActions.add(i, action);
+                return;
+            }
+        }
+        // If the last one matched, add to the end
+        if (found)
+            variableActions.add(action);
+        else {
+            assert syntheticNodesInMovables.contains(realNode);
+            addActionsForCall(List.of(action), (Resolvable<? extends ResolvedMethodLikeDeclaration>) realNode.getAstNode(), true);
+        }
+    }
+
+    public VariableAction.CallMarker locateCallForVariableAction(VariableAction action) {
+        VariableAction.CallMarker marker = null;
+        for (VariableAction a : variableActions) {
+            if (a instanceof VariableAction.CallMarker && ((VariableAction.CallMarker) a).isEnter())
+                marker = (VariableAction.CallMarker) a;
+            if (action == a) {
+                assert marker != null;
+                return marker;
+            }
+        }
+        throw new IllegalArgumentException("Action not found within node");
+    }
+
+    public void addVADefineActiveException(Expression expression) {
+        VariableAction.Definition def = new VariableAction.Definition(null, ACTIVE_EXCEPTION_VARIABLE, this, expression);
         variableActions.add(def);
     }
 
-    /** Create and append a usage of a variable to the list of actions of this node. */
-    public void addUsedVariable(Expression variable, String realName) {
-        VariableAction.Usage use = new VariableAction.Usage(variable, realName, this);
+    public void addVAUseActiveException() {
+        VariableAction.Usage use = new VariableAction.Usage(null, ACTIVE_EXCEPTION_VARIABLE, this);
         variableActions.add(use);
     }
 
@@ -170,11 +215,6 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
     public void addCallMarker(Resolvable<? extends ResolvedMethodLikeDeclaration> call, boolean enter) {
         if (enter) methodCalls.add(call);
         variableActions.add(new VariableAction.CallMarker(call, this, enter));
-    }
-
-    /** Create and append a movable variable action to the list of actions of this node. */
-    public void addMovableVariable(VariableAction.Movable movable) {
-        variableActions.add(movable);
     }
 
     // ============================================================

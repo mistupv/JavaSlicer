@@ -328,10 +328,6 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
     @Override
     public void visit(ReturnStmt returnStmt, Void arg) {
         GraphNode<ReturnStmt> node = connectTo(returnStmt);
-        returnStmt.getExpression().ifPresent(n -> {
-            n.accept(this, arg);
-            node.addDefinedVariable(null, VARIABLE_NAME_OUTPUT, n);
-        });
         returnList.add(node);
         clearHanging();
     }
@@ -379,7 +375,7 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
     protected void addMethodOutput(CallableDeclaration<?> callableDeclaration, GraphNode<?> exit) {
         if (!(callableDeclaration instanceof MethodDeclaration) || !((MethodDeclaration) callableDeclaration).getType().isVoidType()) {
             VariableAction usage = new VariableAction.Usage(null, VARIABLE_NAME_OUTPUT, exit);
-            exit.addMovableVariable(new VariableAction.Movable(usage, OutputNode.create(callableDeclaration)));
+            exit.addVariableAction(new VariableAction.Movable(usage, OutputNode.create(callableDeclaration)));
         }
     }
 }

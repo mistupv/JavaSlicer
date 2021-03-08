@@ -30,7 +30,7 @@ import java.util.*;
  * and multiple calls with exceptions per CFG node are not considered.
  */
 public class ESCFG extends ACFG {
-    protected static final String ACTIVE_EXCEPTION_VARIABLE = "-activeException-";
+    public static final String ACTIVE_EXCEPTION_VARIABLE = "-activeException-";
 
     @Override
     protected CFGBuilder newCFGBuilder() {
@@ -127,7 +127,7 @@ public class ESCFG extends ACFG {
                 // Exception exit
                 Collection<ExceptionExitNode> exceptionExits = processExceptionSources(callableDeclaration);
                 for (ExceptionExitNode node : exceptionExits) {
-                    node.addUsedVariable(null, ACTIVE_EXCEPTION_VARIABLE);
+                    node.addVAUseActiveException();
                     hangingNodes.add(node);
                     lastNodes.addAll(hangingNodes);
                     clearHanging();
@@ -240,7 +240,7 @@ public class ESCFG extends ACFG {
             stmtStack.push(n);
             GraphNode<ThrowStmt> stmt = connectTo(n);
             n.getExpression().accept(this, arg);
-            stmt.addDefinedVariable(null, ACTIVE_EXCEPTION_VARIABLE, n.getExpression());
+            stmt.addVADefineActiveException(n.getExpression());
             populateExceptionSourceMap(new ExceptionSource(stmt, n.getExpression().calculateResolvedType()));
             clearHanging();
             nonExecHangingNodes.add(stmt);
@@ -286,7 +286,7 @@ public class ESCFG extends ACFG {
             for (ResolvedType type : resolved.getSpecifiedExceptions()) {
                 hangingNodes.add(stmtNode);
                 ExceptionReturnNode exceptionReturn = addExceptionReturnNode(call, type);
-                exceptionReturn.addDefinedVariable(null, ACTIVE_EXCEPTION_VARIABLE, null); // TODO: improve initializer
+                exceptionReturn.addVADefineActiveException(null); // TODO: improve initializer
                 populateExceptionSourceMap(new ExceptionSource(exceptionReturn, type));
                 returnNodes.add(exceptionReturn);
                 connectTo(exceptionReturn);
@@ -313,7 +313,7 @@ public class ESCFG extends ACFG {
             for (ExceptionSource src : sources)
                 (src.isActive() ? hangingNodes : nonExecHangingNodes).add(src.source);
             GraphNode<?> node = connectTo(n, "catch (" + n.getParameter().toString() + ")");
-            node.addUsedVariable(null, ACTIVE_EXCEPTION_VARIABLE);
+            node.addVAUseActiveException();
             exceptionSourceMap.clear();
             // 2. Set up as exception source
             ExceptionSource catchES = ExceptionSource.merge(node, sources);

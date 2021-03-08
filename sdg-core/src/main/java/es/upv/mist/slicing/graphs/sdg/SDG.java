@@ -5,7 +5,6 @@ import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import es.upv.mist.slicing.arcs.pdg.ControlDependencyArc;
 import es.upv.mist.slicing.arcs.pdg.DataDependencyArc;
@@ -21,18 +20,13 @@ import es.upv.mist.slicing.graphs.cfg.CFG;
 import es.upv.mist.slicing.graphs.pdg.PDG;
 import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.nodes.SyntheticNode;
-import es.upv.mist.slicing.nodes.VariableAction;
 import es.upv.mist.slicing.nodes.io.ActualIONode;
-import es.upv.mist.slicing.nodes.io.CallNode;
 import es.upv.mist.slicing.slicing.*;
 import es.upv.mist.slicing.utils.ASTUtils;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-
-import static es.upv.mist.slicing.graphs.cfg.CFGBuilder.VARIABLE_NAME_OUTPUT;
 
 /**
  * The <b>System Dependence Graph</b> represents the statements of a program in
@@ -92,6 +86,16 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
         return cfgMap.values();
     }
 
+    /** @see CFG#isPredicate(GraphNode) */
+    public boolean isPredicate(GraphNode<?> node) {
+        if (node instanceof SyntheticNode)
+            return false;
+        for (CFG cfg : cfgMap.values())
+            if (cfg.containsVertex(node))
+                return cfg.isPredicate(node);
+        throw new IllegalArgumentException("Node " + node.getId() + "'s associated CFG cannot be found!");
+    }
+
     public void addCallArc(GraphNode<?> from, GraphNode<? extends CallableDeclaration<?>> to) {
         this.addEdge(from, to, new CallArc());
     }
@@ -108,13 +112,12 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
      *  building the PDGs, connecting the calls to declarations and computing the summary arcs.
      *  By default, it uses {@link PDG}s and {@link CFG}s. */
     public class Builder {
-        protected ClassGraph classGraph;
         protected CallGraph callGraph;
 
         public void build(NodeList<CompilationUnit> nodeList) {
             // See creation strategy at http://kaz2.dsic.upv.es:3000/Fzg46cQvT1GzHQG9hFnP1g#Using-data-flow-in-the-SDG
             // This ordering cannot be altered, as each step requires elements from the previous one.
-            classGraph = createClassGraph(nodeList); // 0
+            createClassGraph(nodeList);              // 0
             buildCFGs(nodeList);                     // 1
             callGraph = createCallGraph(nodeList);   // 2
             dataFlowAnalysis();                      // 3
@@ -149,43 +152,21 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
 
         /** Create call graph from the list of compilation units. */
         protected CallGraph createCallGraph(NodeList<CompilationUnit> nodeList) {
-            CallGraph callGraph = new CallGraph(cfgMap, classGraph);
+            CallGraph callGraph = new CallGraph(cfgMap, ClassGraph.getInstance());
             callGraph.build(nodeList);
             return callGraph;
         }
 
         /** Create class graph from the list of compilation units. */
-        protected ClassGraph createClassGraph(NodeList<CompilationUnit> nodeList){
-            ClassGraph classGraph = new ClassGraph();
-            classGraph.build(nodeList);
-            return classGraph;
+        protected void createClassGraph(NodeList<CompilationUnit> nodeList){
+            ClassGraph.getNewInstance().build(nodeList);
         }
 
 
-        /** Perform interprocedural analyses to determine the actual, formal and call return nodes. */
+        /** Perform interprocedural analyses to determine the actual and formal nodes. */
         protected void dataFlowAnalysis() {
             new InterproceduralDefinitionFinder(callGraph, cfgMap).save(); // 3.1
             new InterproceduralUsageFinder(callGraph, cfgMap).save();      // 3.2
-            insertCallOutput();                                   // 3.3
-        }
-
-        /** Insert {@link CallNode.Return call return} nodes onto all appropriate calls. */
-        protected void insertCallOutput() {
-            for (CallGraph.Edge<?> edge : callGraph.edgeSet()) {
-                if (ASTUtils.resolvableIsVoid(edge.getCall()))
-                    continue;
-                // We handle super()/this() in VariableVisitor
-                if (edge.getCall() instanceof ExplicitConstructorInvocationStmt)
-                    continue;
-                GraphNode<?> graphNode = edge.getGraphNode();
-                // A node defines -output-
-                var def = new VariableAction.Definition(null, VARIABLE_NAME_OUTPUT, graphNode);
-                var defMov = new VariableAction.Movable(def, CallNode.Return.create(edge.getCall()));
-                graphNode.addActionsForCall(List.of(defMov), edge.getCall(), false);
-                // The container of the call uses -output-
-                var use = new VariableAction.Usage(null, VARIABLE_NAME_OUTPUT, graphNode);
-                graphNode.addActionsAfterCall(edge.getCall(), use);
-            }
         }
 
         /** Build a PDG per declaration, based on the CFGs built previously and enhanced by data analyses. */
