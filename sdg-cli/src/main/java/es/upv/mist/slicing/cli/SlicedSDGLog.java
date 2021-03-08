@@ -40,10 +40,14 @@ public class SlicedSDGLog extends SDGLog {
         Map<String, Attribute> map = new HashMap<>();
         if (slice.contains(node) && node.equals(sc))
             map.put("style", DefaultAttribute.createAttribute("filled,bold"));
+        else if (slice.contains(node) && node.isImplicitInstruction())
+            map.put("style", DefaultAttribute.createAttribute("filled,dashed"));
         else if (slice.contains(node))
             map.put("style", DefaultAttribute.createAttribute("filled"));
         else if (node.equals(sc))
             map.put("style", DefaultAttribute.createAttribute("bold"));
+        else if (node.isImplicitInstruction())
+            map.put("style", DefaultAttribute.createAttribute("dashed"));
         map.put("label", DefaultAttribute.createAttribute(node.getLongLabel()));
         return map;
     }
