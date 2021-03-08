@@ -10,7 +10,6 @@ import com.github.javaparser.resolution.types.ResolvedReferenceType;
 import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.nodes.VariableAction.ObjectTree;
 import es.upv.mist.slicing.utils.ASTUtils;
-import es.upv.mist.slicing.utils.Logger;
 import es.upv.mist.slicing.utils.Utils;
 import org.jgrapht.graph.DirectedPseudograph;
 import org.jgrapht.nio.dot.DOTExporter;
@@ -151,15 +150,12 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, ClassGrap
     }
 
     public ObjectTree generateObjectTreeFor(ResolvedReferenceType type) {
-        Vertex classVertex = vertexDeclarationMap.get(mapKey(type));
-        if (classVertex == null) {
-            Logger.log("ResolvedReferenceType could not be found in class graph: " + type.describe());
-            return new ObjectTree();
-        }
-        return generateObjectTreeFor(classVertex);
+        return generateObjectTreeFor(vertexDeclarationMap.get(mapKey(type)));
     }
 
     protected ObjectTree generateObjectTreeFor(Vertex classVertex) {
+        if (classVertex == null)
+            return new ObjectTree();
         return generateObjectTreeFor(classVertex, new ObjectTree(), "-root-");
     }
 

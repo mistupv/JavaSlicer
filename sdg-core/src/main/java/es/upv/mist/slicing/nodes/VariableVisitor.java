@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static es.upv.mist.slicing.graphs.cfg.CFGBuilder.VARIABLE_NAME_OUTPUT;
+import static es.upv.mist.slicing.graphs.exceptionsensitive.ESCFG.ACTIVE_EXCEPTION_VARIABLE;
 import static es.upv.mist.slicing.nodes.VariableVisitor.Action.*;
 
 /** A graph node visitor that extracts the actions performed in a given GraphNode. An initial action mode can
@@ -168,6 +169,17 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
             acceptAction(VARIABLE_NAME_OUTPUT, DEFINITION);
             definitionStack.pop();
         }
+    }
+
+    @Override
+    public void visit(ThrowStmt n, Action arg) {
+        super.visit(n, arg);
+        definitionStack.push(n.getExpression());
+        acceptAction(ACTIVE_EXCEPTION_VARIABLE, DEFINITION);
+        definitionStack.pop();
+        var fields = ClassGraph.getInstance().generateObjectTreeFor(n.getExpression().calculateResolvedType().asReferenceType());
+        graphNode.getVariableActions().get(graphNode.getVariableActions().size() - 1).getObjectTree().addAll(fields);
+        new ExpressionObjectTreeFinder(graphNode).locateAndMarkTransferenceToRoot(n.getExpression(), -1);
     }
 
     @Override

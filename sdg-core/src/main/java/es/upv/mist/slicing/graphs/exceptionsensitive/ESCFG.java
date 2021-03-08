@@ -240,7 +240,6 @@ public class ESCFG extends ACFG {
             stmtStack.push(n);
             GraphNode<ThrowStmt> stmt = connectTo(n);
             n.getExpression().accept(this, arg);
-            stmt.addVADefineActiveException(n.getExpression());
             populateExceptionSourceMap(new ExceptionSource(stmt, n.getExpression().calculateResolvedType()));
             clearHanging();
             nonExecHangingNodes.add(stmt);
