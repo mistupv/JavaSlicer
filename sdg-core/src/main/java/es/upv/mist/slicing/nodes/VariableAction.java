@@ -376,6 +376,8 @@ public abstract class VariableAction {
     public static class Definition extends VariableAction {
         /** The value to which the variable has been defined. */
         protected final Expression expression;
+        /** The members of the object tree that are total definitions. */
+        protected String totallyDefinedMember;
 
         public Definition(Expression variable, String realName, GraphNode<?> graphNode) {
             this(variable, realName, graphNode, (Expression) null);
@@ -393,6 +395,17 @@ public abstract class VariableAction {
         public Definition(Expression variable, String realName, GraphNode<?> graphNode, Expression expression, ObjectTree objectTree) {
             super(variable, realName, graphNode, objectTree);
             this.expression = expression;
+        }
+
+        public void setTotallyDefinedMember(String totallyDefinedMember) {
+            this.totallyDefinedMember = Objects.requireNonNull(totallyDefinedMember);
+        }
+
+        public boolean isTotallyDefinedMember(String member) {
+            if (totallyDefinedMember == null)
+                return false;
+            return totallyDefinedMember.equals(member) || totallyDefinedMember.startsWith(member)
+                    || ObjectTree.removeRoot(totallyDefinedMember).startsWith(ObjectTree.removeRoot(member));
         }
 
         /** @see #expression */
@@ -658,7 +671,9 @@ public abstract class VariableAction {
         }
 
         private MemberNode getNodeForNonRoot(String members) {
-            if (members.contains(".")) {
+            if (members.isEmpty()) {
+                return memberNode;
+            } else if (members.contains(".")) {
                 int firstDot = members.indexOf('.');
                 String first = members.substring(0, firstDot);
                 String rest = members.substring(firstDot + 1);
@@ -766,8 +781,8 @@ public abstract class VariableAction {
 
         public static String removeRoot(String fieldWithRoot) {
             Matcher matcher = FIELD_SPLIT.matcher(fieldWithRoot);
-            if (matcher.matches() && matcher.group("fields") != null)
-                return matcher.group("fields");
+            if (matcher.matches())
+                return matcher.group("fields") != null ? matcher.group("fields") : "";
             throw new IllegalArgumentException("Field should be of the form <obj>.<field>, <Type>.this.<field>, where <obj> may not contain dots.");
         }
 

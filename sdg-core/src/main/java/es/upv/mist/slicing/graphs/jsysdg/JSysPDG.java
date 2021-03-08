@@ -2,6 +2,7 @@ package es.upv.mist.slicing.graphs.jsysdg;
 
 import es.upv.mist.slicing.arcs.pdg.FlowDependencyArc;
 import es.upv.mist.slicing.arcs.pdg.ObjectFlowDependencyArc;
+import es.upv.mist.slicing.arcs.pdg.TotalDefinitionDependenceArc;
 import es.upv.mist.slicing.graphs.exceptionsensitive.ESPDG;
 import es.upv.mist.slicing.graphs.pdg.PDG;
 import es.upv.mist.slicing.nodes.GraphNode;
@@ -54,6 +55,12 @@ public class JSysPDG extends ESPDG {
         addEdge(usage.getObjectTree().getNodeFor(member), statement, new FlowDependencyArc(member));
     }
 
+    protected void addTotalDefinitionDependencyArc(VariableAction totalDefinition, VariableAction target, String member) {
+        addEdge(totalDefinition.getObjectTree().getNodeFor(member),
+                target.getObjectTree().getNodeFor(member),
+                new TotalDefinitionDependenceArc());
+    }
+
     protected GraphNode<?> graphNodeOf(VariableAction action) {
         if (action instanceof VariableAction.Movable)
             return ((VariableAction.Movable) action).getRealNode();
@@ -74,8 +81,18 @@ public class JSysPDG extends ESPDG {
         protected void buildDataDependency() {
             addSyntheticNodesToPDG();
             JSysCFG jSysCFG = (JSysCFG) cfg;
-            for (GraphNode<?> node : vertexSet())
-                for (VariableAction varAct : node.getVariableActions())
+            for (GraphNode<?> node : vertexSet()) {
+                for (VariableAction varAct : node.getVariableActions()) {
+                    // Total definition dependence
+                    if (varAct.isUsage() || varAct.isDefinition()) {
+                        // root
+                        jSysCFG.findLastTotalDefinitionOf(varAct, "-root-").forEach(totalDef -> addTotalDefinitionDependencyArc(totalDef, varAct, "-root-"));
+                        // members
+                        for (String member : varAct.getObjectTree().nameIterable()) {
+                            jSysCFG.findLastTotalDefinitionOf(varAct, member).forEach(totalDef -> addTotalDefinitionDependencyArc(totalDef, varAct, member));
+                        }
+                    }
+                    // Object flow, flow and declaration-definition dependencies
                     if (varAct.isUsage()) {
                         if (varAct.isPrimitive())
                             jSysCFG.findLastDefinitionOfPrimitive(varAct).forEach(def -> addFlowDependencyArc(def, varAct));
@@ -93,6 +110,8 @@ public class JSysPDG extends ESPDG {
                             for (String member : varAct.getObjectTree().nameIterable())
                                 jSysCFG.findNextObjectDefinitionsFor(varAct, member).forEach(def -> addObjectFlowDependencyArc(varAct, member, def));
                     }
+                }
+            }
         }
 
         @Override
@@ -133,12 +152,10 @@ public class JSysPDG extends ESPDG {
                         addControlDependencyArc(node, parentNode);
                     }
                     // Extract the member nodes contained within the object tree
+                    if (va.getObjectTree().getMemberNode() != null)
+                        insertMemberNode(va.getObjectTree().getMemberNode(), parentNode);
                     for (MemberNode memberNode : va.getObjectTree().nodeIterable()) {
-                        if (memberNode.getParent() == null)
-                            memberNode.setParent(parentNode);
-                        assert containsVertex(memberNode.getParent());
-                        addVertex(memberNode);
-                        addControlDependencyArc(memberNode.getParent(), memberNode);
+                        insertMemberNode(memberNode, parentNode);
                     }
                 }
                 assert callNodeStack.isEmpty();
@@ -147,6 +164,14 @@ public class JSysPDG extends ESPDG {
             cfg.vertexSet().stream()
                     .flatMap(node -> node.getVariableActions().stream())
                     .forEach(va -> va.applyPDGTreeConnections(JSysPDG.this));
+        }
+
+        protected void insertMemberNode(MemberNode memberNode, GraphNode<?> parentNode) {
+            if (memberNode.getParent() == null)
+                memberNode.setParent(parentNode);
+            assert containsVertex(memberNode.getParent());
+            addVertex(memberNode);
+            addControlDependencyArc(memberNode.getParent(), memberNode);
         }
     }
 }

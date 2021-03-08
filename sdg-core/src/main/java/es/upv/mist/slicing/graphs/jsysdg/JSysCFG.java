@@ -70,6 +70,10 @@ public class JSysCFG extends ESCFG {
         return findLastVarActionsFrom(usage, VariableAction::isDefinition);
     }
 
+    public List<VariableAction> findLastTotalDefinitionOf(VariableAction action, String member) {
+        return findLastVarActionsFrom(action, def -> def.isDefinition() && def.asDefinition().isTotallyDefinedMember(member));
+    }
+
     /** Given a definition of a given member, locate all definitions of the same object until a definition
      *  containing the given member is found (not including that last one). If the member is found in the
      *  given definition, it will return a list with only the given definition. */

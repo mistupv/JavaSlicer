@@ -178,7 +178,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         acceptAction(ACTIVE_EXCEPTION_VARIABLE, DEFINITION);
         definitionStack.pop();
         var fields = ClassGraph.getInstance().generateObjectTreeFor(n.getExpression().calculateResolvedType().asReferenceType());
-        graphNode.getVariableActions().get(graphNode.getVariableActions().size() - 1).getObjectTree().addAll(fields);
+        getLastDefinition().getObjectTree().addAll(fields);
         new ExpressionObjectTreeFinder(graphNode).locateAndMarkTransferenceToRoot(n.getExpression(), -1);
     }
 
@@ -236,13 +236,15 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
                     definitionStack.push(n.getValue());
                     if (!realName.contains(".")) {
                         acceptAction(nameExpr, realName, DEFINITION);
+                        VariableAction.Definition def = getLastDefinition();
+                        def.setTotallyDefinedMember(realName);
                         realNameWithoutRootList.add("");
                     } else {
                         String root = ObjectTree.removeFields(realName);
                         acceptAction(root, DEFINITION);
-                        List<VariableAction> list = graphNode.getVariableActions();
-                        VariableAction def = list.get(graphNode.getVariableActions().size() - 1);
+                        VariableAction.Definition def = getLastDefinition();
                         def.getObjectTree().addField(realName);
+                        def.setTotallyDefinedMember(realName);
                         realNameWithoutRootList.add(realName);
                     }
                     definitionStack.pop();
@@ -269,8 +271,8 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
                     definitionStack.push(n.getValue());
                     acceptAction(root, DEFINITION);
                     definitionStack.pop();
-                    List<VariableAction> list = graphNode.getVariableActions();
-                    VariableAction def = list.get(graphNode.getVariableActions().size() - 1);
+                    VariableAction.Definition def = getLastDefinition();
+                    def.setTotallyDefinedMember(realName);
                     def.getObjectTree().addField(realName);
                     realNameWithoutRootList.add(ObjectTree.removeRoot(realName));
                 }
@@ -281,9 +283,8 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
                 }
             }, null);
             assert realNameWithoutRootList.size() == 1;
-            List<VariableAction> list = graphNode.getVariableActions();
             ExpressionObjectTreeFinder finder = new ExpressionObjectTreeFinder(graphNode);
-            finder.handleAssignExpr(n, list.get(graphNode.getVariableActions().size() - 1), realNameWithoutRootList.get(0));
+            finder.handleAssignExpr(n, getLastDefinition(), realNameWithoutRootList.get(0));
         }
     }
 
@@ -314,7 +315,11 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
             acceptAction(v.getNameAsString(), DECLARATION);
             v.getInitializer().ifPresent(init -> {
                 init.accept(this, action);
-                acceptActionNullDefinition(v.getNameAsString());
+                definitionStack.push(init);
+                acceptAction(v.getNameAsString(), DEFINITION);
+                definitionStack.pop();
+                if (v.getType().isClassOrInterfaceType())
+                    getLastDefinition().setTotallyDefinedMember(v.getNameAsString());
             });
             v.accept(this, action);
         }
@@ -330,6 +335,8 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
             definitionStack.push(init);
             acceptAction(realName, DEFINITION);
             definitionStack.pop();
+            if (v.getType().isClassOrInterfaceType())
+                getLastDefinition().setTotallyDefinedMember(realName);
             v.accept(this, action);
         }
     }
@@ -541,5 +548,10 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         // Append the last root action if there is any!
         if (lastRootAction != null)
             graphNode.variableActions.add(lastRootAction);
+    }
+
+    protected VariableAction.Definition getLastDefinition() {
+        List<VariableAction> list = graphNode.getVariableActions();
+        return ((VariableAction.Definition) list.get(list.size() - 1));
     }
 }
