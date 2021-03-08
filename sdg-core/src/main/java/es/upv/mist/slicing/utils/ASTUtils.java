@@ -82,7 +82,7 @@ public class ASTUtils {
             return declaration.asMethodDeclaration().getType().isClassOrInterfaceType();
         if (declaration.isConstructorDeclaration())
             return true;
-        throw new IllegalArgumentException("Declaration wan't method or constructor");
+        throw new IllegalArgumentException("Declaration wasn't method or constructor");
     }
 
     public static int getMatchingParameterIndex(CallableDeclaration<?> declaration, ResolvedParameterDeclaration param) {
