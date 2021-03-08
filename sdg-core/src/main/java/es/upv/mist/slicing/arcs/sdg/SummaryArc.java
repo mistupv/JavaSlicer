@@ -14,6 +14,7 @@ public class SummaryArc extends Arc {
     public Map<String, Attribute> getDotAttributes() {
         Map<String, Attribute> map = super.getDotAttributes();
         map.put("style", DefaultAttribute.createAttribute("bold"));
+        map.put("color", DefaultAttribute.createAttribute("#a01210")); // rojo oscuro
         return map;
     }
 }

@@ -15,13 +15,6 @@ import java.util.Map;
  * nodes. The source and target must match: both must either be inputs or outputs. This arc may be an input or output. */
 public class ParameterInOutArc extends InterproceduralArc {
     @Override
-    public Map<String, Attribute> getDotAttributes() {
-        Map<String, Attribute> map = super.getDotAttributes();
-        map.put("style", DefaultAttribute.createAttribute("dashed"));
-        return map;
-    }
-
-    @Override
     public boolean isInterproceduralInputArc() {
         GraphNode<?> source = getNodeCommon(getSource());
         GraphNode<?> target = getNodeCommon(getTarget());
