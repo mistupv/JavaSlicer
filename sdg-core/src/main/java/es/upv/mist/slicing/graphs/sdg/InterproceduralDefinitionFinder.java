@@ -8,10 +8,10 @@ import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
 import es.upv.mist.slicing.graphs.CallGraph;
 import es.upv.mist.slicing.graphs.cfg.CFG;
 import es.upv.mist.slicing.nodes.GraphNode;
+import es.upv.mist.slicing.nodes.ObjectTree;
 import es.upv.mist.slicing.nodes.VariableAction;
 import es.upv.mist.slicing.nodes.VariableAction.Definition;
 import es.upv.mist.slicing.nodes.VariableAction.Movable;
-import es.upv.mist.slicing.nodes.VariableAction.ObjectTree;
 import es.upv.mist.slicing.nodes.io.ActualIONode;
 import es.upv.mist.slicing.nodes.io.FormalIONode;
 

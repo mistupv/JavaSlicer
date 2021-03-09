@@ -19,7 +19,6 @@ import com.github.javaparser.symbolsolver.javaparsermodel.declarations.JavaParse
 import es.upv.mist.slicing.graphs.ClassGraph;
 import es.upv.mist.slicing.graphs.ExpressionObjectTreeFinder;
 import es.upv.mist.slicing.graphs.GraphNodeContentVisitor;
-import es.upv.mist.slicing.nodes.VariableAction.ObjectTree;
 import es.upv.mist.slicing.nodes.io.ActualIONode;
 import es.upv.mist.slicing.nodes.io.CallNode;
 import es.upv.mist.slicing.utils.ASTUtils;

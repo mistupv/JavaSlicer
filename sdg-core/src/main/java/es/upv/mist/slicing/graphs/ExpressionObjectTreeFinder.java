@@ -8,8 +8,8 @@ import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclarati
 import com.github.javaparser.resolution.types.ResolvedReferenceType;
 import com.github.javaparser.utils.Pair;
 import es.upv.mist.slicing.nodes.GraphNode;
+import es.upv.mist.slicing.nodes.ObjectTree;
 import es.upv.mist.slicing.nodes.VariableAction;
-import es.upv.mist.slicing.nodes.VariableAction.ObjectTree;
 import es.upv.mist.slicing.utils.ASTUtils;
 
 import java.util.LinkedList;

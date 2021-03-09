@@ -8,7 +8,7 @@ import com.github.javaparser.resolution.UnsolvedSymbolException;
 import com.github.javaparser.resolution.declarations.ResolvedClassDeclaration;
 import com.github.javaparser.resolution.types.ResolvedReferenceType;
 import es.upv.mist.slicing.arcs.Arc;
-import es.upv.mist.slicing.nodes.VariableAction.ObjectTree;
+import es.upv.mist.slicing.nodes.ObjectTree;
 import es.upv.mist.slicing.utils.ASTUtils;
 import es.upv.mist.slicing.utils.Utils;
 import org.jgrapht.graph.DirectedPseudograph;
