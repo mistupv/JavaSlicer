@@ -6,6 +6,7 @@ import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
+import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
 import com.github.javaparser.utils.Pair;
 import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.nodes.ObjectTree;
@@ -92,9 +93,10 @@ public class ExpressionObjectTreeFinder {
 
             @Override
             public void visit(NameExpr n, String arg) {
-                if (n.resolve().isType())
+                ResolvedValueDeclaration resolved = n.resolve();
+                if (resolved.isType())
                     return;
-                if (n.resolve().isField()) {
+                if (resolved.isField() && !resolved.asField().isStatic()) {
                     new FieldAccessExpr(new ThisExpr(), n.getNameAsString()).accept(this, arg);
                     return;
                 }
