@@ -3,6 +3,7 @@ package es.upv.mist.slicing.graphs.jsysdg;
 import es.upv.mist.slicing.arcs.pdg.FlowDependencyArc;
 import es.upv.mist.slicing.arcs.pdg.ObjectFlowDependencyArc;
 import es.upv.mist.slicing.arcs.pdg.TotalDefinitionDependenceArc;
+import es.upv.mist.slicing.graphs.exceptionsensitive.ESCFG;
 import es.upv.mist.slicing.graphs.exceptionsensitive.ESPDG;
 import es.upv.mist.slicing.graphs.pdg.PDG;
 import es.upv.mist.slicing.nodes.GraphNode;
@@ -86,6 +87,7 @@ public class JSysPDG extends ESPDG {
             addSyntheticNodesToPDG();
             applyTreeConnections();
             buildJSysDataDependency();
+            valueDependencyForThrowStatements();
         }
 
         protected void buildJSysDataDependency() {
@@ -185,6 +187,16 @@ public class JSysPDG extends ESPDG {
             assert containsVertex(memberNode.getParent());
             addVertex(memberNode);
             addControlDependencyArc(memberNode.getParent(), memberNode);
+        }
+
+        protected void valueDependencyForThrowStatements() {
+            for (GraphNode<?> node : vertexSet()) {
+                for (VariableAction action : node.getVariableActions()) {
+                    if (action.isDefinition() && action.getName().equals(ESCFG.ACTIVE_EXCEPTION_VARIABLE)) {
+                        addValueDependencyArc(action, "-root-", node);
+                    }
+                }
+            }
         }
     }
 }
