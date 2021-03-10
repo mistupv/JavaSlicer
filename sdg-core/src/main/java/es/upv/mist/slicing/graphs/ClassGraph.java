@@ -7,6 +7,7 @@ import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.github.javaparser.resolution.UnsolvedSymbolException;
 import com.github.javaparser.resolution.declarations.ResolvedClassDeclaration;
 import com.github.javaparser.resolution.types.ResolvedReferenceType;
+import com.github.javaparser.resolution.types.ResolvedType;
 import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.nodes.ObjectTree;
 import es.upv.mist.slicing.utils.ASTUtils;
@@ -143,6 +144,15 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, ClassGrap
         } else {
             throw new IllegalArgumentException("Invalid callable declaration type");
         }
+    }
+
+    public Optional<ObjectTree> generateObjectTreeForType(ResolvedType type) {
+        if (type.isReferenceType()) {
+            Vertex v = vertexDeclarationMap.get(mapKey(type.asReferenceType()));
+            if (v != null)
+                return Optional.of(generateObjectTreeFor(v));
+        }
+        return Optional.empty();
     }
 
     public ObjectTree generateObjectTreeFor(ClassOrInterfaceDeclaration declaration) {

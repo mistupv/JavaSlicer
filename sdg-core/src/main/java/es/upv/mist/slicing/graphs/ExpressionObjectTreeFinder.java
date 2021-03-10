@@ -6,7 +6,6 @@ import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
-import com.github.javaparser.resolution.types.ResolvedReferenceType;
 import com.github.javaparser.utils.Pair;
 import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.nodes.ObjectTree;
@@ -29,9 +28,8 @@ public class ExpressionObjectTreeFinder {
     public void handleVariableDeclarator(VariableDeclarator variableDeclarator) {
         assert variableDeclarator.getInitializer().isPresent();
         VariableAction targetAction = locateVAVariableDeclarator(variableDeclarator.getNameAsString());
-        ResolvedReferenceType type = variableDeclarator.getType().resolve().asReferenceType();
-        var fields = ClassGraph.getInstance().generateObjectTreeFor(type);
-        targetAction.getObjectTree().addAll(fields);
+        ClassGraph.getInstance().generateObjectTreeForType(variableDeclarator.getType().resolve())
+                .ifPresent(objectTree -> targetAction.getObjectTree().addAll(objectTree));
         locateExpressionResultTrees(variableDeclarator.getInitializer().get())
                 .forEach(pair -> markTransference(pair, targetAction, ""));
     }
@@ -54,9 +52,8 @@ public class ExpressionObjectTreeFinder {
     }
 
     public void handleAssignExpr(AssignExpr assignExpr, VariableAction assignTarget, String targetMember) {
-        ResolvedReferenceType type = assignExpr.getTarget().calculateResolvedType().asReferenceType();
-        var fields = ClassGraph.getInstance().generateObjectTreeFor(type);
-        assignTarget.getObjectTree().addAll(fields);
+        ClassGraph.getInstance().generateObjectTreeForType(assignExpr.getTarget().calculateResolvedType())
+                .ifPresent(fields -> assignTarget.getObjectTree().addAll(fields));
         locateExpressionResultTrees(assignExpr.getValue())
                 .forEach(pair -> markTransference(pair, assignTarget, targetMember));
     }
@@ -97,6 +94,10 @@ public class ExpressionObjectTreeFinder {
             public void visit(NameExpr n, String arg) {
                 if (n.resolve().isType())
                     return;
+                if (n.resolve().isField()) {
+                    new FieldAccessExpr(new ThisExpr(), n.getNameAsString()).accept(this, arg);
+                    return;
+                }
                 for (VariableAction action : graphNode.getVariableActions()) {
                     if (action.isUsage() && action.getName().equals(n.getNameAsString())) {
                         list.add(new Pair<>(action, arg));
@@ -160,7 +161,8 @@ public class ExpressionObjectTreeFinder {
     protected void markTransference(Pair<VariableAction, String> sourcePair, VariableAction targetAction, String targetMember) {
         VariableAction sourceAction = sourcePair.a;
         String sourceMember = sourcePair.b;
-        ObjectTree.copyTree(sourceAction.getObjectTree(), targetAction.getObjectTree(), sourceMember, targetMember);
+        if (sourceAction.hasObjectTree() && !sourceAction.getObjectTree().isLeaf(sourceMember))
+            ObjectTree.copyTree(sourceAction.getObjectTree(), targetAction.getObjectTree(), sourceMember, targetMember);
         sourceAction.setPDGTreeConnectionTo(targetAction, sourceMember, targetMember);
     }
 }

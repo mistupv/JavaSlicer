@@ -107,12 +107,9 @@ public class JSysPDG extends ESPDG {
                             jSysCFG.findLastDefinitionOfPrimitive(varAct).forEach(def -> addFlowDependencyArc(def, varAct));
                         else {
                             jSysCFG.findLastDefinitionOfObjectRoot(varAct).forEach(def -> addObjectFlowDependencyArc(def, varAct));
-                            if (varAct.hasObjectTree()) {
-                                for (String member : varAct.getObjectTree().nameIterable()) {
+                            if (varAct.hasObjectTree())
+                                for (String member : varAct.getObjectTree().nameIterable())
                                     jSysCFG.findLastDefinitionOfObjectMember(varAct, member).forEach(def -> addFlowDependencyArc(def, varAct, member));
-                                    addValueDependencyArc(varAct, member, node);
-                                }
-                            }
                         }
                     } else if (varAct.isDefinition()) {
                         if (!varAct.isSynthetic())

@@ -75,6 +75,10 @@ public class ObjectTree implements Cloneable {
                 childrenMap.put(entry.getKey(), entry.getValue().clone(this));
     }
 
+    public boolean isLeaf(String memberWithoutRoot) {
+        return findObjectTreeOfMember(memberWithoutRoot).childrenMap.isEmpty();
+    }
+
     /**
      * Copies a subtree from source into another subtree in target.
      *

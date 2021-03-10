@@ -41,22 +41,35 @@ class ObjectTreeConnection {
     }
 
     protected void connectTrees(Graph graph, Supplier<Arc> flowSupplier, Supplier<Arc> objFlowSupplier) {
-        ObjectTree source = sourceAction.getObjectTree().findObjectTreeOfMember(sourceMember);
-        ObjectTree target = targetAction.getObjectTree().findObjectTreeOfMember(targetMember);
-        assert sourceMember.isEmpty() || source.getMemberName() != null;
-        assert targetMember.isEmpty() || target.getMemberName() != null;
-        GraphNode<?> rootSrc = source.getMemberNode() != null ? source.getMemberNode() : sourceAction.getGraphNode();
-        GraphNode<?> rootTgt = target.getMemberNode() != null ? target.getMemberNode() : targetAction.getGraphNode();
-        graph.addEdge(rootSrc, rootTgt, objFlowSupplier.get());
-        for (ObjectTree tree : target.treeIterable()) {
-            MemberNode src = source.getNodeForNonRoot(tree.getMemberName());
-            MemberNode tgt = tree.getMemberNode();
-            if (tree.hasChildren())
-                graph.addEdge(src, tgt, objFlowSupplier.get());
-            else
-                graph.addEdge(src, tgt, flowSupplier.get());
+        ObjectTree source = null, target = null;
+        GraphNode<?> rootSrc, rootTgt;
+        assert sourceMember.isEmpty() || sourceAction.hasObjectTree();
+        assert targetMember.isEmpty() || targetAction.hasObjectTree();
+        if (sourceAction.hasObjectTree()) {
+            source = sourceAction.getObjectTree().findObjectTreeOfMember(sourceMember);
+            rootSrc = source.getMemberNode();
+        } else {
+            rootSrc = sourceAction.getGraphNode();
+        }
+        if (targetAction.hasObjectTree()) {
+            target = targetAction.getObjectTree().findObjectTreeOfMember(targetMember);
+            rootTgt = target.getMemberNode();
+        } else {
+            rootTgt = targetAction.getGraphNode();
+        }
+        if (source == null || target == null) {
+            if (!rootSrc.equals(rootTgt))
+                graph.addEdge(rootSrc, rootTgt, new FlowDependencyArc()); // VALUE DEPENDENCE
+        } else {
+            graph.addEdge(rootSrc, rootTgt, objFlowSupplier.get());
+            for (ObjectTree tree : target.treeIterable()) {
+                MemberNode src = source.getNodeForNonRoot(tree.getMemberName());
+                MemberNode tgt = tree.getMemberNode();
+                if (tree.hasChildren())
+                    graph.addEdge(src, tgt, objFlowSupplier.get());
+                else
+                    graph.addEdge(src, tgt, flowSupplier.get());
+            }
         }
     }
-
-
 }

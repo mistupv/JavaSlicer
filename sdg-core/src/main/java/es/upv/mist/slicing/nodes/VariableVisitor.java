@@ -222,70 +222,66 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     public void visit(AssignExpr n, Action action) {
         // Value is always visited first since uses occur before definitions
         n.getValue().accept(this, action);
-        if (n.getValue().calculateResolvedType().isPrimitive()) {
-            // Target will be used if operator is not '='
-            if (n.getOperator() != AssignExpr.Operator.ASSIGN)
-                n.getTarget().accept(this, action);
-            visitAsDefinition(n.getTarget(), n.getValue(), action);
-        } else {
-            List<String> realNameWithoutRootList = new LinkedList<>();
-            n.getTarget().accept(new VoidVisitorAdapter<Void>() {
-                @Override
-                public void visit(NameExpr nameExpr, Void arg) {
-                    String realName = getRealName(nameExpr);
-                    definitionStack.push(n.getValue());
-                    if (!realName.contains(".")) {
-                        acceptAction(nameExpr, realName, DEFINITION);
-                        VariableAction.Definition def = getLastDefinition();
-                        def.setTotallyDefinedMember(realName);
-                        realNameWithoutRootList.add("");
-                    } else {
-                        String root = ObjectTree.removeFields(realName);
-                        acceptAction(nameExpr, root, DEFINITION);
-                        VariableAction.Definition def = getLastDefinition();
-                        def.getObjectTree().addField(realName);
-                        def.setTotallyDefinedMember(realName);
-                        realNameWithoutRootList.add(realName);
-                    }
-                    definitionStack.pop();
-                }
-
-                @Override
-                public void visit(FieldAccessExpr fieldAccessExpr, Void arg) {
-                    Expression scope = fieldAccessExpr.getScope();
-                    boolean traverse = true;
-                    while (traverse) {
-                        if (scope.isFieldAccessExpr())
-                            scope = scope.asFieldAccessExpr().getScope();
-                        else if (scope.isEnclosedExpr())
-                            scope = scope.asEnclosedExpr().getInner();
-                        else if (scope.isCastExpr())
-                            scope = scope.asCastExpr().getExpression();
-                        else
-                            traverse = false;
-                    }
-                    if (!scope.isNameExpr() && !scope.isThisExpr())
-                        throw new IllegalStateException("only valid assignments are this[.<field>]+ =, and <var>[.<field>]+");
-                    String realName = getRealName(fieldAccessExpr);
-                    String root = ObjectTree.removeFields(realName);
-                    definitionStack.push(n.getValue());
-                    acceptAction(fieldAccessExpr, root, DEFINITION);
-                    definitionStack.pop();
+        // Target will be used if operator is not '='
+        if (n.getOperator() != AssignExpr.Operator.ASSIGN)
+            n.getTarget().accept(this, action);
+        List<String> realNameWithoutRootList = new LinkedList<>();
+        n.getTarget().accept(new VoidVisitorAdapter<Void>() {
+            @Override
+            public void visit(NameExpr nameExpr, Void arg) {
+                String realName = getRealName(nameExpr);
+                definitionStack.push(n.getValue());
+                if (!realName.contains(".")) {
+                    acceptAction(nameExpr, realName, DEFINITION);
                     VariableAction.Definition def = getLastDefinition();
                     def.setTotallyDefinedMember(realName);
+                    realNameWithoutRootList.add("");
+                } else {
+                    String root = ObjectTree.removeFields(realName);
+                    acceptAction(nameExpr, root, DEFINITION);
+                    VariableAction.Definition def = getLastDefinition();
                     def.getObjectTree().addField(realName);
-                    realNameWithoutRootList.add(ObjectTree.removeRoot(realName));
+                    def.setTotallyDefinedMember(realName);
+                    realNameWithoutRootList.add(realName);
                 }
+                definitionStack.pop();
+            }
 
-                @Override
-                public void visit(ArrayAccessExpr n, Void arg) {
-                    throw new UnsupportedOperationException("Arrays are not yet supported as target of assignment.");
+            @Override
+            public void visit(FieldAccessExpr fieldAccessExpr, Void arg) {
+                Expression scope = fieldAccessExpr.getScope();
+                boolean traverse = true;
+                while (traverse) {
+                    if (scope.isFieldAccessExpr())
+                        scope = scope.asFieldAccessExpr().getScope();
+                    else if (scope.isEnclosedExpr())
+                        scope = scope.asEnclosedExpr().getInner();
+                    else if (scope.isCastExpr())
+                        scope = scope.asCastExpr().getExpression();
+                    else
+                        traverse = false;
                 }
-            }, null);
-            assert realNameWithoutRootList.size() == 1;
-            ExpressionObjectTreeFinder finder = new ExpressionObjectTreeFinder(graphNode);
-            finder.handleAssignExpr(n, getLastDefinition(), realNameWithoutRootList.get(0));
-        }
+                if (!scope.isNameExpr() && !scope.isThisExpr())
+                    throw new IllegalStateException("only valid assignments are this[.<field>]+ =, and <var>[.<field>]+");
+                String realName = getRealName(fieldAccessExpr);
+                String root = ObjectTree.removeFields(realName);
+                definitionStack.push(n.getValue());
+                acceptAction(fieldAccessExpr, root, DEFINITION);
+                definitionStack.pop();
+                VariableAction.Definition def = getLastDefinition();
+                def.setTotallyDefinedMember(realName);
+                def.getObjectTree().addField(realName);
+                realNameWithoutRootList.add(ObjectTree.removeRoot(realName));
+            }
+
+            @Override
+            public void visit(ArrayAccessExpr n, Void arg) {
+                throw new UnsupportedOperationException("Arrays are not yet supported as target of assignment.");
+            }
+        }, null);
+        assert realNameWithoutRootList.size() == 1;
+        ExpressionObjectTreeFinder finder = new ExpressionObjectTreeFinder(graphNode);
+        finder.handleAssignExpr(n, getLastDefinition(), realNameWithoutRootList.get(0));
     }
 
     @Override
@@ -320,8 +316,8 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
                 definitionStack.pop();
                 if (v.getType().isClassOrInterfaceType())
                     getLastDefinition().setTotallyDefinedMember(v.getNameAsString());
+                v.accept(this, action);
             });
-            v.accept(this, action);
         }
     }
 

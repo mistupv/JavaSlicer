@@ -199,24 +199,23 @@ public class JSysCFG extends ESCFG {
         protected void expandOutputVariable(CallableDeclaration<?> callableDeclaration, VariableAction useOutput) {
             // Generate the full tree for the method's returned type (static)
             var fields = classGraph.generateObjectTreeForReturnOf(callableDeclaration);
-            if (fields.isEmpty())
-                return;
-            // Insert tree into the OutputNode
-            useOutput.getObjectTree().addAll(fields.get());
-            // Insert tree into GraphNode<ReturnStmt> nodes, the last action is always DEF(-output-)
-            vertexSet().stream()
-                    .filter(gn -> gn.getAstNode() instanceof ReturnStmt)
-                    .map(GraphNode::getVariableActions)
-                    .map(list -> list.get(list.size() - 1))
-                    .map(VariableAction::getObjectTree)
-                    .forEach(tree -> tree.addAll(fields.get()));
+            if (fields.isPresent()) {
+                // Insert tree into the OutputNode
+                useOutput.getObjectTree().addAll(fields.get());
+                // Insert tree into GraphNode<ReturnStmt> nodes, the last action is always DEF(-output-)
+                vertexSet().stream()
+                        .filter(gn -> gn.getAstNode() instanceof ReturnStmt)
+                        .map(GraphNode::getVariableActions)
+                        .map(list -> list.get(list.size() - 1))
+                        .map(VariableAction::getObjectTree)
+                        .forEach(tree -> tree.addAll(fields.get()));
+            }
             // Generate the assignment trees and prepare for linking
             vertexSet().stream()
                     .filter(gn -> gn.getAstNode() instanceof ReturnStmt)
                     .forEach(gn -> {
                         Expression expr = ((ReturnStmt) gn.getAstNode()).getExpression().orElseThrow();
-                        ExpressionObjectTreeFinder finder = new ExpressionObjectTreeFinder(gn);
-                        finder.locateAndMarkTransferenceToRoot(expr, -1);
+                        new ExpressionObjectTreeFinder(gn).locateAndMarkTransferenceToRoot(expr, -1);
                     });
         }
     }
