@@ -35,9 +35,8 @@ public class JSysCallConnector extends ExceptionSensitiveCallConnector {
                     boolean primitive = !formalIn.getVariableName().equals("this")
                             && declaration.getAstNode().getParameterByName(formalIn.getVariableName())
                                     .orElseThrow().getType().isPrimitiveType();
-                    if (primitive)
-                        sdg.addParameterInOutArc(actualIn, formalIn);
-                    else
+                    sdg.addParameterInOutArc(actualIn, formalIn);
+                    if (!primitive)
                         connectObjectActualIn(actualIn, formalIn);
                 });
     }
