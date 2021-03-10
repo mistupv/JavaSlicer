@@ -167,6 +167,8 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
             definitionStack.push(n.getExpression().get());
             acceptAction(SYNTHETIC, VARIABLE_NAME_OUTPUT, DEFINITION);
             definitionStack.pop();
+            graphNode.getLastVariableAction().asDefinition()
+                    .setTotallyDefinedMember("-root-");
         }
     }
 
@@ -382,7 +384,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         List<VariableAction> vaList = graphNode.getVariableActions();
         if (vaList.size() >= 5) { // call-super, DEC(this), USE(-output-), ret-super, DEF(this)
             VariableAction useOutput = vaList.get(vaList.size() - 3);
-            VariableAction defThis = vaList.get(vaList.size() - 1);
+            VariableAction defThis = graphNode.getLastVariableAction();
             assert useOutput.isUsage() && useOutput.getName().equals(VARIABLE_NAME_OUTPUT);
             assert defThis.isDefinition() && defThis.getName().equals("this");
             defThis.asDefinition().setTotallyDefinedMember("this");
@@ -444,6 +446,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
             def = new VariableAction.Definition(SYNTHETIC, VARIABLE_NAME_OUTPUT, graphNode, (ObjectTree) fields.get().clone());
         else
             def = new VariableAction.Definition(SYNTHETIC, VARIABLE_NAME_OUTPUT, graphNode);
+        def.setTotallyDefinedMember("-root-");
         var defMov = new VariableAction.Movable(def, CallNode.Return.create(call));
         graphNode.addVariableAction(defMov);
         // The container of the call uses -output-, unless the call is wrapped in an ExpressionStmt

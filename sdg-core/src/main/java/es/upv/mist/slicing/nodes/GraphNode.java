@@ -81,6 +81,12 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
         return Collections.unmodifiableList(variableActions);
     }
 
+    public VariableAction getLastVariableAction() {
+        if (variableActions.isEmpty())
+            throw new IllegalStateException("There are no variable actions in this node");
+        return variableActions.get(variableActions.size() - 1);
+    }
+
     /** The node's label. It represents the portion of the node that
      *  is covered by this node, in the case of block statements. */
     public String getLabel() {

@@ -207,8 +207,7 @@ public class JSysCFG extends ESCFG {
                 // Insert tree into GraphNode<ReturnStmt> nodes, the last action is always DEF(-output-)
                 vertexSet().stream()
                         .filter(gn -> gn.getAstNode() instanceof ReturnStmt)
-                        .map(GraphNode::getVariableActions)
-                        .map(list -> list.get(list.size() - 1))
+                        .map(GraphNode::getLastVariableAction)
                         .map(VariableAction::getObjectTree)
                         .forEach(tree -> tree.addAll(fields.get()));
             }

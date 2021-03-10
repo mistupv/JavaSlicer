@@ -42,10 +42,9 @@ public class JSysCallConnector extends ExceptionSensitiveCallConnector {
     }
 
     protected void connectObjectActualIn(GraphNode<?> actualIn, GraphNode<?> formalIn) {
-        List<VariableAction> actualList = actualIn.getVariableActions();
         List<VariableAction> formalList = formalIn.getVariableActions();
         assert formalList.size() == 1;
-        VariableAction actualVar = actualList.get(actualList.size() - 1);
+        VariableAction actualVar = actualIn.getLastVariableAction();
         VariableAction formalVar = formalList.get(0);
         actualVar.applySDGTreeConnection((JSysDG) sdg, formalVar);
     }
