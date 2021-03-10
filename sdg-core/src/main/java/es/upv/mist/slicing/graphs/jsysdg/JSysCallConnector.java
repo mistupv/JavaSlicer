@@ -6,6 +6,8 @@ import es.upv.mist.slicing.graphs.cfg.CFGBuilder;
 import es.upv.mist.slicing.graphs.exceptionsensitive.ExceptionSensitiveCallConnector;
 import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.nodes.VariableAction;
+import es.upv.mist.slicing.nodes.io.ActualIONode;
+import es.upv.mist.slicing.nodes.io.FormalIONode;
 import es.upv.mist.slicing.nodes.io.OutputNode;
 import es.upv.mist.slicing.utils.ASTUtils;
 
@@ -20,6 +22,33 @@ public class JSysCallConnector extends ExceptionSensitiveCallConnector {
     @Override
     public void connectAllCalls(CallGraph callGraph) {
         super.connectAllCalls(callGraph);
+    }
+
+    @Override
+    protected void connectActualIn(GraphNode<? extends CallableDeclaration<?>> declaration, ActualIONode actualIn) {
+        sdg.outgoingEdgesOf(declaration).stream()
+                .map(sdg::getEdgeTarget)
+                .filter(FormalIONode.class::isInstance)
+                .map(FormalIONode.class::cast)
+                .filter(actualIn::matchesFormalIO)
+                .forEach(formalIn -> {
+                    boolean primitive = !formalIn.getVariableName().equals("this")
+                            && declaration.getAstNode().getParameterByName(formalIn.getVariableName())
+                                    .orElseThrow().getType().isPrimitiveType();
+                    if (primitive)
+                        sdg.addParameterInOutArc(actualIn, formalIn);
+                    else
+                        connectObjectActualIn(actualIn, formalIn);
+                });
+    }
+
+    protected void connectObjectActualIn(GraphNode<?> actualIn, GraphNode<?> formalIn) {
+        List<VariableAction> actualList = actualIn.getVariableActions();
+        List<VariableAction> formalList = formalIn.getVariableActions();
+        assert formalList.size() == 1;
+        VariableAction actualVar = actualList.get(actualList.size() - 1);
+        VariableAction formalVar = formalList.get(0);
+        actualVar.applySDGTreeConnection((JSysDG) sdg, formalVar);
     }
 
     @Override
