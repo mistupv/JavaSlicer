@@ -44,7 +44,6 @@ public class InterproceduralUsageFinder extends InterproceduralActionFinder<Usag
             ActualIONode actualIn = locateActualInNode(edge, use.getName());
             Definition def = new Definition(VariableAction.DeclarationType.SYNTHETIC, "-arg-in-", graphNode, (ObjectTree) use.getObjectTree().clone());
             Movable movDef = new Movable(def, actualIn);
-            actualIn.addVariableAction(movDef);
             graphNode.addVariableActionAfterLastMatchingRealNode(movDef, actualIn);
             ExpressionObjectTreeFinder finder = new ExpressionObjectTreeFinder(graphNode);
             finder.locateAndMarkTransferenceToRoot(actualIn.getArgument(), def);
@@ -59,7 +58,6 @@ public class InterproceduralUsageFinder extends InterproceduralActionFinder<Usag
                 Definition def = new Definition(VariableAction.DeclarationType.SYNTHETIC, "-scope-in-", graphNode, (ObjectTree) use.getObjectTree().clone());
                 Movable movDef = new Movable(def, actualIn);
                 Expression scope = Objects.requireNonNullElseGet(actualIn.getArgument(), ThisExpr::new);
-                actualIn.addVariableAction(movDef);
                 graphNode.addVariableActionAfterLastMatchingRealNode(movDef, actualIn);
                 ExpressionObjectTreeFinder finder = new ExpressionObjectTreeFinder(graphNode);
                 finder.locateAndMarkTransferenceToRoot(scope, def);

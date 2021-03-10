@@ -148,7 +148,6 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
                 throw new UnsupportedOperationException();
         }
         if (!realNodeStack.isEmpty()) {
-            realNodeStack.peek().addVariableAction(va);
             va = new VariableAction.Movable(va, realNodeStack.peek());
         }
         graphNode.addVariableAction(va);
