@@ -52,6 +52,11 @@ public class JSysPDG extends ESPDG {
         addEdge(graphNodeOf(source), graphNodeOf(target), new FlowDependencyArc(source.getName()));
     }
 
+    protected void addDeclarationFlowDependencyArc(VariableAction declaration, VariableAction definition) {
+        MemberNode defMember = definition.getObjectTree().getNodeFor(declaration.getName());
+        addEdge(graphNodeOf(declaration), defMember, new FlowDependencyArc());
+    }
+
     // definicion de miembro --flow--> uso de miembro
     protected void addFlowDependencyArc(VariableAction definition, VariableAction usage, String objMember) {
         GraphNode<?> defMember = definition.getObjectTree().getNodeFor(objMember);
@@ -120,11 +125,17 @@ public class JSysPDG extends ESPDG {
                                     jSysCFG.findLastDefinitionOfObjectMember(varAct, member).forEach(def -> addFlowDependencyArc(def, varAct, member));
                         }
                     } else if (varAct.isDefinition()) {
+                        // Flow declaration --> definition
                         if (!varAct.isSynthetic())
                             jSysCFG.findDeclarationFor(varAct).ifPresent(dec -> addFlowDependencyArc(dec, varAct));
+                        // Object flow definition --> definition
                         if (!varAct.isPrimitive() && varAct.hasObjectTree())
                             for (String member : varAct.getObjectTree().nameIterable())
                                 jSysCFG.findNextObjectDefinitionsFor(varAct, member).forEach(def -> addObjectFlowDependencyArc(varAct, member, def));
+                    } else if (varAct.isDeclaration()) {
+                        if (varAct.getName().startsWith("this."))
+                            jSysCFG.findAllFutureObjectDefinitionsFor(varAct)
+                                    .forEach(def -> addDeclarationFlowDependencyArc(varAct, def));
                     }
                 }
             }

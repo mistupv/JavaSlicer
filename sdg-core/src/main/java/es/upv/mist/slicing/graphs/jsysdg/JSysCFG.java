@@ -70,6 +70,32 @@ public class JSysCFG extends ESCFG {
         return findLastVarActionsFrom(usage, VariableAction::isDefinition);
     }
 
+    public List<VariableAction> findAllFutureObjectDefinitionsFor(VariableAction action) {
+        List<VariableAction> list = new LinkedList<>();
+        Predicate<VariableAction> filter = a -> a.isDefinition() && a.getName().equals("this") && a.hasTreeMember(action.getName());
+        findAllFutureVarActionsFor(new HashSet<>(), list, action.getGraphNode(), action, filter);
+        return list;
+    }
+
+    protected void findAllFutureVarActionsFor(Set<GraphNode<?>> visited, List<VariableAction> result,
+                                            GraphNode<?> currentNode, VariableAction var,
+                                            Predicate<VariableAction> filter) {
+        // Base case
+        if (visited.contains(currentNode))
+            return;
+        visited.add(currentNode);
+
+        Stream<VariableAction> stream = currentNode.getVariableActions().stream();
+        if (var.getGraphNode().equals(currentNode))
+            stream = stream.dropWhile(va -> va != var);
+        stream.filter(filter).forEach(result::add);
+
+        // always traverse forwards!
+        for (Arc arc : outgoingEdgesOf(currentNode))
+            if (arc.isExecutableControlFlowArc())
+                findAllFutureVarActionsFor(visited, result, getEdgeTarget(arc), var, filter);
+    }
+
     public List<VariableAction> findLastTotalDefinitionOf(VariableAction action, String member) {
         return findLastVarActionsFrom(action, def ->
                 (def.isDeclaration() && def.hasTreeMember(member))
@@ -114,7 +140,7 @@ public class JSysCFG extends ESCFG {
                 return true;
         }
 
-        // Not found: traverse backwards!
+        // Not found: traverse forwards!
         boolean allBranches = !outgoingEdgesOf(currentNode).isEmpty();
         for (Arc arc : outgoingEdgesOf(currentNode))
             if (arc.isExecutableControlFlowArc())
