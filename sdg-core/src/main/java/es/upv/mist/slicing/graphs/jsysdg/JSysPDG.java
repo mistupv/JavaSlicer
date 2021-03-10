@@ -67,10 +67,10 @@ public class JSysPDG extends ESPDG {
     }
 
     protected GraphNode<?> graphNodeOf(VariableAction action) {
-        if (action instanceof VariableAction.Movable)
-            return ((VariableAction.Movable) action).getRealNode();
         if (action.hasObjectTree())
             return action.getObjectTree().getMemberNode();
+        if (action instanceof VariableAction.Movable)
+            return ((VariableAction.Movable) action).getRealNode();
         return action.getGraphNode();
     }
 
