@@ -2,6 +2,7 @@ package es.upv.mist.slicing.graphs.jsysdg;
 
 import es.upv.mist.slicing.arcs.pdg.FlowDependencyArc;
 import es.upv.mist.slicing.arcs.pdg.ObjectFlowDependencyArc;
+import es.upv.mist.slicing.arcs.pdg.StructuralArc;
 import es.upv.mist.slicing.arcs.pdg.TotalDefinitionDependenceArc;
 import es.upv.mist.slicing.graphs.exceptionsensitive.ESCFG;
 import es.upv.mist.slicing.graphs.exceptionsensitive.ESPDG;
@@ -9,6 +10,7 @@ import es.upv.mist.slicing.graphs.pdg.PDG;
 import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.nodes.ObjectTree;
 import es.upv.mist.slicing.nodes.VariableAction;
+import es.upv.mist.slicing.nodes.io.ActualIONode;
 import es.upv.mist.slicing.nodes.io.CallNode;
 import es.upv.mist.slicing.nodes.oo.MemberNode;
 
@@ -28,6 +30,10 @@ public class JSysPDG extends ESPDG {
     @Override
     protected PDG.Builder createBuilder() {
         return new Builder();
+    }
+
+    protected void addStructuralArc(GraphNode<?> source, GraphNode<?> target) {
+        addEdge(source, target, new StructuralArc());
     }
 
     // definicion de raiz --object-flow--> uso de raiz
@@ -149,7 +155,7 @@ public class JSysPDG extends ESPDG {
                             if (node.isImplicitInstruction())
                                 callNode.markAsImplicit();
                             addVertex(callNode);
-                            addControlDependencyArc(node, callNode);
+                            addStructuralArc(node, callNode);
                             callNodeStack.push(callNode);
                         }
                         continue;
@@ -175,6 +181,16 @@ public class JSysPDG extends ESPDG {
             }
         }
 
+        @Override
+        protected void connectRealNode(GraphNode<?> graphNode, CallNode callNode, GraphNode<?> realNode) {
+            if (realNode instanceof ActualIONode || realNode instanceof CallNode.Return) {
+                assert callNode != null;
+                addStructuralArc(callNode, realNode);
+            } else {
+                addStructuralArc(graphNode == cfg.getExitNode() ? rootNode : graphNode, realNode);
+            }
+        }
+
         protected void applyTreeConnections() {
             cfg.vertexSet().stream()
                     .flatMap(node -> node.getVariableActions().stream())
@@ -186,7 +202,7 @@ public class JSysPDG extends ESPDG {
                 memberNode.setParent(parentNode);
             assert containsVertex(memberNode.getParent());
             addVertex(memberNode);
-            addControlDependencyArc(memberNode.getParent(), memberNode);
+            addStructuralArc(memberNode.getParent(), memberNode);
         }
 
         protected void valueDependencyForThrowStatements() {

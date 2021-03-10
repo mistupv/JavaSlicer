@@ -3,7 +3,6 @@ package es.upv.mist.slicing.graphs.sdg;
 import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
-import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.arcs.sdg.CallArc;
 import es.upv.mist.slicing.arcs.sdg.ParameterInOutArc;
 import es.upv.mist.slicing.graphs.CallGraph;
@@ -54,7 +53,6 @@ public class CallConnector {
 
         // Locate and connect all ACTUAL nodes
         sdg.outgoingEdgesOf(callNode).stream()
-                .filter(Arc::isControlDependencyArc)
                 .map(sdg::getEdgeTarget)
                 .filter(ActualIONode.class::isInstance)
                 .map(ActualIONode.class::cast)
@@ -67,7 +65,6 @@ public class CallConnector {
 
         // Locate and connect the -output- node
         sdg.outgoingEdgesOf(callNode).stream()
-                .filter(Arc::isControlDependencyArc)
                 .map(sdg::getEdgeTarget)
                 .filter(CallNode.Return.class::isInstance)
                 .forEach(n -> connectOutput(declarationNode, n));
