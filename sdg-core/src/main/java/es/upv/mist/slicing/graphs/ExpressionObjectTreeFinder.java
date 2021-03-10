@@ -163,7 +163,7 @@ public class ExpressionObjectTreeFinder {
         String sourceMember = sourcePair.b;
         if (targetAction.hasObjectTree() &&
                 (!sourceAction.hasObjectTree() || !sourceAction.getObjectTree().isLeaf(sourceMember)))
-            ObjectTree.copyTree(sourceAction.getObjectTree(), targetAction.getObjectTree(), sourceMember, targetMember);
+            ObjectTree.copyTargetTreeToSource(sourceAction.getObjectTree(), targetAction.getObjectTree(), sourceMember, targetMember);
         sourceAction.setPDGTreeConnectionTo(targetAction, sourceMember, targetMember);
     }
 }

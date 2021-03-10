@@ -87,7 +87,7 @@ public class ObjectTree implements Cloneable {
      * @param sourcePrefix The prefix to be consumed before copying nodes. Without root.
      * @param targetPrefix The prefix to be consumed before copying nodes. Without root.
      */
-    public static void copyTree(ObjectTree source, ObjectTree target, String sourcePrefix, String targetPrefix) {
+    public static void copyTargetTreeToSource(ObjectTree source, ObjectTree target, String sourcePrefix, String targetPrefix) {
         ObjectTree a = source.findObjectTreeOfMember(sourcePrefix);
         ObjectTree b = target.findObjectTreeOfMember(targetPrefix);
         a.addAll(b);

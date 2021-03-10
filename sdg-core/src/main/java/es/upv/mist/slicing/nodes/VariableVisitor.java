@@ -375,6 +375,17 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         }
         // Regardless of whether it resolves or not, 'this' is defined
         acceptActionNullDefinition(FIELD, "this");
+        // setup a connection between USE(-output-) and DEF(this)
+        List<VariableAction> vaList = graphNode.getVariableActions();
+        if (vaList.size() >= 5) { // call-super, DEC(this), USE(-output-), ret-super, DEF(this)
+            VariableAction useOutput = vaList.get(vaList.size() - 3);
+            VariableAction defThis = vaList.get(vaList.size() - 1);
+            assert useOutput.isUsage() && useOutput.getName().equals(VARIABLE_NAME_OUTPUT);
+            assert defThis.isDefinition() && defThis.getName().equals("this");
+            defThis.asDefinition().setTotallyDefinedMember("this");
+            ObjectTree.copyTargetTreeToSource(defThis.getObjectTree(), useOutput.getObjectTree(), "", "");
+            useOutput.setPDGTreeConnectionTo(defThis, "", "");
+        }
     }
 
     @Override
