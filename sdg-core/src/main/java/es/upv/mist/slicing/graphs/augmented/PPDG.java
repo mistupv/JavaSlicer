@@ -46,7 +46,7 @@ public class PPDG extends APDG {
 
         /** Finds the CD arcs that are only present in the PPDG and marks them as such. */
         protected void markPPDGExclusiveEdges(CallableDeclaration<?> declaration) {
-            APDG apdg = new APDG((ACFG) cfg);
+            APDG apdg = new APDG();
             apdg.build(declaration);
             Set<Arc> apdgArcs = apdg.edgeSet().stream()
                     .filter(Arc::isUnconditionalControlDependencyArc)

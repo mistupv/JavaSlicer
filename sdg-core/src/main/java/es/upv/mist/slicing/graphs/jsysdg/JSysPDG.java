@@ -115,7 +115,15 @@ public class JSysPDG extends ESPDG {
         }
 
         @Override
-        protected void expandCalls() {}
+        protected void expandCalls() {
+            for (GraphNode<?> graphNode : vertexSet()) {
+                for (VariableAction action : List.copyOf(graphNode.getVariableActions())) {
+                    if (action instanceof VariableAction.Movable) {
+                        ((VariableAction.Movable) action).moveOnly();
+                    }
+                }
+            }
+        }
 
         protected void addSyntheticNodesToPDG() {
             for (GraphNode<?> node : cfg.vertexSet()) {
