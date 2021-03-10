@@ -374,7 +374,7 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
      * @see #VARIABLE_NAME_OUTPUT */
     protected void addMethodOutput(CallableDeclaration<?> callableDeclaration, GraphNode<?> exit) {
         if (!(callableDeclaration instanceof MethodDeclaration) || !((MethodDeclaration) callableDeclaration).getType().isVoidType()) {
-            VariableAction usage = new VariableAction.Usage(null, VARIABLE_NAME_OUTPUT, exit);
+            VariableAction usage = new VariableAction.Usage(VariableAction.DeclarationType.SYNTHETIC, VARIABLE_NAME_OUTPUT, exit);
             exit.addVariableAction(new VariableAction.Movable(usage, OutputNode.create(callableDeclaration)));
         }
     }

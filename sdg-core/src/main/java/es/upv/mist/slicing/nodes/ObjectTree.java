@@ -8,7 +8,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ObjectTree implements Cloneable {
-    private static final String ROOT_NAME = "-root-";
+    public static final String ROOT_NAME = "-root-";
+
     private static final Pattern FIELD_SPLIT = Pattern.compile("^(?<root>(([_0-9A-Za-z]+\\.)*this)|([_0-9A-Za-z]+)|(-root-))(\\.(?<fields>.+))?$");
 
     private final Map<String, ObjectTree> childrenMap = new HashMap<>();
@@ -16,7 +17,11 @@ public class ObjectTree implements Cloneable {
     private MemberNode memberNode;
 
     public ObjectTree() {
-        memberNode = null;
+        this(ROOT_NAME);
+    }
+
+    public ObjectTree(String memberName) {
+        memberNode = new MemberNode(memberName, null);
     }
 
     private ObjectTree(String memberName, ObjectTree parent) {
@@ -32,7 +37,13 @@ public class ObjectTree implements Cloneable {
     }
 
     public void setMemberNode(MemberNode memberNode) {
+        GraphNode<?> oldParent = null;
+        if (this.memberNode != null)
+            oldParent = this.memberNode.getParent();
         this.memberNode = memberNode;
+        if (oldParent != null)
+            this.memberNode.setParent(oldParent);
+        childrenMap.values().forEach(ot -> ot.memberNode.setParent(memberNode));
     }
 
     public boolean hasChildren() {
@@ -213,7 +224,7 @@ public class ObjectTree implements Cloneable {
     @SuppressWarnings("MethodDoesntCallSuperMethod")
     @Override
     public Object clone() {
-        ObjectTree clone = new ObjectTree();
+        ObjectTree clone = new ObjectTree(memberNode.getLabel());
         for (Map.Entry<String, ObjectTree> entry : childrenMap.entrySet())
             clone.childrenMap.put(entry.getKey(), entry.getValue().clone(clone));
         return clone;

@@ -1,5 +1,6 @@
 package es.upv.mist.slicing.graphs;
 
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
@@ -40,11 +41,11 @@ public class ExpressionObjectTreeFinder {
         VariableAction lastDef = null;
         for (VariableAction a : graphNode.getVariableActions()) {
             if (a.isDeclaration()) {
-                if (a.getVariable().equals(varName))
+                if (a.getName().equals(varName))
                     foundDecl = true;
                 else if (foundDecl)
                     return lastDef;
-            } else if (a.isDefinition() && a.getVariable().equals(varName)) {
+            } else if (a.isDefinition() && a.getName().equals(varName)) {
                 lastDef = a;
             }
         }
@@ -97,9 +98,7 @@ public class ExpressionObjectTreeFinder {
                 if (n.resolve().isType())
                     return;
                 for (VariableAction action : graphNode.getVariableActions()) {
-                    if (action.isUsage() &&
-                            action.getVariable().equals(n.getNameAsString()) &&
-                            n.equals(action.getVariableExpression())) {
+                    if (action.isUsage() && action.getName().equals(n.getNameAsString())) {
                         list.add(new Pair<>(action, arg));
                         return;
                     }
@@ -110,18 +109,9 @@ public class ExpressionObjectTreeFinder {
             @Override
             public void visit(ThisExpr n, String arg) {
                 for (VariableAction action : graphNode.getVariableActions()) {
-                    if (action.isUsage()) {
-                        if (action.getVariableExpression() == null) {
-                            if (action.getVariable().matches("^.*this$")) {
-                                list.add(new Pair<>(action, arg));
-                                return;
-                            }
-                        } else {
-                            if (n.equals(action.getVariableExpression())) {
-                                list.add(new Pair<>(action, arg));
-                                return;
-                            }
-                        }
+                    if (action.isUsage() && action.getName().matches("^.*this$")) {
+                        list.add(new Pair<>(action, arg));
+                        return;
                     }
                 }
                 throw new IllegalStateException("Could not find USE(this)");
@@ -147,12 +137,18 @@ public class ExpressionObjectTreeFinder {
             protected void visitCall(Expression call, String arg) {
                 if (ASTUtils.shouldVisitArgumentsForMethodCalls((Resolvable<? extends ResolvedMethodLikeDeclaration>) call))
                     return;
+                VariableAction lastUseOut = null;
                 for (VariableAction variableAction : graphNode.getVariableActions()) {
-                    if (variableAction.isUsage() &&
-                            variableAction.getVariable().equals(VARIABLE_NAME_OUTPUT) &&
-                            call.equals(variableAction.getVariableExpression())) {
-                        list.add(new Pair<>(variableAction, arg));
-                        return;
+                    if (variableAction instanceof VariableAction.CallMarker) {
+                        VariableAction.CallMarker marker = (VariableAction.CallMarker) variableAction;
+                        if (ASTUtils.equalsWithRange((Node) marker.getCall(), call) && !marker.isEnter()) {
+                            assert lastUseOut != null;
+                            list.add(new Pair<>(lastUseOut, arg));
+                            return;
+                        }
+                    }
+                    if (variableAction.isUsage() && variableAction.getName().equals(VARIABLE_NAME_OUTPUT)) {
+                        lastUseOut = variableAction;
                     }
                 }
                 throw new IllegalStateException("Could not find USE(-output-) corresponding to call " + call);

@@ -5,7 +5,6 @@ import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.ThisExpr;
-import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
 import es.upv.mist.slicing.graphs.CallGraph;
 import es.upv.mist.slicing.graphs.ExpressionObjectTreeFinder;
 import es.upv.mist.slicing.graphs.cfg.CFG;
@@ -33,8 +32,7 @@ public class InterproceduralUsageFinder extends InterproceduralActionFinder<Usag
     @Override
     protected void handleFormalAction(CallGraph.Vertex vertex, Usage use) {
         CFG cfg = cfgMap.get(vertex.getDeclaration());
-        ResolvedValueDeclaration resolved = use.getResolvedValueDeclaration();
-        FormalIONode formalIn = FormalIONode.createFormalIn(vertex.getDeclaration(), resolved);
+        FormalIONode formalIn = FormalIONode.createFormalIn(vertex.getDeclaration(), use.getName());
         Movable movable = new Movable(use.toDefinition(cfg.getRootNode()), formalIn);
         cfg.getRootNode().addVariableAction(movable);
     }
@@ -42,25 +40,23 @@ public class InterproceduralUsageFinder extends InterproceduralActionFinder<Usag
     @Override
     protected void handleActualAction(CallGraph.Edge<?> edge, Usage use) {
         GraphNode<?> graphNode = edge.getGraphNode();
-        ResolvedValueDeclaration resolved = use.getResolvedValueDeclaration();
-        if (resolved.isParameter()) {
-            ActualIONode actualIn = locateActualInNode(edge, resolved.getName());
-            Definition def = new Definition(null, "-arg-in-", graphNode, (ObjectTree) use.getObjectTree().clone());
+        if (use.isParameter()) {
+            ActualIONode actualIn = locateActualInNode(edge, use.getName());
+            Definition def = new Definition(VariableAction.DeclarationType.SYNTHETIC, "-arg-in-", graphNode, (ObjectTree) use.getObjectTree().clone());
             Movable movDef = new Movable(def, actualIn);
             actualIn.addVariableAction(movDef);
             graphNode.addVariableActionAfterLastMatchingRealNode(movDef, actualIn);
             ExpressionObjectTreeFinder finder = new ExpressionObjectTreeFinder(graphNode);
             finder.locateAndMarkTransferenceToRoot(actualIn.getArgument(), def);
-        } else if (resolved.isField()) {
-            boolean isStatic = resolved.isType() || (resolved.getType() != null && resolved.asField().isStatic());
-            if (isStatic) {
+        } else if (use.isField()) {
+            if (use.isStatic()) {
                 // Known limitation: static fields
             } else {
                 // An object creation expression input an existing object via actual-in because it creates it.
                 if (edge.getCall() instanceof ObjectCreationExpr)
                     return;
-                ActualIONode actualIn = locateActualInNode(edge, resolved.getName());
-                Definition def = new Definition(null, "-scope-in-", graphNode, (ObjectTree) use.getObjectTree().clone());
+                ActualIONode actualIn = locateActualInNode(edge, use.getName());
+                Definition def = new Definition(VariableAction.DeclarationType.SYNTHETIC, "-scope-in-", graphNode, (ObjectTree) use.getObjectTree().clone());
                 Movable movDef = new Movable(def, actualIn);
                 Expression scope = Objects.requireNonNullElseGet(actualIn.getArgument(), ThisExpr::new);
                 actualIn.addVariableAction(movDef);

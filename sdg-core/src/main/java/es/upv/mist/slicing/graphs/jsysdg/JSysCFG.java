@@ -57,7 +57,7 @@ public class JSysCFG extends ESCFG {
     /** Given a usage of an object member, find the last definitions of that member.
      *  This method returns a list of variable actions, where the caller can find the member. */
     public List<VariableAction> findLastDefinitionOfObjectMember(VariableAction usage, String member) {
-        return findLastVarActionsFrom(usage, def -> def.isDefinition() && def.getObjectTree().hasMember(member));
+        return findLastVarActionsFrom(usage, def -> def.isDefinition() && def.hasTreeMember(member));
     }
 
     /** Given a usage of a primitive variable, find the last def actions that affect it. */
@@ -80,7 +80,7 @@ public class JSysCFG extends ESCFG {
     public List<VariableAction> findNextObjectDefinitionsFor(VariableAction definition, String member) {
         if (!this.containsVertex(definition.getGraphNode()))
             throw new NodeNotFoundException(definition.getGraphNode(), this); // TODO: al crear los root/resumen, las movable no se ponen en el movable
-        if (definition.getObjectTree().hasMember(member))
+        if (definition.hasTreeMember(member))
             return List.of(definition);
         List<VariableAction> list = new LinkedList<>();
         findNextVarActionsFor(new HashSet<>(), list, definition.getGraphNode(), definition, VariableAction::isDefinition, member);
@@ -102,7 +102,7 @@ public class JSysCFG extends ESCFG {
         if (!list.isEmpty()) {
             boolean found = false;
             for (VariableAction variableAction : list) {
-                if (!variableAction.isOptional() && variableAction.getObjectTree().hasMember(memberName)) {
+                if (!variableAction.isOptional() && variableAction.hasTreeMember(memberName)) {
                     found = true;
                     break;
                 }
@@ -189,7 +189,7 @@ public class JSysCFG extends ESCFG {
         protected void addMethodOutput(CallableDeclaration<?> callableDeclaration, GraphNode<?> exit) {
             super.addMethodOutput(callableDeclaration, exit);
             for (VariableAction action : exit.getVariableActions()) {
-                if (action.getVariable().equals(VARIABLE_NAME_OUTPUT)) {
+                if (action.getName().equals(VARIABLE_NAME_OUTPUT)) {
                     expandOutputVariable(callableDeclaration, action);
                     break;
                 }

@@ -8,8 +8,6 @@ import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
 import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.UnsolvedSymbolException;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
-import com.github.javaparser.resolution.declarations.ResolvedParameterDeclaration;
-import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
 import es.upv.mist.slicing.graphs.BackwardDataFlowAnalysis;
 import es.upv.mist.slicing.graphs.CallGraph;
 import es.upv.mist.slicing.graphs.cfg.CFG;
@@ -23,8 +21,6 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-// TODO: this approach of generating actual nodes may skip an argument; this is only a problem if there is a definition
-// TODO: update placement of actual and formal outputs for ESSDG (see if the definition/usage reaches all/any exits).
 /**
  * A backward data flow analysis on the call graph and a map of CFGs, to find which callable
  * declarations define, use or declare which variables, interprocedurally.
@@ -78,7 +74,7 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
         try {
             handler.accept(location, action);
         } catch (UnsolvedSymbolException e) {
-            Logger.log("Skipping a symbol, cannot be resolved: " + action.getVariable());
+            Logger.log("Skipping a symbol, cannot be resolved: " + action.getName());
         }
     }
 
@@ -108,11 +104,11 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
 
     /** Obtains the expression passed as argument for the given action at the given call. If {@code input}
      * is false, primitive parameters will be skipped, as their value cannot be redefined.*/
-    protected Expression extractArgument(ResolvedParameterDeclaration p, CallGraph.Edge<?> edge, boolean input) {
+    protected Expression extractArgument(VariableAction action, CallGraph.Edge<?> edge, boolean input) {
         CallableDeclaration<?> callTarget = graph.getEdgeTarget(edge).getDeclaration();
-        if (!input && p.getType().isPrimitive())
+        if (!input && action.isPrimitive())
             return null; // primitives do not have actual-out!
-        int paramIndex = ASTUtils.getMatchingParameterIndex(callTarget, p);
+        int paramIndex = ASTUtils.getMatchingParameterIndex(callTarget, action.getName());
         return ASTUtils.getResolvableArgs(edge.getCall()).get(paramIndex);
     }
 
@@ -136,7 +132,7 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
      *  the scope of the method. */
     protected static String obtainAliasedFieldName(VariableAction action, CallGraph.Edge<?> edge, String scope) {
         if (scope.isEmpty()) {
-            return action.getVariable();
+            return action.getName();
         } else {
             String newPrefix = scope;
             newPrefix = newPrefix.replaceAll("((\\.)super|^super)(\\.)?", "$2this$3");
@@ -144,7 +140,7 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
                 String fqName = ASTUtils.getClassNode(edge.getGraphNode().getAstNode()).getFullyQualifiedName().orElseThrow();
                 newPrefix = fqName + ".this";
             }
-            String withPrefix = action.getVariable();
+            String withPrefix = action.getName();
             String withoutPrefix = withPrefix.replaceFirst("^((.*\\.)?this\\.?)", "");
             String result = newPrefix + withoutPrefix;
             return result.replaceFirst("this(\\.this)+", "this");
@@ -210,28 +206,15 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
 
         @Override
         public int compare(A o1, A o2) {
-            ResolvedValueDeclaration r1 = null;
-            ResolvedValueDeclaration r2 = null;
-            try {
-                r1 = o1.getResolvedValueDeclaration();
-                r2 = o2.getResolvedValueDeclaration();
-                if (r1.isParameter() && r2.isParameter())
-                    return -Integer.compare(ASTUtils.getMatchingParameterIndex(graph.getEdgeTarget(edge).getDeclaration(), r1.asParameter()),
-                            ASTUtils.getMatchingParameterIndex(graph.getEdgeTarget(edge).getDeclaration(), r2.asParameter()));
-                else if (r1.isField() && r2.isField())
-                    return 0;
-                else if (r1.isParameter() && r2.isField())
-                    return -1;
-                else if (r1.isField() && r2.isParameter())
-                    return 1;
-            } catch (UnsolvedSymbolException e) {
-                if (r1 == null)
-                    return 1;
-                else if (r2 == null)
-                    return -1;
-                else
-                    return 0;
-            }
+            if (o1.isParameter() && o2.isParameter())
+                return -Integer.compare(ASTUtils.getMatchingParameterIndex(graph.getEdgeTarget(edge).getDeclaration(), o1.getName()),
+                        ASTUtils.getMatchingParameterIndex(graph.getEdgeTarget(edge).getDeclaration(), o2.getName()));
+            else if (o1.isField() && o2.isField())
+                return 0;
+            else if (o1.isParameter() && o2.isField())
+                return -1;
+            else if (o1.isField() && o2.isParameter())
+                return 1;
             throw new IllegalArgumentException("One or more arguments is not a field or parameter");
         }
     }

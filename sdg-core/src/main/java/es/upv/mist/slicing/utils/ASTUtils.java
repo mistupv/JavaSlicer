@@ -7,7 +7,10 @@ import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.resolution.Resolvable;
-import com.github.javaparser.resolution.declarations.*;
+import com.github.javaparser.resolution.declarations.ResolvedConstructorDeclaration;
+import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
+import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
+import com.github.javaparser.resolution.declarations.ResolvedReferenceTypeDeclaration;
 import com.github.javaparser.resolution.types.ResolvedType;
 import com.github.javaparser.symbolsolver.model.typesystem.ReferenceTypeImpl;
 import es.upv.mist.slicing.nodes.GraphNode;
@@ -85,23 +88,12 @@ public class ASTUtils {
         throw new IllegalArgumentException("Declaration wasn't method or constructor");
     }
 
-    public static int getMatchingParameterIndex(CallableDeclaration<?> declaration, ResolvedParameterDeclaration param) {
+    public static int getMatchingParameterIndex(CallableDeclaration<?> declaration, String paramName) {
         var parameters = declaration.getParameters();
         for (int i = 0; i < parameters.size(); i++)
-            if (resolvedParameterEquals(param, parameters.get(i).resolve()))
+            if (parameters.get(i).getNameAsString().equals(paramName))
                 return i;
         throw new IllegalArgumentException("Expression resolved to a parameter, but could not be found!");
-    }
-
-    public static int getMatchingParameterIndex(ResolvedMethodLikeDeclaration declaration, ResolvedParameterDeclaration param) {
-        for (int i = 0; i < declaration.getNumberOfParams(); i++)
-            if (resolvedParameterEquals(declaration.getParam(i), param))
-                return i;
-        throw new IllegalArgumentException("Expression resolved to a parameter, but could not be found!");
-    }
-
-    protected static boolean resolvedParameterEquals(ResolvedParameterDeclaration p1, ResolvedParameterDeclaration p2) {
-        return p2.getType().equals(p1.getType()) && p2.getName().equals(p1.getName());
     }
 
     public static List<Expression> getResolvableArgs(Resolvable<? extends ResolvedMethodLikeDeclaration> call) {

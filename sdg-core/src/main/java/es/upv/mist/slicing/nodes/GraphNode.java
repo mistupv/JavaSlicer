@@ -202,12 +202,12 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
     }
 
     public void addVADefineActiveException(Expression expression) {
-        VariableAction.Definition def = new VariableAction.Definition(null, ACTIVE_EXCEPTION_VARIABLE, this, expression);
+        VariableAction.Definition def = new VariableAction.Definition(VariableAction.DeclarationType.SYNTHETIC, ACTIVE_EXCEPTION_VARIABLE, this, expression);
         variableActions.add(def);
     }
 
     public void addVAUseActiveException() {
-        VariableAction.Usage use = new VariableAction.Usage(null, ACTIVE_EXCEPTION_VARIABLE, this);
+        VariableAction.Usage use = new VariableAction.Usage(VariableAction.DeclarationType.SYNTHETIC, ACTIVE_EXCEPTION_VARIABLE, this);
         variableActions.add(use);
     }
 

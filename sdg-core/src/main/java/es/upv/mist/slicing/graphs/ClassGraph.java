@@ -156,7 +156,7 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, ClassGrap
     protected ObjectTree generateObjectTreeFor(Vertex classVertex) {
         if (classVertex == null)
             return new ObjectTree();
-        return generateObjectTreeFor(classVertex, new ObjectTree(), "-root-");
+        return generateObjectTreeFor(classVertex, new ObjectTree(), ObjectTree.ROOT_NAME);
     }
 
     protected ObjectTree generateObjectTreeFor(Vertex classVertex, ObjectTree tree, String level) {

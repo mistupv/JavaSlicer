@@ -1,7 +1,6 @@
 package es.upv.mist.slicing.nodes.io;
 
 import com.github.javaparser.ast.body.CallableDeclaration;
-import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
 
 /** A formal-in or formal-out node, displaying interprocedural data dependencies. */
 public class FormalIONode extends IONode<CallableDeclaration<?>> {
@@ -20,16 +19,15 @@ public class FormalIONode extends IONode<CallableDeclaration<?>> {
             return String.format("%s_out = %1$s", varName);
     }
 
-    public static FormalIONode createFormalIn(CallableDeclaration<?> declaration, ResolvedValueDeclaration resolvedValue) {
-        return new FormalIONode(declaration, resolvedValue.getName(), true);
+    public static FormalIONode createFormalIn(CallableDeclaration<?> declaration, String name) {
+        return new FormalIONode(declaration, name, true);
     }
 
-    public static FormalIONode createFormalOut(CallableDeclaration<?> declaration, ResolvedValueDeclaration resolvedValue) {
-        return new FormalIONode(declaration, resolvedValue.getName(), false);
+    public static FormalIONode createFormalOut(CallableDeclaration<?> declaration, String name) {
+        return new FormalIONode(declaration, name, false);
     }
 
-    public static FormalIONode createFormalInDecl(CallableDeclaration<?> declaration, ResolvedValueDeclaration resolvedValue) {
-        String name = resolvedValue.getName();
+    public static FormalIONode createFormalInDecl(CallableDeclaration<?> declaration, String name) {
         return new FormalIONode(name, declaration, name, true);
     }
 }

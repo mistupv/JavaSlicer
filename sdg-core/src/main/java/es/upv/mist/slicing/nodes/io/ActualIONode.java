@@ -7,17 +7,12 @@ import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.declarations.ResolvedConstructorDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
-import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
 
 import java.util.Objects;
 
 /** A node that represents actual-in and actual-out nodes in a call. */
 public class ActualIONode extends IONode<Node> {
     protected final Expression argument;
-
-    protected ActualIONode(Resolvable<? extends ResolvedMethodLikeDeclaration> astNode, ResolvedValueDeclaration variable, Expression argument, boolean isInput) {
-        this(astNode, variable.getName(), argument, isInput);
-    }
 
     protected ActualIONode(Resolvable<? extends ResolvedMethodLikeDeclaration> astNode, String variable, Expression argument, boolean isInput) {
         super(createLabel(isInput, variable, argument), (Node) astNode, variable, isInput);
@@ -67,15 +62,11 @@ public class ActualIONode extends IONode<Node> {
             return String.format("%s = %s_out", arg, paramName);
     }
 
-    public static ActualIONode createActualIn(Resolvable<? extends ResolvedMethodLikeDeclaration> methodCallExpr, ResolvedValueDeclaration resolvedDeclaration, Expression argument) {
-        return new ActualIONode(methodCallExpr, resolvedDeclaration, argument, true);
+    public static ActualIONode createActualIn(Resolvable<? extends ResolvedMethodLikeDeclaration> methodCallExpr, String name, Expression argument) {
+        return new ActualIONode(methodCallExpr, name, argument, true);
     }
 
-    public static ActualIONode createActualIn(Resolvable<? extends ResolvedMethodLikeDeclaration> methodCallExpr, String variable, Expression argument) {
-        return new ActualIONode(methodCallExpr, variable, argument, true);
-    }
-
-    public static ActualIONode createActualOut(Resolvable<? extends ResolvedMethodLikeDeclaration> methodCallExpr, ResolvedValueDeclaration resolvedDeclaration, Expression argument) {
-        return new ActualIONode(methodCallExpr, resolvedDeclaration, argument, false);
+    public static ActualIONode createActualOut(Resolvable<? extends ResolvedMethodLikeDeclaration> methodCallExpr, String name, Expression argument) {
+        return new ActualIONode(methodCallExpr, name, argument, false);
     }
 }

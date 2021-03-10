@@ -38,10 +38,10 @@ public class JSysCallConnector extends ExceptionSensitiveCallConnector {
     protected void connectObjectOutput(GraphNode<?> methodOutputNode, GraphNode<?> callReturnNode) {
         List<VariableAction> outputList = methodOutputNode.getVariableActions();
         assert outputList.size() == 1;
-        assert outputList.get(0).isUsage() && outputList.get(0).getVariable().equals(CFGBuilder.VARIABLE_NAME_OUTPUT);
+        assert outputList.get(0).isUsage() && outputList.get(0).getName().equals(CFGBuilder.VARIABLE_NAME_OUTPUT);
         List<VariableAction> returnList = callReturnNode.getVariableActions();
         assert returnList.size() == 1;
-        assert returnList.get(0).isDefinition() && returnList.get(0).getVariable().equals(CFGBuilder.VARIABLE_NAME_OUTPUT);
+        assert returnList.get(0).isDefinition() && returnList.get(0).getName().equals(CFGBuilder.VARIABLE_NAME_OUTPUT);
         VariableAction source = outputList.get(0);
         VariableAction target = returnList.get(0);
         source.applySDGTreeConnection((JSysDG) sdg, target);
