@@ -110,7 +110,7 @@ public abstract class VariableAction {
 
     public ObjectTree getObjectTree() {
         if (!hasObjectTree())
-            setObjectTree(new ObjectTree());
+            setObjectTree(new ObjectTree(getName()));
         return objectTree;
     }
 
@@ -442,7 +442,7 @@ public abstract class VariableAction {
         @Override
         public ObjectTree getObjectTree() {
             if (!inner.hasObjectTree())
-                inner.setObjectTree(new ObjectTree());
+                inner.setObjectTree(new ObjectTree(getName()));
             return inner.getObjectTree();
         }
 
