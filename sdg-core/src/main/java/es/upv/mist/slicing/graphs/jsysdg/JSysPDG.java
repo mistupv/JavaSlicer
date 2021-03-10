@@ -190,13 +190,12 @@ public class JSysPDG extends ESPDG {
         }
 
         protected void valueDependencyForThrowStatements() {
-            for (GraphNode<?> node : vertexSet()) {
-                for (VariableAction action : node.getVariableActions()) {
-                    if (action.isDefinition() && action.getName().equals(ESCFG.ACTIVE_EXCEPTION_VARIABLE)) {
+            for (GraphNode<?> node : vertexSet())
+                for (VariableAction action : node.getVariableActions())
+                    if (action.isDefinition()
+                            && action.hasObjectTree()
+                            && action.getName().equals(ESCFG.ACTIVE_EXCEPTION_VARIABLE))
                         addValueDependencyArc(action, "-root-", node);
-                    }
-                }
-            }
         }
     }
 }
