@@ -12,6 +12,7 @@ import es.upv.mist.slicing.nodes.oo.MemberNode;
 import java.util.function.Supplier;
 
 class ObjectTreeConnection {
+
     protected final VariableAction sourceAction;
     protected final VariableAction targetAction;
     protected final String sourceMember;
@@ -41,6 +42,7 @@ class ObjectTreeConnection {
     }
 
     protected void connectTrees(Graph graph, Supplier<Arc> flowSupplier, Supplier<Arc> objFlowSupplier) {
+        Supplier<Arc> valueSupplier = flowSupplier;
         ObjectTree source = null, target = null;
         GraphNode<?> rootSrc, rootTgt;
         assert sourceMember.isEmpty() || sourceAction.hasObjectTree();
@@ -59,15 +61,17 @@ class ObjectTreeConnection {
         }
         if (source == null || target == null) {
             if (!rootSrc.equals(rootTgt))
-                graph.addEdge(rootSrc, rootTgt, new FlowDependencyArc()); // VALUE DEPENDENCE
+                graph.addEdge(rootSrc, rootTgt, valueSupplier.get());
         } else {
             graph.addEdge(rootSrc, rootTgt, objFlowSupplier.get());
+            graph.addEdge(rootSrc, rootTgt, valueSupplier.get());
             for (ObjectTree tree : target.treeIterable()) {
                 MemberNode src = source.getNodeForNonRoot(tree.getMemberName());
                 MemberNode tgt = tree.getMemberNode();
-                if (tree.hasChildren())
+                if (tree.hasChildren()) {
                     graph.addEdge(src, tgt, objFlowSupplier.get());
-                else
+                    graph.addEdge(src, tgt, valueSupplier.get());
+                } else
                     graph.addEdge(src, tgt, flowSupplier.get());
             }
         }
