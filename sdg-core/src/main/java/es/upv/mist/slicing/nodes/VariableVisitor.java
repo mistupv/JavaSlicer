@@ -13,7 +13,6 @@ import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.UnsolvedSymbolException;
 import com.github.javaparser.resolution.declarations.AssociableToAST;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
-import com.github.javaparser.resolution.declarations.ResolvedTypeDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
 import com.github.javaparser.symbolsolver.javaparsermodel.declarations.JavaParserMethodDeclaration;
 import es.upv.mist.slicing.graphs.ClassGraph;
@@ -374,13 +373,12 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
 
     @Override
     public void visit(ExplicitConstructorInvocationStmt n, Action arg) {
-        String realName4this = getFQClassName(n) + ".this";
         if (visitCall(n, arg)) {
-            acceptAction(FIELD, getFQClassName(n) + ".this", DECLARATION);
+            acceptAction(FIELD, "this", DECLARATION);
             super.visit(n, arg);
         }
         // Regardless of whether it resolves or not, 'this' is defined
-        acceptActionNullDefinition(FIELD, realName4this);
+        acceptActionNullDefinition(FIELD, "this");
     }
 
     @Override
@@ -399,14 +397,14 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         graphNode.addCallMarker(call, true);
         // Scope
         if (call instanceof ExplicitConstructorInvocationStmt)
-            acceptAction(FIELD, getFQClassName((ExplicitConstructorInvocationStmt) call) + ".this", DECLARATION);
+            acceptAction(FIELD, "this", DECLARATION);
         if (call instanceof MethodCallExpr && !((JavaParserMethodDeclaration) call.resolve()).isStatic()) {
-            ActualIONode scopeIn = ActualIONode.createActualIn(call, getFQClassName(decl) + ".this", ((MethodCallExpr) call).getScope().orElse(null));
+            ActualIONode scopeIn = ActualIONode.createActualIn(call, "this", ((MethodCallExpr) call).getScope().orElse(null));
             graphNode.addSyntheticNode(scopeIn);
             realNodeStack.push(scopeIn);
             ASTUtils.getResolvableScope(call).ifPresentOrElse(
                     scope -> scope.accept(this, action),
-                    () -> acceptAction(FIELD, getFQClassName(decl) + ".this", USE));
+                    () -> acceptAction(FIELD, "this", USE));
             realNodeStack.pop();
         }
         // Args
@@ -460,15 +458,9 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         return Optional.empty();
     }
 
-    /** Obtains the fully qualified class name of the class that contains an AST node. */
-    protected String getFQClassName(Node node) {
-        // Known limitation: anonymous classes do not have a FQ class name.
-        return ASTUtils.getClassNode(node).getFullyQualifiedName().orElseThrow();
-    }
-
     /** Prepends [declaring class name].this. to the name of the given variable declarator. */
     protected String getRealNameForFieldDeclaration(VariableDeclarator decl) {
-        return ASTUtils.getClassNode(decl).getFullyQualifiedName().orElseThrow() + ".this." + decl.getNameAsString();
+        return "this." + decl.getNameAsString();
     }
 
     /** Obtain the prefixed name of a variable, to improve matching of variables
@@ -480,13 +472,8 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
             } catch (UnsolvedSymbolException e) {
                 Logger.log("Unable to resolve symbol " + e.getName());
             }
-        } else if (n.isSuperExpr()) {
-            if (n.asSuperExpr().getTypeName().isPresent())
-                return n.asSuperExpr().calculateResolvedType().asReferenceType().getQualifiedName() + ".this";
-            return getFQClassName(n) + ".this";
-        } else if (n.isThisExpr()) {
-            var hasTypeName = n.asThisExpr().getTypeName().isPresent();
-            return (hasTypeName ? n.asThisExpr().resolve().getQualifiedName() : getFQClassName(n)) + ".this";
+        } else if (n.isSuperExpr() || n.isThisExpr()) {
+            return "this";
         } else if (n.isFieldAccessExpr()) { // this.a.b
             Expression scope = n.asFieldAccessExpr().getScope();
             StringBuilder builder = new StringBuilder(n.asFieldAccessExpr().getNameAsString());
@@ -508,10 +495,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         ResolvedValueDeclaration resolved = n.resolve();
         if (!resolved.isField() || resolved.asField().isStatic())
             return "";
-        // Obtain the class where the field is declared
-        ResolvedTypeDeclaration declaringType = resolved.asField().declaringType();
-        // Generate the full prefix
-        return declaringType.getQualifiedName() + ".this.";
+        return "this.";
     }
 
     /** Extracts the parent elements affected by each variable action (e.g. an action on a.x affects a).

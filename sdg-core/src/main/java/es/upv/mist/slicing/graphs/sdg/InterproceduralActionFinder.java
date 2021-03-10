@@ -136,10 +136,6 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
         } else {
             String newPrefix = scope;
             newPrefix = newPrefix.replaceAll("((\\.)super|^super)(\\.)?", "$2this$3");
-            if (newPrefix.equals("this")) {
-                String fqName = ASTUtils.getClassNode(edge.getGraphNode().getAstNode()).getFullyQualifiedName().orElseThrow();
-                newPrefix = fqName + ".this";
-            }
             String withPrefix = action.getName();
             String withoutPrefix = withPrefix.replaceFirst("^((.*\\.)?this\\.?)", "");
             String result = newPrefix + withoutPrefix;

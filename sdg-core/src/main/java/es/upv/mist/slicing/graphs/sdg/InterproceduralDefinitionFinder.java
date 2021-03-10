@@ -1,6 +1,5 @@
 package es.upv.mist.slicing.graphs.sdg;
 
-import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
@@ -62,8 +61,7 @@ public class InterproceduralDefinitionFinder extends InterproceduralActionFinder
                 if (scope.isPresent()) {
                     extractOutputVariablesAsMovables(scope.get(), movables, graphNode, actualOut, def);
                 } else {
-                    String fqClassName = ASTUtils.getClassNode((Node) edge.getCall()).getFullyQualifiedName().orElseThrow();
-                    var movableDef = new Definition(DeclarationType.FIELD, fqClassName + ".this", graphNode, (ObjectTree) def.getObjectTree().clone());
+                    var movableDef = new Definition(DeclarationType.FIELD, "this", graphNode, (ObjectTree) def.getObjectTree().clone());
                     movables.add(new Movable(movableDef, actualOut));
                 }
             }
