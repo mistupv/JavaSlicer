@@ -1,18 +1,17 @@
 package es.upv.mist.slicing.graphs.jsysdg;
 
-import com.github.javaparser.ast.body.CallableDeclaration;
 import es.upv.mist.slicing.graphs.CallGraph;
 import es.upv.mist.slicing.graphs.cfg.CFGBuilder;
 import es.upv.mist.slicing.graphs.exceptionsensitive.ExceptionSensitiveCallConnector;
 import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.nodes.VariableAction;
 import es.upv.mist.slicing.nodes.io.ActualIONode;
+import es.upv.mist.slicing.nodes.io.CallNode;
 import es.upv.mist.slicing.nodes.io.FormalIONode;
 import es.upv.mist.slicing.nodes.io.OutputNode;
 import es.upv.mist.slicing.utils.ASTUtils;
 
 import java.util.List;
-import java.util.function.Consumer;
 
 public class JSysCallConnector extends ExceptionSensitiveCallConnector {
     public JSysCallConnector(JSysDG sdg) {
@@ -25,41 +24,38 @@ public class JSysCallConnector extends ExceptionSensitiveCallConnector {
     }
 
     @Override
-    protected void connectActualIn(GraphNode<? extends CallableDeclaration<?>> declaration, ActualIONode actualIn) {
-        sdg.outgoingEdgesOf(declaration).stream()
-                .map(sdg::getEdgeTarget)
-                .filter(FormalIONode.class::isInstance)
-                .map(FormalIONode.class::cast)
-                .filter(actualIn::matchesFormalIO)
-                .forEach(formalIn -> {
-                    boolean primitive = !formalIn.getVariableName().equals("this")
-                            && declaration.getAstNode().getParameterByName(formalIn.getVariableName())
-                                    .orElseThrow().getType().isPrimitiveType();
-                    sdg.addParameterInOutArc(actualIn, formalIn);
-                    if (!primitive)
-                        connectObjectActualIn(actualIn, formalIn);
-                });
-    }
-
-    protected void connectObjectActualIn(GraphNode<?> actualIn, GraphNode<?> formalIn) {
-        List<VariableAction> formalList = formalIn.getVariableActions();
-        assert formalList.size() == 1;
-        VariableAction actualVar = actualIn.getLastVariableAction();
-        VariableAction formalVar = formalList.get(0);
-        actualVar.applySDGTreeConnection((JSysDG) sdg, formalVar);
+    protected void createActualInConnection(ActualIONode actualIn, FormalIONode formalIn) {
+        super.createActualInConnection(actualIn, formalIn);
+        if (formalIsObject(formalIn))
+            connectObjectInterprocedurally(actualIn, formalIn);
     }
 
     @Override
-    protected void connectOutput(GraphNode<? extends CallableDeclaration<?>> methodDeclaration, GraphNode<?> callReturnNode) {
-        Consumer<GraphNode<?>> action;
-        if (ASTUtils.declarationReturnIsObject(methodDeclaration.getAstNode()))
-            action = node -> connectObjectOutput(node, callReturnNode);
+    protected void createActualOutConnection(FormalIONode formalOut, ActualIONode actualOut) {
+        super.createActualOutConnection(formalOut, actualOut);
+        if (formalIsObject(formalOut))
+            connectObjectInterprocedurally(formalOut, actualOut);
+    }
+
+    protected boolean formalIsObject(FormalIONode formalNode) {
+        return formalNode.getVariableName().equals("this")
+                || !formalNode.getAstNode().getParameterByName(formalNode.getVariableName())
+                .orElseThrow().getType().isPrimitiveType();
+    }
+
+    protected void connectObjectInterprocedurally(GraphNode<?> source, GraphNode<?> target) {
+        assert !target.getVariableActions().isEmpty();
+        assert !source.getVariableActions().isEmpty();
+        for (VariableAction targetVar : target.getVariableActions())
+            source.getLastVariableAction().applySDGTreeConnection((JSysDG) sdg, targetVar);
+    }
+
+    @Override
+    protected void createOutputReturnConnection(OutputNode<?> outputNode, CallNode.Return callReturnNode) {
+        if (ASTUtils.declarationReturnIsObject(outputNode.getAstNode()))
+            connectObjectOutput(outputNode, callReturnNode);
         else
-            action = node -> sdg.addParameterInOutArc(node, callReturnNode);
-        sdg.outgoingEdgesOf(methodDeclaration).stream()
-                .map(sdg::getEdgeTarget)
-                .filter(OutputNode.class::isInstance)
-                .forEach(action);
+            super.createOutputReturnConnection(outputNode, callReturnNode);
     }
 
     protected void connectObjectOutput(GraphNode<?> methodOutputNode, GraphNode<?> callReturnNode) {
