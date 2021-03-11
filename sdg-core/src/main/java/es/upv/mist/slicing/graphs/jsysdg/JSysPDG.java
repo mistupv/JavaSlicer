@@ -172,7 +172,7 @@ public class JSysPDG extends ESPDG {
                         continue;
                     }
                     GraphNode<?> parentNode; // node that represents the root of the object tree
-                    if (va instanceof VariableAction.Movable) { // TODO: there are Movables with multiple VA per movable!!!
+                    if (va instanceof VariableAction.Movable) {
                         VariableAction.Movable movable = (VariableAction.Movable) va;
                         addVertex(movable.getRealNode());
                         connectRealNode(node, callNodeStack.peek(), movable.getRealNode());

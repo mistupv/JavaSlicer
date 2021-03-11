@@ -110,7 +110,7 @@ public class JSysCFG extends ESCFG {
      *  given definition, it will return a list with only the given definition. */
     public List<VariableAction> findNextObjectDefinitionsFor(VariableAction definition, String member) {
         if (!this.containsVertex(definition.getGraphNode()))
-            throw new NodeNotFoundException(definition.getGraphNode(), this); // TODO: al crear los root/resumen, las movable no se ponen en el movable
+            throw new NodeNotFoundException(definition.getGraphNode(), this);
         if (definition.hasTreeMember(member))
             return List.of(definition);
         List<VariableAction> list = new LinkedList<>();

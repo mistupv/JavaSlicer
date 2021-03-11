@@ -285,7 +285,7 @@ public class ESCFG extends ACFG {
             for (ResolvedType type : resolved.getSpecifiedExceptions()) {
                 hangingNodes.add(stmtNode);
                 ExceptionReturnNode exceptionReturn = addExceptionReturnNode(call, type);
-                exceptionReturn.addVADefineActiveException(null); // TODO: improve initializer
+                exceptionReturn.addVADefineActiveException(null);
                 populateExceptionSourceMap(new ExceptionSource(exceptionReturn, type));
                 returnNodes.add(exceptionReturn);
                 connectTo(exceptionReturn);
