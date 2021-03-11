@@ -41,12 +41,14 @@ public class InterproceduralUsageFinder extends InterproceduralActionFinder<Usag
     protected void handleActualAction(CallGraph.Edge<?> edge, Usage use) {
         GraphNode<?> graphNode = edge.getGraphNode();
         if (use.isParameter()) {
-            ActualIONode actualIn = locateActualInNode(edge, use.getName());
-            Definition def = new Definition(VariableAction.DeclarationType.SYNTHETIC, "-arg-in-", graphNode, (ObjectTree) use.getObjectTree().clone());
-            Movable movDef = new Movable(def, actualIn);
-            graphNode.addVariableActionAfterLastMatchingRealNode(movDef, actualIn);
-            ExpressionObjectTreeFinder finder = new ExpressionObjectTreeFinder(graphNode);
-            finder.locateAndMarkTransferenceToRoot(actualIn.getArgument(), def);
+            if (!use.isPrimitive()) {
+                ActualIONode actualIn = locateActualInNode(edge, use.getName());
+                Definition def = new Definition(VariableAction.DeclarationType.SYNTHETIC, "-arg-in-", graphNode, (ObjectTree) use.getObjectTree().clone());
+                Movable movDef = new Movable(def, actualIn);
+                graphNode.addVariableActionAfterLastMatchingRealNode(movDef, actualIn);
+                ExpressionObjectTreeFinder finder = new ExpressionObjectTreeFinder(graphNode);
+                finder.locateAndMarkTransferenceToRoot(actualIn.getArgument(), def);
+            }
         } else if (use.isField()) {
             if (use.isStatic()) {
                 // Known limitation: static fields
