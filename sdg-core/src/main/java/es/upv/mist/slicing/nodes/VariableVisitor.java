@@ -461,24 +461,16 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
             return;
         // A node defines -output-
         var fields = getFieldsForReturn(call);
-        VariableAction.Definition def;
-        if (fields.isPresent())
-            def = new VariableAction.Definition(SYNTHETIC, VARIABLE_NAME_OUTPUT, graphNode, (ObjectTree) fields.get().clone());
-        else
-            def = new VariableAction.Definition(SYNTHETIC, VARIABLE_NAME_OUTPUT, graphNode);
+        var def = new VariableAction.Definition(SYNTHETIC, VARIABLE_NAME_OUTPUT, graphNode,
+                fields.map(tree -> (ObjectTree) tree.clone()).orElse(null));
         def.setTotallyDefinedMember("-root-");
         var defMov = new VariableAction.Movable(def, CallNode.Return.create(call));
         graphNode.addVariableAction(defMov);
         // The container of the call uses -output-, unless the call is wrapped in an ExpressionStmt
         Optional<Node> parentNode = ((Node) call).getParentNode();
-        if (parentNode.isEmpty() || !(parentNode.get() instanceof ExpressionStmt)) {
-            VariableAction.Usage use;
-            if (fields.isPresent())
-                use = new VariableAction.Usage(SYNTHETIC, VARIABLE_NAME_OUTPUT, graphNode, (ObjectTree) fields.get().clone());
-            else
-                use = new VariableAction.Usage(SYNTHETIC, VARIABLE_NAME_OUTPUT, graphNode);
-            graphNode.addVariableAction(use);
-        }
+        if (parentNode.isEmpty() || !(parentNode.get() instanceof ExpressionStmt))
+            graphNode.addVariableAction(new VariableAction.Usage(SYNTHETIC, VARIABLE_NAME_OUTPUT, graphNode,
+                    fields.map(tree -> (ObjectTree) tree.clone()).orElse(null)));
     }
 
     protected Optional<ObjectTree> getFieldsForReturn(Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
