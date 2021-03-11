@@ -156,6 +156,8 @@ public abstract class VariableAction {
     // ======================================================
 
     public boolean hasTreeMember(String member) {
+        if (member.isEmpty())
+            return hasObjectTree();
         if (!hasObjectTree())
             return false;
         return getObjectTree().hasMember(member);
@@ -392,7 +394,7 @@ public abstract class VariableAction {
                 return true;
             if (member.startsWith(totallyDefinedMember)
                     || ObjectTree.removeRoot(member).startsWith(ObjectTree.removeRoot(totallyDefinedMember)))
-                return hasTreeMember(member);
+                return ObjectTree.removeRoot(member).isEmpty() || hasTreeMember(member);
             return false;
         }
 
