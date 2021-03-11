@@ -26,29 +26,31 @@ public class ExpressionObjectTreeFinder {
         this.graphNode = graphNode;
     }
 
-    public void handleVariableDeclarator(VariableDeclarator variableDeclarator) {
+    public void handleVariableDeclarator(VariableDeclarator variableDeclarator, String realName) {
         assert variableDeclarator.getInitializer().isPresent();
-        VariableAction targetAction = locateVAVariableDeclarator(variableDeclarator.getNameAsString());
+        VariableAction targetAction = locateVAVariableDeclarator(realName);
         ClassGraph.getInstance().generateObjectTreeForType(variableDeclarator.getType().resolve())
                 .ifPresent(objectTree -> targetAction.getObjectTree().addAll(objectTree));
         locateExpressionResultTrees(variableDeclarator.getInitializer().get())
                 .forEach(pair -> markTransference(pair, targetAction, ""));
     }
 
-    protected VariableAction locateVAVariableDeclarator(String varName) {
+    protected VariableAction locateVAVariableDeclarator(String realName) {
+        String root = realName.contains(".") ? ObjectTree.removeFields(realName) : realName;
         boolean foundDecl = false;
         VariableAction lastDef = null;
         for (VariableAction a : graphNode.getVariableActions()) {
             if (a.isDeclaration()) {
-                if (a.getName().equals(varName))
+                if (a.getName().equals(realName))
                     foundDecl = true;
                 else if (foundDecl)
                     return lastDef;
-            } else if (a.isDefinition() && a.getName().equals(varName)) {
-                lastDef = a;
+            } else if (a.isDefinition() && a.getName().equals(root)) {
+                if (root.equals(realName) || a.hasTreeMember(realName))
+                    lastDef = a;
             }
         }
-        assert lastDef != null: "Could not find DEF for variable declaration of " + varName;
+        assert lastDef != null: "Could not find DEF for variable declaration of " + realName;
         return lastDef;
     }
 

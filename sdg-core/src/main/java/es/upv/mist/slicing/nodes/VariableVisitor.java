@@ -364,7 +364,10 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     public void visit(VariableDeclarator n, Action arg) {
         if (n.getInitializer().isPresent()) {
             groupActionsByRoot(graphNode);
-            new ExpressionObjectTreeFinder(graphNode).handleVariableDeclarator(n);
+            String realName = n.getNameAsString();
+            if (n.resolve().isField() && !n.resolve().asField().isStatic())
+                realName = "this." + realName;
+            new ExpressionObjectTreeFinder(graphNode).handleVariableDeclarator(n, realName);
         }
     }
 
