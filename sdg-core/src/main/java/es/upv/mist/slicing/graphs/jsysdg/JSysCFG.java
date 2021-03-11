@@ -20,6 +20,7 @@ import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.nodes.VariableAction;
 import es.upv.mist.slicing.nodes.io.MethodExitNode;
 import es.upv.mist.slicing.utils.ASTUtils;
+import es.upv.mist.slicing.utils.NodeHashSet;
 import es.upv.mist.slicing.utils.NodeNotFoundException;
 
 import java.util.HashSet;
@@ -155,7 +156,7 @@ public class JSysCFG extends ESCFG {
         protected ClassGraph classGraph;
         /** List of implicit instructions inserted explicitly in this CFG.
          *  They should be included in the graph as ImplicitNodes. */
-        protected List<Node> methodInsertedInstructions = new LinkedList<>();
+        protected NodeHashSet<Node> methodInsertedInstructions = new NodeHashSet<>();
         /** Whether we are building a CFG for an implicit method or not. */
         protected boolean implicitDeclaration = false;
 

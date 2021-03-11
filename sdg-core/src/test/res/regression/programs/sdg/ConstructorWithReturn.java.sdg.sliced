@@ -1,4 +1,5 @@
 class Test {
+
     int a;
 
     Test(int a, boolean b, int c) {
