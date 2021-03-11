@@ -42,6 +42,7 @@ public class InterproceduralUsageFinder extends InterproceduralActionFinder<Usag
         GraphNode<?> graphNode = edge.getGraphNode();
         if (use.isParameter()) {
             if (!use.isPrimitive()) {
+                assert use.hasObjectTree();
                 ActualIONode actualIn = locateActualInNode(edge, use.getName());
                 Definition def = new Definition(VariableAction.DeclarationType.SYNTHETIC, "-arg-in-", graphNode, (ObjectTree) use.getObjectTree().clone());
                 Movable movDef = new Movable(def, actualIn);

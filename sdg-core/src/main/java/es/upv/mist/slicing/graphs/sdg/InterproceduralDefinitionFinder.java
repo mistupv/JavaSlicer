@@ -61,6 +61,7 @@ public class InterproceduralDefinitionFinder extends InterproceduralActionFinder
                 if (scope.isPresent()) {
                     extractOutputVariablesAsMovables(scope.get(), movables, graphNode, actualOut, def);
                 } else {
+                    assert def.hasObjectTree();
                     var movableDef = new Definition(DeclarationType.FIELD, "this", graphNode, (ObjectTree) def.getObjectTree().clone());
                     movables.add(new Movable(movableDef, actualOut));
                 }
@@ -75,6 +76,7 @@ public class InterproceduralDefinitionFinder extends InterproceduralActionFinder
         Set<Expression> defExpressions = new HashSet<>();
         e.accept(new OutNodeVariableVisitor(), defExpressions);
         for (Expression expression : defExpressions) {
+            assert def.hasObjectTree();
             DeclarationType type = DeclarationType.valueOf(expression);
             Definition inner = new Definition(type, expression.toString(), graphNode, (ObjectTree) def.getObjectTree().clone());
             if (defExpressions.size() > 1)
