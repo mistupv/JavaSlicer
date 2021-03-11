@@ -161,6 +161,18 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
 
     // Modified traversal (there may be variable definitions or declarations)
     @Override
+    public void visit(ArrayAccessExpr n, Action arg) {
+        if (arg == DEFINITION) {
+            n.getName().accept(this, arg);
+            n.getIndex().accept(this, USE);
+        } else if (arg == USE) {
+            super.visit(n, arg);
+        } else {
+            throw new IllegalStateException("Array accesses cannot be defined");
+        }
+    }
+
+    @Override
     public void visit(ReturnStmt n, Action arg) {
         super.visit(n, arg);
         if (n.getExpression().isPresent()) {
@@ -227,6 +239,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         if (n.getOperator() != AssignExpr.Operator.ASSIGN)
             n.getTarget().accept(this, action);
         List<String> realNameWithoutRootList = new LinkedList<>();
+        List<Boolean> foundArray = new LinkedList<>();
         n.getTarget().accept(new VoidVisitorAdapter<Void>() {
             @Override
             public void visit(NameExpr nameExpr, Void arg) {
@@ -280,13 +293,18 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
 
             @Override
             public void visit(ArrayAccessExpr n, Void arg) {
-                throw new UnsupportedOperationException("Arrays are not yet supported as target of assignment.");
+                n.getName().accept(this, arg);
+                n.getIndex().accept(VariableVisitor.this, USE);
+                foundArray.add(true);
             }
         }, null);
-        assert realNameWithoutRootList.size() == 1;
+        assert realNameWithoutRootList.size() == 1 || !foundArray.isEmpty();
         groupActionsByRoot(graphNode);
         ExpressionObjectTreeFinder finder = new ExpressionObjectTreeFinder(graphNode);
-        finder.handleAssignExpr(n, getLastDefinition(), realNameWithoutRootList.get(0));
+        if (foundArray.isEmpty()) // Handle a field access or normal variable
+            finder.handleAssignExpr(n, getLastDefinition(), realNameWithoutRootList.get(0));
+        else // Handle an array access
+            finder.handleArrayAssignExpr(n);
     }
 
     @Override
@@ -344,8 +362,10 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
 
     @Override
     public void visit(VariableDeclarator n, Action arg) {
-        if (n.getType().isClassOrInterfaceType() && n.getInitializer().isPresent())
+        if (n.getType().isClassOrInterfaceType() && n.getInitializer().isPresent()) {
+            groupActionsByRoot(graphNode);
             new ExpressionObjectTreeFinder(graphNode).handleVariableDeclarator(n);
+        }
     }
 
     @Override

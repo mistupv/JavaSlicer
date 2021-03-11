@@ -11,7 +11,7 @@ import es.upv.mist.slicing.nodes.oo.MemberNode;
 
 import java.util.function.Supplier;
 
-class ObjectTreeConnection {
+class ObjectTreeConnection implements VariableAction.PDGConnection {
 
     protected final VariableAction sourceAction;
     protected final VariableAction targetAction;
@@ -34,7 +34,7 @@ class ObjectTreeConnection {
         }
     }
 
-    public void applyPDG(JSysPDG graph) {
+    public void apply(JSysPDG graph) {
         if (!applied) {
             connectTrees(graph, FlowDependencyArc::new, ObjectFlowDependencyArc::new);
             applied = true;

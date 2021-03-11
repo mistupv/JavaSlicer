@@ -74,7 +74,7 @@ public abstract class VariableAction {
      *  The variable action that contains the tree we must connect to in the PDG.
      *  The string, or member where the tree connection must start (in PDG). E.g.: our tree is "a.b.c" and this variable is "a",
      *  the members "a.b" and "a.b.c" will be connected to "b" and "b.c" in treeConnectionTarget's tree.. */
-    protected final List<ObjectTreeConnection> pdgTreeConnections = new LinkedList<>();
+    protected final List<PDGConnection> pdgTreeConnections = new LinkedList<>();
 
     private VariableAction(DeclarationType declarationType, String name, GraphNode<?> graphNode) {
         this(declarationType, name, graphNode, null);
@@ -177,8 +177,12 @@ public abstract class VariableAction {
         pdgTreeConnections.add(new ObjectTreeConnection(this, targetAction, sourcePrefixWithoutRoot, targetPrefixWithoutRoot));
     }
 
+    public void setPDGValueConnection(String member) {
+        pdgTreeConnections.add(new ValueConnection(this, member));
+    }
+
     public void applyPDGTreeConnections(JSysPDG pdg) {
-        pdgTreeConnections.forEach(c -> c.applyPDG(pdg));
+        pdgTreeConnections.forEach(c -> c.apply(pdg));
     }
 
     public void applySDGTreeConnection(JSysDG sdg, VariableAction targetAction) {
@@ -548,5 +552,9 @@ public abstract class VariableAction {
         public int hashCode() {
             return Objects.hash(super.hashCode(), realNode, inner);
         }
+    }
+
+    public interface PDGConnection {
+        void apply(JSysPDG graph);
     }
 }

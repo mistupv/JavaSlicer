@@ -59,6 +59,11 @@ public class ExpressionObjectTreeFinder {
                 .forEach(pair -> markTransference(pair, assignTarget, targetMember));
     }
 
+    public void handleArrayAssignExpr(AssignExpr assignExpr) {
+        locateExpressionResultTrees(assignExpr.getValue())
+                .forEach(pair -> pair.a.setPDGValueConnection(pair.b));
+    }
+
     public void locateAndMarkTransferenceToRoot(Expression expr, int index) {
         List<VariableAction> list = graphNode.getVariableActions();
         if (index < 0)
@@ -77,7 +82,7 @@ public class ExpressionObjectTreeFinder {
         expression.accept(new VoidVisitorAdapter<String>() {
             @Override
             public void visit(ArrayAccessExpr n, String arg) {
-                throw new UnsupportedOperationException("Array accesses are not supported as argument for return, call scope or argument. Please, pre-process your graph or use the EDG.");
+                n.getName().accept(this, arg);
             }
 
             @Override
