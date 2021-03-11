@@ -172,7 +172,7 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
         Set<A> set = new HashSet<>();
         for (Iterator<A> it = filteredStream.iterator(); it.hasNext(); ) {
             A a = it.next();
-            if (set.contains(a)) {
+            if (set.contains(a) && a.hasObjectTree()) {
                 for (A aFromSet : set)
                     if (aFromSet.hashCode() == a.hashCode() && Objects.equals(aFromSet, a))
                         aFromSet.getObjectTree().addAll(a.getObjectTree());
