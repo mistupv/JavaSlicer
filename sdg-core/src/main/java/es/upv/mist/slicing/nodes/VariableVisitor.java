@@ -362,7 +362,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
 
     @Override
     public void visit(VariableDeclarator n, Action arg) {
-        if (n.getType().isClassOrInterfaceType() && n.getInitializer().isPresent()) {
+        if (n.getInitializer().isPresent()) {
             groupActionsByRoot(graphNode);
             new ExpressionObjectTreeFinder(graphNode).handleVariableDeclarator(n);
         }

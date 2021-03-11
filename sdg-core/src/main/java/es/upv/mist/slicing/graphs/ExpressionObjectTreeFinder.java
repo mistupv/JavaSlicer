@@ -168,8 +168,11 @@ public class ExpressionObjectTreeFinder {
     protected void markTransference(Pair<VariableAction, String> sourcePair, VariableAction targetAction, String targetMember) {
         VariableAction sourceAction = sourcePair.a;
         String sourceMember = sourcePair.b;
-        if (targetAction.hasObjectTree())
+        if (targetAction.hasObjectTree()) {
             ObjectTree.copyTargetTreeToSource(sourceAction.getObjectTree(), targetAction.getObjectTree(), sourceMember, targetMember);
-        sourceAction.setPDGTreeConnectionTo(targetAction, sourceMember, targetMember);
+            sourceAction.setPDGTreeConnectionTo(targetAction, sourceMember, targetMember);
+        } else {
+            sourceAction.setPDGValueConnection(sourceMember);
+        }
     }
 }
