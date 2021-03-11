@@ -196,12 +196,13 @@ public class JSysCFG extends ESCFG {
             // Insert call to super() if it is implicit.
             if (!ASTUtils.constructorHasExplicitConstructorInvocation(n)){
                 var superCall = new ExplicitConstructorInvocationStmt(null, null, false, null, new NodeList<>());
-                var returnThis = new ReturnStmt(new ThisExpr());
                 methodInsertedInstructions.add(superCall);
-                methodInsertedInstructions.add(returnThis);
                 n.getBody().addStatement(0, superCall);
-                n.getBody().addStatement(returnThis);
             }
+            // insert return this;
+            var returnThis = new ReturnStmt(new ThisExpr());
+            methodInsertedInstructions.add(returnThis);
+            n.getBody().addStatement(returnThis);
             // Perform the same task as previous graphs.
             super.visit(n, arg);
             // Convert enter/exit nodes to implicit if appropriate
