@@ -388,8 +388,12 @@ public abstract class VariableAction {
         public boolean isTotallyDefinedMember(String member) {
             if (totallyDefinedMember == null)
                 return false;
-            return totallyDefinedMember.equals(member) || member.startsWith(totallyDefinedMember)
-                    || ObjectTree.removeRoot(member).startsWith(ObjectTree.removeRoot(totallyDefinedMember));
+            if (totallyDefinedMember.equals(member))
+                return true;
+            if (member.startsWith(totallyDefinedMember)
+                    || ObjectTree.removeRoot(member).startsWith(ObjectTree.removeRoot(totallyDefinedMember)))
+                return hasTreeMember(member);
+            return false;
         }
 
         /** @see #expression */

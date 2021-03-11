@@ -243,7 +243,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
                     VariableAction.Definition def = getLastDefinition();
                     def.getObjectTree().addField(realName);
                     def.setTotallyDefinedMember(realName);
-                    realNameWithoutRootList.add(realName);
+                    realNameWithoutRootList.add(ObjectTree.removeRoot(realName));
                 }
                 definitionStack.pop();
             }
