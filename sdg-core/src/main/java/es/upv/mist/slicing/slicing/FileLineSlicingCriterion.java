@@ -11,7 +11,11 @@ public class FileLineSlicingCriterion extends LineNumberCriterion {
     protected final File file;
 
     public FileLineSlicingCriterion(File file, int lineNumber) {
-        super(lineNumber, null);
+        this(file, lineNumber, null);
+    }
+
+    public FileLineSlicingCriterion(File file, int lineNumber, String variable) {
+        super(lineNumber, variable);
         this.file = file;
     }
 
