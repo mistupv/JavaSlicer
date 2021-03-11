@@ -29,15 +29,15 @@ public class TestJosep {
         log(z);
     }
 
-    public void objetos() {
-        Object o = new Object();
-        o.x = 10;
-        Object y = new Object();
-        y.z = 210;
-        o = y;
-        log(o);
-        log(y);
-    }
+//    public void objetos() {
+//        Object o = new Object();
+//        o.x = 10;
+//        Object y = new Object();
+//        y.z = 210;
+//        o = y;
+//        log(o);
+//        log(y);
+//    }
 
     public static void log(Object o) {}
 }
