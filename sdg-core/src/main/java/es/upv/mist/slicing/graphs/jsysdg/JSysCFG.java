@@ -9,6 +9,8 @@ import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.ThisExpr;
 import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
 import com.github.javaparser.ast.stmt.ReturnStmt;
+import com.github.javaparser.ast.visitor.ModifierVisitor;
+import com.github.javaparser.ast.visitor.Visitable;
 import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.graphs.ClassGraph;
 import es.upv.mist.slicing.graphs.ExpressionObjectTreeFinder;
@@ -25,6 +27,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -199,12 +202,16 @@ public class JSysCFG extends ESCFG {
                 methodInsertedInstructions.add(superCall);
                 n.getBody().addStatement(0, superCall);
             }
-            // insert return this;
-            var returnThis = new ReturnStmt(new ThisExpr());
+            // insert return this; at the end of the constructor
+            var returnThis = new ReturnStmt();
             methodInsertedInstructions.add(returnThis);
             n.getBody().addStatement(returnThis);
+            // modify every return statement so that it returns 'this'
+            modifyAllReturnExpr(n, ThisExpr::new);
             // Perform the same task as previous graphs.
             super.visit(n, arg);
+            // restore return statements
+            modifyAllReturnExpr(n, () -> null);
             // Convert enter/exit nodes to implicit if appropriate
             if (implicitDeclaration) {
                 getRootNode().markAsImplicit();
@@ -212,6 +219,16 @@ public class JSysCFG extends ESCFG {
                         .filter(MethodExitNode.class::isInstance)
                         .forEach(GraphNode::markAsImplicit);
             }
+        }
+
+        protected void modifyAllReturnExpr(Node node, Supplier<Expression> expressionSupplier) {
+            node.accept(new ModifierVisitor<Void>() {
+                @Override
+                public Visitable visit(ReturnStmt n, Void arg) {
+                    n.setExpression(expressionSupplier.get());
+                    return n;
+                }
+            }, null);
         }
 
         @Override
