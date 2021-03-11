@@ -4,8 +4,10 @@ import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.graphs.augmented.PSDG;
 import es.upv.mist.slicing.nodes.GraphNode;
 
+import java.util.Set;
+
 public class PseudoPredicateSlicingAlgorithm extends ClassicSlicingAlgorithm {
-    protected GraphNode<?> slicingCriterion;
+    protected Set<GraphNode<?>> slicingCriterion;
 
     public PseudoPredicateSlicingAlgorithm(PSDG graph) {
         super(graph);
@@ -13,12 +15,12 @@ public class PseudoPredicateSlicingAlgorithm extends ClassicSlicingAlgorithm {
 
     @Override
     public Slice traverseProcedure(GraphNode<?> slicingCriterion) {
-        this.slicingCriterion = slicingCriterion;
+        this.slicingCriterion = Set.of(slicingCriterion);
         return super.traverseProcedure(slicingCriterion);
     }
 
     @Override
-    public Slice traverse(GraphNode<?> slicingCriterion) {
+    public Slice traverse(Set<GraphNode<?>> slicingCriterion) {
         this.slicingCriterion = slicingCriterion;
         return super.traverse(slicingCriterion);
     }
@@ -42,6 +44,6 @@ public class PseudoPredicateSlicingAlgorithm extends ClassicSlicingAlgorithm {
         GraphNode<?> target = graph.getEdgeTarget(arc);
         return ((PSDG) graph).isPseudoPredicate(target)
                 && arc.isControlDependencyArc()
-                && target != slicingCriterion;
+                && !slicingCriterion.contains(target);
     }
 }

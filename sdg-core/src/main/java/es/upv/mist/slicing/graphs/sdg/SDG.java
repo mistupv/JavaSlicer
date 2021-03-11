@@ -26,7 +26,8 @@ import es.upv.mist.slicing.utils.ASTUtils;
 
 import java.util.Collection;
 import java.util.Map;
-import java.util.Optional;
+import java.util.NoSuchElementException;
+import java.util.Set;
 
 /**
  * The <b>System Dependence Graph</b> represents the statements of a program in
@@ -53,10 +54,13 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
 
     @Override
     public Slice slice(SlicingCriterion slicingCriterion) {
-        Optional<GraphNode<?>> optSlicingNode = slicingCriterion.findNode(this);
-        if (optSlicingNode.isEmpty())
-            throw new IllegalArgumentException("Could not locate the slicing criterion in the SDG");
-        return createSlicingAlgorithm().traverse(optSlicingNode.get());
+        Set<GraphNode<?>> slicingCriterionNodes;
+        try {
+            slicingCriterionNodes = slicingCriterion.findNode(this);
+        } catch (NoSuchElementException e) {
+            throw new IllegalArgumentException("Could not locate the slicing criterion " + slicingCriterion);
+        }
+        return createSlicingAlgorithm().traverse(slicingCriterionNodes);
     }
 
     protected SlicingAlgorithm createSlicingAlgorithm() {

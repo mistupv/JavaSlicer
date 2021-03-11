@@ -29,9 +29,9 @@ public class ClassicSlicingAlgorithm implements SlicingAlgorithm {
     }
 
     @Override
-    public Slice traverse(GraphNode<?> slicingCriterion) {
+    public Slice traverse(Set<GraphNode<?>> slicingCriterion) {
         Slice slice = new Slice();
-        slice.add(slicingCriterion);
+        slice.addAll(slicingCriterion);
         pass(slice, this::ignorePass1);
         pass(slice, this::ignorePass2);
         return slice;

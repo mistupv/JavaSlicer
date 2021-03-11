@@ -19,7 +19,7 @@ public class JSysDGSlicingAlgorithm extends ExceptionSensitiveSlicingAlgorithm {
     protected boolean objectFlowIgnore(Arc arc) {
         GraphNode<?> target = graph.getEdgeTarget(arc);
         return arc.isObjectFlow() &&                                  // 1. The arc is object flow
-                slicingCriterion != target &&                         // 2. The target is not the slicing criterion
+                !slicingCriterion.contains(target) &&                 // 2. The target is not the slicing criterion
                 reachedStream(target).noneMatch(Arc::isObjectFlow) && // 3. The target hasn't been reached by object flow arcs
                 !graph.isPredicate(target) &&                         // 4. The target is not a predicate
                 !(target.getAstNode() instanceof CatchClause) && !(target instanceof ExceptionExitNode); // Some extra conditions for exceptions

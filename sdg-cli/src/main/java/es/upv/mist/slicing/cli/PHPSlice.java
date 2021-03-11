@@ -10,7 +10,6 @@ import es.upv.mist.slicing.graphs.cfg.CFG;
 import es.upv.mist.slicing.graphs.exceptionsensitive.ESSDG;
 import es.upv.mist.slicing.graphs.sdg.SDG;
 import es.upv.mist.slicing.slicing.FileLineSlicingCriterion;
-import es.upv.mist.slicing.slicing.NodeIdSlicingCriterion;
 import es.upv.mist.slicing.slicing.Slice;
 import es.upv.mist.slicing.slicing.SlicingCriterion;
 import es.upv.mist.slicing.utils.StaticTypeSolver;
@@ -20,6 +19,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.Set;
 
 public class PHPSlice {
     protected static final Options OPTIONS = new Options();
@@ -108,7 +108,7 @@ public class PHPSlice {
         }
         sdg.build(units);
 
-        SlicingCriterion sc = new NodeIdSlicingCriterion(0, "");
+        SlicingCriterion sc = graph -> Set.of(graph.findNodeById(0).orElseThrow());
         Slice slice = new Slice();
         if (scId != 0) {
             // Slice the SDG

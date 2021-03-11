@@ -4,55 +4,36 @@ import com.github.javaparser.Position;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
-import com.github.javaparser.ast.stmt.Statement;
-import es.upv.mist.slicing.graphs.cfg.CFG;
-import es.upv.mist.slicing.graphs.pdg.PDG;
 import es.upv.mist.slicing.graphs.sdg.SDG;
 import es.upv.mist.slicing.nodes.GraphNode;
-import es.upv.mist.slicing.utils.Logger;
 
+import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /** A criterion that locates nodes by line. It may only be used in single-declaration graphs. */
-public class LineNumberCriterion extends SlicingCriterion {
+public class LineNumberCriterion implements SlicingCriterion {
     protected static final Position DEFAULT_POSITION = new Position(0, 0);
 
     protected final int lineNumber;
+    protected final String variable;
 
     public LineNumberCriterion(int lineNumber, String variable) {
-        super(variable);
+        this.variable = variable;
         this.lineNumber = lineNumber;
     }
 
     @Override
-    public Optional<GraphNode<?>> findNode(CFG graph) {
-        return Optional.empty();
-    }
-
-    @Override
-    public Optional<GraphNode<?>> findNode(PDG graph) {
-        // find node by line number
-        return graph.vertexSet().stream().filter(node -> {
-            Node astNode = node.getAstNode();
-
-            if (astNode.getBegin().isEmpty() || astNode.getEnd().isEmpty())
-                return false;
-
-            int begin = astNode.getBegin().get().line;
-            int end = astNode.getEnd().get().line;
-
-            Logger.format("begin %s end %s", begin, end);
-
-            return lineNumber == begin || lineNumber == end;
-        }).findFirst();
-    }
-
-    @Override
-    public Optional<GraphNode<?>> findNode(SDG graph) {
+    public Set<GraphNode<?>> findNode(SDG graph) {
         Optional<CompilationUnit> optCu = findCompilationUnit(graph.getCompilationUnits());
         if (optCu.isEmpty())
-            return Optional.empty();
-        return optCu.get().findFirst(Statement.class, this::matchesLine).flatMap(graph::findNodeByASTNode);
+            throw new NoSuchElementException();
+        return optCu.get().findAll(Node.class, this::matchesLine).stream()
+                .map(graph::findNodeByASTNode)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .collect(Collectors.toSet());
     }
 
     /** Locates the compilation unit that corresponds to this criterion's file. */
