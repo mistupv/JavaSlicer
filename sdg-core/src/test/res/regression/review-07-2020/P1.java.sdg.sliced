@@ -3,22 +3,6 @@ class FiguresGroup {
     public Figure greatestFigure() {
         if (numF == 0)
             return null;
-        Figure f = figuresList[0];
-        double a = figuresList[0].area();
-        for (int i = 1; i < numF; i++) {
-            double b = figuresList[i].area();
-            if (a < b) {
-                f = figuresList[i];
-                a = b;
-            }
-        }
         return f;
-    }
-}
-
-class Figure {
-
-    int area() {
-        return 5;
     }
 }
