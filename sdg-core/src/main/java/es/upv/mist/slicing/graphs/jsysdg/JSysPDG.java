@@ -106,7 +106,7 @@ public class JSysPDG extends ESPDG {
             for (GraphNode<?> node : vertexSet()) {
                 for (VariableAction varAct : node.getVariableActions()) {
                     // Total definition dependence
-                    if ((varAct.isUsage() || varAct.isDefinition()) && !varAct.isSynthetic()) {
+                    if (varAct.isUsage() || (varAct.isDefinition() && !varAct.isSynthetic())) {
                         // root
                         jSysCFG.findLastTotalDefinitionOf(varAct, "-root-").forEach(totalDef -> addTotalDefinitionDependencyArc(totalDef, varAct, "-root-"));
                         // members
