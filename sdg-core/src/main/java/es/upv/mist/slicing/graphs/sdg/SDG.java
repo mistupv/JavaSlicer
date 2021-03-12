@@ -20,7 +20,6 @@ import es.upv.mist.slicing.graphs.cfg.CFG;
 import es.upv.mist.slicing.graphs.pdg.PDG;
 import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.nodes.SyntheticNode;
-import es.upv.mist.slicing.nodes.io.ActualIONode;
 import es.upv.mist.slicing.slicing.*;
 import es.upv.mist.slicing.utils.ASTUtils;
 
@@ -108,7 +107,7 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
         this.addEdge(from, to, new ParameterInOutArc());
     }
 
-    public void addSummaryArc(ActualIONode from, SyntheticNode<?> to) {
+    public void addSummaryArc(SyntheticNode<?> from, SyntheticNode<?> to) {
         this.addEdge(from, to, new SummaryArc());
     }
 
@@ -121,13 +120,13 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
         public void build(NodeList<CompilationUnit> nodeList) {
             // See creation strategy at http://kaz2.dsic.upv.es:3000/Fzg46cQvT1GzHQG9hFnP1g#Using-data-flow-in-the-SDG
             // This ordering cannot be altered, as each step requires elements from the previous one.
-            createClassGraph(nodeList);              // 0
-            buildCFGs(nodeList);                     // 1
-            callGraph = createCallGraph(nodeList);   // 2
-            dataFlowAnalysis();                      // 3
-            buildAndCopyPDGs();                      // 4
-            connectCalls();                          // 5
-            createSummaryArcs();                     // 6
+            createClassGraph(nodeList); // 0
+            buildCFGs(nodeList);        // 1
+            createCallGraph(nodeList);  // 2
+            dataFlowAnalysis();         // 3
+            buildAndCopyPDGs();         // 4
+            connectCalls();             // 5
+            createSummaryArcs();        // 6
         }
 
         /** Build a CFG per declaration found in the list of compilation units. */
@@ -155,10 +154,9 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
         }
 
         /** Create call graph from the list of compilation units. */
-        protected CallGraph createCallGraph(NodeList<CompilationUnit> nodeList) {
-            CallGraph callGraph = new CallGraph(cfgMap, ClassGraph.getInstance());
+        protected void createCallGraph(NodeList<CompilationUnit> nodeList) {
+            callGraph = new CallGraph(cfgMap, ClassGraph.getInstance());
             callGraph.build(nodeList);
-            return callGraph;
         }
 
         /** Create class graph from the list of compilation units. */

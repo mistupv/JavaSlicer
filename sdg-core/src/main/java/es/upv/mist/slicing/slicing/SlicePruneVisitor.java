@@ -19,13 +19,10 @@ import java.util.stream.Collectors;
 public class SlicePruneVisitor extends ModifierVisitor<NodeHashSet<Node>> {
     // ========== Utility methods ==========
 
-    /** Place a valid placeholder in this node's body, if any. */
-    protected void fillBody(Node n) {
-        if (!(n instanceof NodeWithBody))
-            return;
-        NodeWithBody<?> nb = ((NodeWithBody<?>) n);
-        if (nb.getBody() == null)
-            nb.setBody(new EmptyStmt());
+    /** Place a valid placeholder in this node's body, if there is none. */
+    protected void fillBody(NodeWithBody<?> n) {
+        if (n.getBody() == null)
+            n.setBody(new EmptyStmt());
     }
 
     // ========== File visitors ==========

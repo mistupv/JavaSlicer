@@ -1,7 +1,6 @@
 package es.upv.mist.slicing.graphs.sdg;
 
 import com.github.javaparser.ast.expr.*;
-import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 
 import java.util.Set;
@@ -29,11 +28,6 @@ public class OutNodeVariableVisitor extends VoidVisitorAdapter<Set<Expression>> 
     @Override
     public void visit(EnclosedExpr n, Set<Expression> variables) {
         n.getInner().accept(this, variables);
-    }
-
-    @Override
-    public void visit(ExpressionStmt n, Set<Expression> variables) {
-        n.getExpression().accept(this, variables);
     }
 
     @Override

@@ -8,7 +8,6 @@ import es.upv.mist.slicing.graphs.exceptionsensitive.ESCFG;
 import es.upv.mist.slicing.graphs.exceptionsensitive.ESPDG;
 import es.upv.mist.slicing.graphs.pdg.PDG;
 import es.upv.mist.slicing.nodes.GraphNode;
-import es.upv.mist.slicing.nodes.ObjectTree;
 import es.upv.mist.slicing.nodes.VariableAction;
 import es.upv.mist.slicing.nodes.io.ActualIONode;
 import es.upv.mist.slicing.nodes.io.CallNode;
@@ -17,6 +16,8 @@ import es.upv.mist.slicing.nodes.oo.MemberNode;
 import java.util.Deque;
 import java.util.LinkedList;
 import java.util.List;
+
+import static es.upv.mist.slicing.nodes.ObjectTree.ROOT_NAME;
 
 public class JSysPDG extends ESPDG {
     public JSysPDG() {
@@ -69,7 +70,7 @@ public class JSysPDG extends ESPDG {
     }
 
     protected void addTotalDefinitionDependencyArc(VariableAction totalDefinition, VariableAction target, String member) {
-        if (member.equals(ObjectTree.ROOT_NAME))
+        if (member.equals(ROOT_NAME))
             addEdge(graphNodeOf(totalDefinition), graphNodeOf(target), new TotalDefinitionDependenceArc());
         else
             addEdge(totalDefinition.getObjectTree().getNodeFor(member),
@@ -106,39 +107,60 @@ public class JSysPDG extends ESPDG {
             for (GraphNode<?> node : vertexSet()) {
                 for (VariableAction varAct : node.getVariableActions()) {
                     // Total definition dependence
-                    if (!varAct.isPrimitive() && (varAct.isUsage() || (varAct.isDefinition() && !varAct.isSynthetic()))) {
-                        // root
-                        jSysCFG.findLastTotalDefinitionOf(varAct, "-root-").forEach(totalDef -> addTotalDefinitionDependencyArc(totalDef, varAct, "-root-"));
-                        // members
-                        if (varAct.hasObjectTree())
-                            for (String member : varAct.getObjectTree().nameIterable())
-                                jSysCFG.findLastTotalDefinitionOf(varAct, member).forEach(totalDef -> addTotalDefinitionDependencyArc(totalDef, varAct, member));
-                    }
-                    // Object flow, flow and declaration-definition dependencies
-                    if (varAct.isUsage()) {
-                        if (varAct.isPrimitive())
-                            jSysCFG.findLastDefinitionOfPrimitive(varAct).forEach(def -> addFlowDependencyArc(def, varAct));
-                        else {
-                            jSysCFG.findLastDefinitionOfObjectRoot(varAct).forEach(def -> addObjectFlowDependencyArc(def, varAct));
-                            if (varAct.hasObjectTree())
-                                for (String member : varAct.getObjectTree().nameIterable())
-                                    jSysCFG.findLastDefinitionOfObjectMember(varAct, member).forEach(def -> addFlowDependencyArc(def, varAct, member));
-                        }
-                    } else if (varAct.isDefinition()) {
-                        // Flow declaration --> definition
-                        if (!varAct.isSynthetic())
-                            jSysCFG.findDeclarationFor(varAct).ifPresent(dec -> addFlowDependencyArc(dec, varAct));
-                        // Object flow definition --> definition
-                        if (!varAct.isPrimitive() && varAct.hasObjectTree())
-                            for (String member : varAct.getObjectTree().nameIterable())
-                                jSysCFG.findNextObjectDefinitionsFor(varAct, member).forEach(def -> addObjectFlowDependencyArc(varAct, member, def));
-                    } else if (varAct.isDeclaration()) {
-                        if (varAct.getName().startsWith("this."))
-                            jSysCFG.findAllFutureObjectDefinitionsFor(varAct)
-                                    .forEach(def -> addDeclarationFlowDependencyArc(varAct, def));
-                    }
+                    buildTotalDefinitionDependence(jSysCFG, varAct);
+                    if (varAct.isUsage())
+                        buildUsageDependencies(jSysCFG, varAct);
+                    else if (varAct.isDefinition())
+                        buildDefinitionDependencies(jSysCFG, varAct);
+                    else if (varAct.isDeclaration())
+                        buildDeclarationDependencies(jSysCFG, varAct);
                 }
             }
+        }
+
+        /** Generate total definition dependence. Only generated for non-primitive usages and non-primitive,
+         *  non-synthetic definitions. Connects each member to its previous total definition. */
+        private void buildTotalDefinitionDependence(JSysCFG jSysCFG, VariableAction varAct) {
+            if (!varAct.isPrimitive() && (varAct.isUsage() || (varAct.isDefinition() && !varAct.isSynthetic()))) {
+                jSysCFG.findLastTotalDefinitionOf(varAct, ROOT_NAME).forEach(totalDef -> addTotalDefinitionDependencyArc(totalDef, varAct, ROOT_NAME));
+                if (!varAct.hasObjectTree())
+                    return;
+                for (String member : varAct.getObjectTree().nameIterable())
+                    jSysCFG.findLastTotalDefinitionOf(varAct, member).forEach(totalDef -> addTotalDefinitionDependencyArc(totalDef, varAct, member));
+            }
+        }
+
+        /** Generate dependencies to usages, including flow dependency for primitives,
+         *  object flow for object roots and flow for object members. */
+        private void buildUsageDependencies(JSysCFG jSysCFG, VariableAction varAct) {
+            if (varAct.isPrimitive()) {
+                jSysCFG.findLastDefinitionOfPrimitive(varAct).forEach(def -> addFlowDependencyArc(def, varAct));
+            } else {
+                jSysCFG.findLastDefinitionOfObjectRoot(varAct).forEach(def -> addObjectFlowDependencyArc(def, varAct));
+                if (!varAct.hasObjectTree())
+                    return;
+                for (String member : varAct.getObjectTree().nameIterable())
+                    jSysCFG.findLastDefinitionOfObjectMember(varAct, member).forEach(def -> addFlowDependencyArc(def, varAct, member));
+            }
+        }
+
+        /** Generates dec --> def flow and def --> def object flow dependencies. */
+        private void buildDefinitionDependencies(JSysCFG jSysCFG, VariableAction varAct) {
+            // Flow declaration --> definition
+            if (!varAct.isSynthetic())
+                jSysCFG.findDeclarationFor(varAct).ifPresent(dec -> addFlowDependencyArc(dec, varAct));
+            // Object flow definition --> definition
+            if (varAct.isPrimitive() || !varAct.hasObjectTree())
+                return;
+            for (String member : varAct.getObjectTree().nameIterable())
+                jSysCFG.findNextObjectDefinitionsFor(varAct, member).forEach(def -> addObjectFlowDependencyArc(varAct, member, def));
+        }
+
+        /** Generates dec --> def declaration dependencies for objects (constructors only). */
+        private void buildDeclarationDependencies(JSysCFG jSysCFG, VariableAction varAct) {
+            if (!varAct.getName().startsWith("this."))
+                return;
+            jSysCFG.findAllFutureObjectDefinitionsFor(varAct).forEach(def -> addDeclarationFlowDependencyArc(varAct, def));
         }
 
         @Override
@@ -222,7 +244,7 @@ public class JSysPDG extends ESPDG {
                     if (action.isDefinition()
                             && action.hasObjectTree()
                             && action.getName().equals(ESCFG.ACTIVE_EXCEPTION_VARIABLE))
-                        addValueDependencyArc(action, "-root-", node);
+                        addValueDependencyArc(action, ROOT_NAME, node);
         }
     }
 }

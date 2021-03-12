@@ -55,8 +55,7 @@ public class InterproceduralUsageFinder extends InterproceduralActionFinder<Usag
                 // Known limitation: static fields
             } else {
                 // An object creation expression input an existing object via actual-in because it creates it.
-                if (edge.getCall() instanceof ObjectCreationExpr)
-                    return;
+                assert !(edge.getCall() instanceof ObjectCreationExpr);
                 ActualIONode actualIn = locateActualInNode(edge, use.getName());
                 Definition def = new Definition(VariableAction.DeclarationType.SYNTHETIC, "-scope-in-", graphNode, (ObjectTree) use.getObjectTree().clone());
                 Movable movDef = new Movable(def, actualIn);

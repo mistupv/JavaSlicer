@@ -2,18 +2,14 @@ package es.upv.mist.slicing.graphs.sdg;
 
 import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.expr.Expression;
-import com.github.javaparser.ast.expr.MethodCallExpr;
-import com.github.javaparser.ast.expr.ThisExpr;
-import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
-import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.UnsolvedSymbolException;
-import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
 import es.upv.mist.slicing.graphs.BackwardDataFlowAnalysis;
 import es.upv.mist.slicing.graphs.CallGraph;
 import es.upv.mist.slicing.graphs.cfg.CFG;
 import es.upv.mist.slicing.nodes.VariableAction;
 import es.upv.mist.slicing.utils.ASTUtils;
 import es.upv.mist.slicing.utils.Logger;
+import es.upv.mist.slicing.utils.Utils;
 
 import java.util.*;
 import java.util.function.BiConsumer;
@@ -31,7 +27,7 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
     /** A map from vertex and action to its corresponding stored action, to avoid generating duplicate nodes. */
     protected final Map<CallGraph.Vertex, Map<A, StoredAction>> actionStoredMap = new HashMap<>();
 
-    public InterproceduralActionFinder(CallGraph callGraph, Map<CallableDeclaration<?>, CFG> cfgMap) {
+    protected InterproceduralActionFinder(CallGraph callGraph, Map<CallableDeclaration<?>, CFG> cfgMap) {
         super(callGraph);
         this.cfgMap = cfgMap;
     }
@@ -88,59 +84,14 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
     // ============== AUXILIARY METHODS FOR CHILDREN =============
     // ===========================================================
 
-    /** Given a call, obtains the scope. If none is present it may return null.
-     *  ExpressionConstructorInvocations result in a this expression, as they
-     *  may be seen as dynamic method calls that can modify 'this'. */
-    protected static Expression obtainScope(Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
-        if (call instanceof MethodCallExpr) {
-            var methodCall = (MethodCallExpr) call;
-            return methodCall.getScope().orElse(null);
-        } else if (call instanceof ExplicitConstructorInvocationStmt) {
-            return new ThisExpr();
-        } else {
-            throw new IllegalArgumentException("The given call is not of a valid type");
-        }
-    }
-
     /** Obtains the expression passed as argument for the given action at the given call. If {@code input}
      * is false, primitive parameters will be skipped, as their value cannot be redefined.*/
-    protected Expression extractArgument(VariableAction action, CallGraph.Edge<?> edge, boolean input) {
+    protected Optional<Expression> extractArgument(VariableAction action, CallGraph.Edge<?> edge, boolean input) {
         CallableDeclaration<?> callTarget = graph.getEdgeTarget(edge).getDeclaration();
         if (!input && action.isPrimitive())
-            return null; // primitives do not have actual-out!
+            return Optional.empty(); // primitives do not have actual-out!
         int paramIndex = ASTUtils.getMatchingParameterIndex(callTarget, action.getName());
-        return ASTUtils.getResolvableArgs(edge.getCall()).get(paramIndex);
-    }
-
-    /** Generate the name that should be given to an object in a caller method, given an action
-     *  in the callee method. This is used to transform a reference to 'this' into the scope
-     *  of a method. */
-    protected static String obtainAliasedFieldName(VariableAction action, CallGraph.Edge<?> edge) {
-        if (edge.getCall() instanceof MethodCallExpr) {
-            Optional<Expression> optScope = ((MethodCallExpr) edge.getCall()).getScope();
-            return obtainAliasedFieldName(action, edge, optScope.isPresent() ? optScope.get().toString() : "");
-        } else if (edge.getCall() instanceof ExplicitConstructorInvocationStmt) {
-            // The only possibility is 'this' or its fields, so we return empty scope and 'type.this.' is generated
-            return obtainAliasedFieldName(action, edge, "");
-        } else {
-            throw new IllegalArgumentException("The given call is not of a valid type");
-        }
-    }
-
-    /** To be used by {@link #obtainAliasedFieldName(VariableAction, CallGraph.Edge)} exclusively. <br/>
-     *  Given a scope, name inside a method and call, translates the name of a variable, such that 'this' becomes
-     *  the scope of the method. */
-    protected static String obtainAliasedFieldName(VariableAction action, CallGraph.Edge<?> edge, String scope) {
-        if (scope.isEmpty()) {
-            return action.getName();
-        } else {
-            String newPrefix = scope;
-            newPrefix = newPrefix.replaceAll("((\\.)super|^super)(\\.)?", "$2this$3");
-            String withPrefix = action.getName();
-            String withoutPrefix = withPrefix.replaceFirst("^((.*\\.)?this\\.?)", "");
-            String result = newPrefix + withoutPrefix;
-            return result.replaceFirst("this(\\.this)+", "this");
-        }
+        return Optional.of(ASTUtils.getResolvableArgs(edge.getCall()).get(paramIndex));
     }
 
     // ===========================================================
@@ -158,8 +109,7 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
     @Override
     protected Set<A> initialValue(CallGraph.Vertex vertex) {
         CFG cfg = cfgMap.get(vertex.getDeclaration());
-        if (cfg == null)
-            return Collections.emptySet();
+        assert cfg != null;
         Stream<VariableAction> actionStream =  cfg.vertexSet().stream()
                 // Ignore root node, it is literally the entrypoint for interprocedural actions.
                 .filter(n -> n != cfg.getRootNode())
@@ -174,9 +124,7 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
             A a = it.next();
             if (set.contains(a)) {
                 if (a.hasObjectTree())
-                    for (A aFromSet : set)
-                        if (aFromSet.hashCode() == a.hashCode() && Objects.equals(aFromSet, a))
-                            aFromSet.getObjectTree().addAll(a.getObjectTree());
+                    Utils.setGet(set, a).getObjectTree().addAll(a.getObjectTree());
             } else {
                 set.add(a.createCopy());
             }

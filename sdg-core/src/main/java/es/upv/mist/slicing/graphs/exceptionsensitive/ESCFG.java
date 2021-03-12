@@ -17,7 +17,6 @@ import es.upv.mist.slicing.graphs.cfg.CFGBuilder;
 import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.nodes.exceptionsensitive.*;
 import es.upv.mist.slicing.nodes.io.MethodExitNode;
-import es.upv.mist.slicing.utils.ASTUtils;
 import es.upv.mist.slicing.utils.Logger;
 
 import java.util.*;
@@ -109,13 +108,7 @@ public class ESCFG extends ACFG {
         }
 
         @Override
-        protected void visitCallableDeclaration(CallableDeclaration<?> callableDeclaration, Void arg) {
-            buildRootNode(callableDeclaration);
-            hangingNodes.add(getRootNode());
-
-            ASTUtils.getCallableBody(callableDeclaration).accept(this, arg);
-            returnList.stream().filter(node -> !hangingNodes.contains(node)).forEach(hangingNodes::add);
-            // NEW vs ACFG
+        protected void buildExit(CallableDeclaration<?> callableDeclaration) {
             if (!exceptionSourceMap.isEmpty()) {
                 // Normal exit
                 NormalExitNode normalExit = new NormalExitNode(callableDeclaration);
@@ -138,12 +131,12 @@ public class ESCFG extends ACFG {
 
             MethodExitNode exit = new MethodExitNode(callableDeclaration);
             addVertex(exit);
-            if (exceptionSourceMap.isEmpty()) // NEW vs ACFG
+            if (exceptionSourceMap.isEmpty())
                 addMethodOutput(callableDeclaration, exit);
-            nonExecHangingNodes.addAll(exitNonExecHangingNodes); // NEW vs ACFG
+            nonExecHangingNodes.addAll(exitNonExecHangingNodes);
             connectTo(exit);
 
-            processPendingNormalResultNodes(); // NEW vs ACFG
+            processPendingNormalResultNodes();
         }
 
         /** Converts the remaining exception sources into a collection of exception exit nodes.

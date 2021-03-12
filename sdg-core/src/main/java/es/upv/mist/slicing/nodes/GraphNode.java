@@ -142,21 +142,6 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
         throw new IllegalArgumentException("Could not find markers for " + call.resolve().getSignature() + " in " + this);
     }
 
-    /** Append the given actions to after the actions of the given call. */
-    public void addActionsAfterCall(Resolvable<? extends ResolvedMethodLikeDeclaration> call, VariableAction... actions) {
-        for (int i = 0; i < variableActions.size(); i++) {
-            VariableAction var = variableActions.get(i);
-            if (var instanceof VariableAction.CallMarker) {
-                VariableAction.CallMarker marker = (VariableAction.CallMarker) var;
-                if (marker.getCall().equals(call) && !marker.isEnter()) {
-                    variableActions.addAll(i + 1, List.of(actions));
-                    return;
-                }
-            }
-        }
-        throw new IllegalArgumentException("Could not find markers for " + call.resolve().getSignature() + " in " + this);
-    }
-
     public void addSyntheticNode(SyntheticNode<?> node) {
         syntheticNodesInMovables.add(node);
     }
@@ -192,19 +177,6 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
             assert syntheticNodesInMovables.contains(realNode);
             addActionsForCall(List.of(action), (Resolvable<? extends ResolvedMethodLikeDeclaration>) realNode.getAstNode(), true);
         }
-    }
-
-    public VariableAction.CallMarker locateCallForVariableAction(VariableAction action) {
-        VariableAction.CallMarker marker = null;
-        for (VariableAction a : variableActions) {
-            if (a instanceof VariableAction.CallMarker && ((VariableAction.CallMarker) a).isEnter())
-                marker = (VariableAction.CallMarker) a;
-            if (action == a) {
-                assert marker != null;
-                return marker;
-            }
-        }
-        throw new IllegalArgumentException("Action not found within node");
     }
 
     public void addVADefineActiveException(Expression expression) {

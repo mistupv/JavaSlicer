@@ -1,12 +1,10 @@
 package es.upv.mist.slicing.utils;
 
+import es.upv.mist.slicing.nodes.VariableAction;
 import org.jgrapht.nio.Attribute;
 import org.jgrapht.nio.DefaultAttribute;
 
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /** General utilities. */
 public class Utils {
@@ -28,5 +26,12 @@ public class Utils {
         if (label != null)
             map.put("label", DefaultAttribute.createAttribute(label));
         return map;
+    }
+
+    public static <A extends VariableAction> A setGet(Set<A> set, A action) {
+        for (A aFromSet : set)
+            if (aFromSet.hashCode() == action.hashCode() && Objects.equals(aFromSet, action))
+                return aFromSet;
+        throw new NoSuchElementException("Could not locate " + action + " in set.");
     }
 }

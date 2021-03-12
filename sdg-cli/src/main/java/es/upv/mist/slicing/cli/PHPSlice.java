@@ -108,7 +108,7 @@ public class PHPSlice {
         }
         sdg.build(units);
 
-        SlicingCriterion sc = graph -> Set.of(graph.findNodeById(0).orElseThrow());
+        SlicingCriterion sc = graph -> Set.of(graph.findNodeBy(n -> n.getId() == (long) 0).orElseThrow());
         Slice slice = new Slice();
         if (scId != 0) {
             // Slice the SDG

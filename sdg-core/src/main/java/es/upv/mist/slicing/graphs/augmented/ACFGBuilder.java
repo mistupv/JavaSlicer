@@ -4,7 +4,6 @@ import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.stmt.*;
 import es.upv.mist.slicing.graphs.cfg.CFGBuilder;
 import es.upv.mist.slicing.nodes.GraphNode;
-import es.upv.mist.slicing.nodes.io.MethodExitNode;
 import es.upv.mist.slicing.utils.ASTUtils;
 
 import java.util.Deque;
@@ -141,17 +140,8 @@ public class ACFGBuilder extends CFGBuilder {
     // ======================================================================
 
     @Override
-    protected void visitCallableDeclaration(CallableDeclaration<?> callableDeclaration, Void arg) {
-        graph.buildRootNode(callableDeclaration);
-        hangingNodes.add(graph.getRootNode());
-
-        ASTUtils.getCallableBody(callableDeclaration).accept(this, arg);
-        returnList.stream().filter(node -> !hangingNodes.contains(node)).forEach(hangingNodes::add);
-        nonExecHangingNodes.add(graph.getRootNode()); // NEW vs CFG
-
-        MethodExitNode exit = new MethodExitNode(callableDeclaration);
-        graph.addVertex(exit);
-        addMethodOutput(callableDeclaration, exit);
-        connectTo(exit);
+    protected void buildExit(CallableDeclaration<?> callableDeclaration) {
+        nonExecHangingNodes.add(graph.getRootNode());
+        super.buildExit(callableDeclaration);
     }
 }

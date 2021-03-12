@@ -41,21 +41,16 @@ public class InterproceduralDefinitionFinder extends InterproceduralActionFinder
         List<Movable> movables = new LinkedList<>();
         GraphNode<?> graphNode = edge.getGraphNode();
         if (def.isParameter()) {
-            Expression arg = extractArgument(def, edge, false);
-            if (arg == null)
+            Optional<Expression> arg = extractArgument(def, edge, false);
+            if (arg.isEmpty())
                 return;
-            ActualIONode actualOut = ActualIONode.createActualOut(edge.getCall(), def.getName(), arg);
-            extractOutputVariablesAsMovables(arg, movables, graphNode, actualOut, def);
+            ActualIONode actualOut = ActualIONode.createActualOut(edge.getCall(), def.getName(), arg.get());
+            extractOutputVariablesAsMovables(arg.get(), movables, graphNode, actualOut, def);
         } else if (def.isField()) {
             if (def.isStatic()) {
                 // Known limitation: static fields
             } else {
-                /* NEW */
-                // An object creation expression doesn't alter an existing object via actual-out
-                // it is returned and assigned via -output-.
-                if (edge.getCall() instanceof ObjectCreationExpr)
-                    return;
-
+                assert !(edge.getCall() instanceof ObjectCreationExpr);
                 ActualIONode actualOut = ActualIONode.createActualOut(edge.getCall(), def.getName(), null);
                 Optional<Expression> scope = ASTUtils.getResolvableScope(edge.getCall());
                 if (scope.isPresent()) {

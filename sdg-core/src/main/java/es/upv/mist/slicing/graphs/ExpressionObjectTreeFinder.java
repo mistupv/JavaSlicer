@@ -68,10 +68,7 @@ public class ExpressionObjectTreeFinder {
 
     public void locateAndMarkTransferenceToRoot(Expression expr, int index) {
         List<VariableAction> list = graphNode.getVariableActions();
-        if (index < 0)
-            locateAndMarkTransferenceToRoot(expr, list.get(list.size() + index));
-        else
-            locateAndMarkTransferenceToRoot(expr, list.get(index));
+        locateAndMarkTransferenceToRoot(expr, list.get(index < 0 ? list.size() + index : index));
     }
 
     public void locateAndMarkTransferenceToRoot(Expression expression, VariableAction targetAction) {

@@ -3,16 +3,15 @@ package es.upv.mist.slicing.nodes;
 import es.upv.mist.slicing.arcs.pdg.FlowDependencyArc;
 import es.upv.mist.slicing.graphs.jsysdg.JSysPDG;
 
+import static es.upv.mist.slicing.nodes.ObjectTree.ROOT_NAME;
+
 public class ValueConnection implements VariableAction.PDGConnection {
     protected final VariableAction action;
     protected final String member;
 
     public ValueConnection(VariableAction action, String member) {
         this.action = action;
-        if (member.isEmpty())
-            this.member = "-root-";
-        else
-            this.member = "-root-." + member;
+        this.member = member.isEmpty() ? ROOT_NAME : ROOT_NAME + "." + member;
     }
 
     @Override

@@ -167,12 +167,6 @@ public abstract class VariableAction {
         return objectTree != null;
     }
 
-    public boolean isObjectTreeEmpty() {
-        if (!hasObjectTree())
-            return true;
-        return getObjectTree().isEmpty();
-    }
-
     public void setPDGTreeConnectionTo(VariableAction targetAction, String sourcePrefixWithoutRoot, String targetPrefixWithoutRoot) {
         pdgTreeConnections.add(new ObjectTreeConnection(this, targetAction, sourcePrefixWithoutRoot, targetPrefixWithoutRoot));
     }

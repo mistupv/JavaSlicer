@@ -11,7 +11,6 @@ import es.upv.mist.slicing.nodes.io.ActualIONode;
 import es.upv.mist.slicing.nodes.io.CallNode;
 import es.upv.mist.slicing.nodes.io.FormalIONode;
 import es.upv.mist.slicing.nodes.io.OutputNode;
-import es.upv.mist.slicing.utils.Logger;
 
 /** Adds interprocedural arcs between the 'PDG components' of an SDG.
  * Arcs generated include {@link ParameterInOutArc parameter input/output} and
@@ -37,11 +36,6 @@ public class CallConnector {
         var callExpr = (Resolvable<? extends ResolvedMethodLikeDeclaration>) callNode.getAstNode();
         callGraph.getCallTargets(callExpr)
                 .map(sdg::findNodeByASTNode)
-                .filter(opt -> {
-                    if (opt.isEmpty())
-                        Logger.format("Method declaration not found: '%s'. Discarding", callExpr);
-                    return opt.isPresent();
-                })
                 .map(opt -> opt.orElseThrow(IllegalArgumentException::new))
                 .forEach(node -> connectCall(callNode, node));
     }

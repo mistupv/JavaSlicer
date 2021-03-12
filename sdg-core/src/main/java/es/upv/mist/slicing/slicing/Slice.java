@@ -33,11 +33,6 @@ public class Slice {
         return map.containsKey(node.getId());
     }
 
-    /** Whether the slice contains the given AST node. */
-    public boolean contains(Node node) {
-        return map.values().stream().anyMatch(gn -> gn.getAstNode() == node);
-    }
-
     @Override
     public int hashCode() {
         return map.hashCode();

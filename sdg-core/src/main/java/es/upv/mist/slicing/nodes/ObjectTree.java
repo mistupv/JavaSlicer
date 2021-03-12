@@ -13,8 +13,7 @@ public class ObjectTree implements Cloneable {
     private static final Pattern FIELD_SPLIT = Pattern.compile("^(?<root>(([_0-9A-Za-z]+\\.)*this)|([_0-9A-Za-z]+)|(-root-))(\\.(?<fields>.+))?$");
 
     private final Map<String, ObjectTree> childrenMap = new HashMap<>();
-
-    private MemberNode memberNode;
+    private final MemberNode memberNode;
 
     public ObjectTree() {
         this(ROOT_NAME);
@@ -34,16 +33,6 @@ public class ObjectTree implements Cloneable {
 
     public MemberNode getMemberNode() {
         return memberNode;
-    }
-
-    public void setMemberNode(MemberNode memberNode) {
-        GraphNode<?> oldParent = null;
-        if (this.memberNode != null)
-            oldParent = this.memberNode.getParent();
-        this.memberNode = memberNode;
-        if (oldParent != null)
-            this.memberNode.setParent(oldParent);
-        childrenMap.values().forEach(ot -> ot.memberNode.setParent(memberNode));
     }
 
     public boolean hasChildren() {
@@ -73,10 +62,6 @@ public class ObjectTree implements Cloneable {
                 childrenMap.get(entry.getKey()).addAll(entry.getValue());
             else
                 childrenMap.put(entry.getKey(), entry.getValue().clone(this));
-    }
-
-    public boolean isLeaf(String memberWithoutRoot) {
-        return findObjectTreeOfMember(memberWithoutRoot).childrenMap.isEmpty();
     }
 
     /**
@@ -147,10 +132,6 @@ public class ObjectTree implements Cloneable {
         }
     }
 
-    public boolean isEmpty() {
-        return childrenMap.isEmpty();
-    }
-
     public Iterable<String> nameIterable() {
         return () -> new Iterator<>() {
             final Iterator<ObjectTree> it = treeIterator();
@@ -169,12 +150,12 @@ public class ObjectTree implements Cloneable {
                     return ROOT_NAME;
                 else
                     builder.append(node.getLabel());
-                while (node.getParent() != null && node.getParent() instanceof MemberNode && node.getParent().getLabel().matches("^(USE|DEF|DEC)\\{")) {
+                while (node.getParent() instanceof MemberNode && node.getParent().getLabel().matches("^(USE|DEF|DEC)\\{")) {
                     node = (MemberNode) node.getParent();
                     builder.insert(0, '.');
                     builder.insert(0, node.getLabel());
                 }
-                return builder.insert(0, "-root-.").toString();
+                return builder.insert(0, ROOT_NAME + ".").toString();
             }
         };
     }

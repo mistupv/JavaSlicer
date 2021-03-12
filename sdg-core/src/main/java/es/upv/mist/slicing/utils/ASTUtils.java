@@ -1,6 +1,7 @@
 package es.upv.mist.slicing.utils;
 
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.stmt.*;
@@ -21,13 +22,6 @@ import java.util.*;
 public class ASTUtils {
     private ASTUtils() {
         throw new UnsupportedOperationException("This is a static, utility class");
-    }
-
-    public static boolean isContained(Node upper, Node contained) {
-        Optional<Node> parent = contained.getParentNode();
-        if (parent.isEmpty())
-            return false;
-        return equalsWithRangeInCU(upper, parent.get()) || isContained(upper, parent.get());
     }
 
     public static boolean switchHasDefaultCase(SwitchStmt stmt) {
@@ -66,15 +60,6 @@ public class ASTUtils {
         var resolved = call.resolve();
         if (resolved instanceof ResolvedMethodDeclaration)
             return ((ResolvedMethodDeclaration) resolved).getReturnType().isVoid();
-        if (resolved instanceof ResolvedConstructorDeclaration)
-            return false;
-        throw new IllegalArgumentException("Call didn't resolve to either method or constructor!");
-    }
-
-    public static boolean resolvableIsPrimitive(Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
-        var resolved = call.resolve();
-        if (resolved instanceof ResolvedMethodDeclaration)
-            return ((ResolvedMethodDeclaration) resolved).getReturnType().isPrimitive();
         if (resolved instanceof ResolvedConstructorDeclaration)
             return false;
         throw new IllegalArgumentException("Call didn't resolve to either method or constructor!");
@@ -141,8 +126,8 @@ public class ASTUtils {
     }
 
     public static boolean constructorHasExplicitConstructorInvocation(ConstructorDeclaration declaration) {
-        return !getCallableBody(declaration).getStatements().isEmpty() &&
-                getCallableBody(declaration).getStatements().getFirst().get() instanceof ExplicitConstructorInvocationStmt;
+        final NodeList<Statement> statements = declaration.getBody().getStatements();
+        return !statements.isEmpty() && statements.get(0) instanceof ExplicitConstructorInvocationStmt;
     }
 
     /**

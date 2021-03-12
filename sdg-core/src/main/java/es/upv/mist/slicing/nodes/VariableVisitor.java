@@ -31,6 +31,7 @@ import java.util.Optional;
 
 import static es.upv.mist.slicing.graphs.cfg.CFGBuilder.VARIABLE_NAME_OUTPUT;
 import static es.upv.mist.slicing.graphs.exceptionsensitive.ESCFG.ACTIVE_EXCEPTION_VARIABLE;
+import static es.upv.mist.slicing.nodes.ObjectTree.ROOT_NAME;
 import static es.upv.mist.slicing.nodes.VariableAction.DeclarationType.*;
 import static es.upv.mist.slicing.nodes.VariableVisitor.Action.*;
 
@@ -180,7 +181,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
             acceptAction(SYNTHETIC, VARIABLE_NAME_OUTPUT, DEFINITION);
             definitionStack.pop();
             graphNode.getLastVariableAction().asDefinition()
-                    .setTotallyDefinedMember("-root-");
+                    .setTotallyDefinedMember(ROOT_NAME);
         }
     }
 
@@ -191,7 +192,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         acceptAction(SYNTHETIC, ACTIVE_EXCEPTION_VARIABLE, DEFINITION);
         definitionStack.pop();
         var fields = ClassGraph.getInstance().generateObjectTreeFor(n.getExpression().calculateResolvedType().asReferenceType());
-        getLastDefinition().getObjectTree().addAll(fields);
+        graphNode.getLastVariableAction().getObjectTree().addAll(fields);
         new ExpressionObjectTreeFinder(graphNode).locateAndMarkTransferenceToRoot(n.getExpression(), -1);
     }
 
@@ -225,8 +226,10 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
                 arg.setAlways(false);
                 n.getRight().accept(this, arg);
                 arg.setAlways(always);
+                break;
             default:
                 n.getRight().accept(this, arg);
+                break;
         }
         n.getComment().ifPresent(l -> l.accept(this, arg));
     }
@@ -247,8 +250,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
                 definitionStack.push(n.getValue());
                 if (!realName.contains(".")) {
                     acceptAction(nameExpr, realName, DEFINITION);
-                    VariableAction.Definition def = getLastDefinition();
-                    def.setTotallyDefinedMember(realName);
+                    getLastDefinition().setTotallyDefinedMember(realName);
                     realNameWithoutRootList.add("");
                 } else {
                     String root = ObjectTree.removeFields(realName);
@@ -302,7 +304,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         groupActionsByRoot(graphNode);
         ExpressionObjectTreeFinder finder = new ExpressionObjectTreeFinder(graphNode);
         if (foundArray.isEmpty()) // Handle a field access or normal variable
-            finder.handleAssignExpr(n, getLastDefinition(), realNameWithoutRootList.get(0));
+            finder.handleAssignExpr(n, graphNode.getLastVariableAction(), realNameWithoutRootList.get(0));
         else // Handle an array access
             finder.handleArrayAssignExpr(n);
     }
@@ -466,7 +468,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         var fields = getFieldsForReturn(call);
         var def = new VariableAction.Definition(SYNTHETIC, VARIABLE_NAME_OUTPUT, graphNode,
                 fields.map(tree -> (ObjectTree) tree.clone()).orElse(null));
-        def.setTotallyDefinedMember("-root-");
+        def.setTotallyDefinedMember(ROOT_NAME);
         var defMov = new VariableAction.Movable(def, CallNode.Return.create(call));
         graphNode.addVariableAction(defMov);
         // The container of the call uses -output-, unless the call is wrapped in an ExpressionStmt
@@ -571,7 +573,6 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     }
 
     protected VariableAction.Definition getLastDefinition() {
-        List<VariableAction> list = graphNode.getVariableActions();
-        return ((VariableAction.Definition) list.get(list.size() - 1));
+        return graphNode.getLastVariableAction().asDefinition();
     }
 }
