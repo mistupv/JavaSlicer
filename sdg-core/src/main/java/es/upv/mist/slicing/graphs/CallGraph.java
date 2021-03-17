@@ -53,7 +53,7 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
     /** Resolve a call to all its possible declarations, by using the call AST nodes stored on the edges. */
     public Stream<CallableDeclaration<?>> getCallTargets(Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
         return edgeSet().stream()
-                .filter(e -> e.getCall() == call)
+                .filter(e -> ASTUtils.equalsInDeclaration((Node) e.getCall(), (Node) call))
                 .map(this::getEdgeTarget)
                 .map(Vertex::getDeclaration)
                 .map(decl -> (CallableDeclaration<?>) decl);
@@ -167,23 +167,20 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
             // =============== Method calls ===============
             @Override
             public void visit(MethodCallExpr n, Void arg) {
-                n.resolve().toAst().ifPresent(decl -> createPolyEdges(decl, n));
-                if (ASTUtils.shouldVisitArgumentsForMethodCalls(n))
-                    super.visit(n, arg);
+                n.resolve().toAst().ifPresent(decl -> createNormalEdge(decl, n));
+                super.visit(n, arg);
             }
 
             @Override
             public void visit(ObjectCreationExpr n, Void arg) {
                 n.resolve().toAst().ifPresent(decl -> createNormalEdge(decl, n));
-                if (ASTUtils.shouldVisitArgumentsForMethodCalls(n))
-                    super.visit(n, arg);
+                super.visit(n, arg);
             }
 
             @Override
             public void visit(ExplicitConstructorInvocationStmt n, Void arg) {
                 n.resolve().toAst().ifPresent(decl -> createNormalEdge(decl, n));
-                if (ASTUtils.shouldVisitArgumentsForMethodCalls(n))
-                    super.visit(n, arg);
+                super.visit(n, arg);
             }
 
             protected void createPolyEdges(MethodDeclaration decl, MethodCallExpr call) {
@@ -241,9 +238,9 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
     }
 
     /** Creates a graph-appropriate DOT exporter. */
-    public DOTExporter<CallableDeclaration<?>, Edge<?>> getDOTExporter() {
-        DOTExporter<CallableDeclaration<?>, Edge<?>> dot = new DOTExporter<>();
-        dot.setVertexAttributeProvider(decl -> Utils.dotLabel(decl.getDeclarationAsString(false, false, false)));
+    public DOTExporter<Vertex, Edge<?>> getDOTExporter() {
+        DOTExporter<Vertex, Edge<?>> dot = new DOTExporter<>();
+        dot.setVertexAttributeProvider(vertex -> Utils.dotLabel(vertex.declaration.getDeclarationAsString(false, false, false)));
         dot.setEdgeAttributeProvider(edge -> Utils.dotLabel(edge.getCall().toString()));
         return dot;
     }
@@ -275,7 +272,7 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
 
         @Override
         public String toString() {
-            return super.toString();
+            return declaration.toString();
         }
     }
 

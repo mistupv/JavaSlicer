@@ -75,12 +75,8 @@ public class DynamicTypeResolver {
 
     /** Searches for the corresponding VariableAction object, then calls {@link #resolveVariableAction(VariableAction)}. */
     protected Stream<ResolvedType> resolveVariable(Expression expression, GraphNode<?> graphNode) {
-        Optional<VariableAction> va = graphNode.getVariableActions().stream()
-                .filter(action -> action.hasVariableExpression() && ASTUtils.equalsWithRange(action.getVariableExpression(), expression))
-                .findFirst();
-        if (va.isEmpty())
-            return anyTypeOf(expression);
-        return resolveVariableAction(va.get());
+        // TODO: implement a search like ExpressionObjectTreeFinder.
+        return anyTypeOf(expression);
     }
 
     /**

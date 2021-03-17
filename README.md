@@ -20,7 +20,7 @@ A fat jar containing all the project's dependencies can be then located at `./sd
 
 ### Slice a Java program
 
-The slicing criterion can be specified with the flag `-c {file}#{line}:{var}[!{occurrence}`, where the file, line and variable can be specified. If the variable appears multiple times in the given line, an occurrence can be set (append `:2` to select the second occurrence).
+The slicing criterion can be specified with the flag `-c {file}#{line}:{var}`, where the file, line and variable can be specified. If the variable appears multiple times in the given line, all of them will be selected.
 
 If we wish to slice following program with respect to variable `sum` in line 11, 
 

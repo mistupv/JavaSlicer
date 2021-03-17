@@ -3,7 +3,6 @@ package es.upv.mist.slicing.graphs.sdg;
 import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
-import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.arcs.sdg.CallArc;
 import es.upv.mist.slicing.arcs.sdg.ParameterInOutArc;
 import es.upv.mist.slicing.graphs.CallGraph;
@@ -12,7 +11,6 @@ import es.upv.mist.slicing.nodes.io.ActualIONode;
 import es.upv.mist.slicing.nodes.io.CallNode;
 import es.upv.mist.slicing.nodes.io.FormalIONode;
 import es.upv.mist.slicing.nodes.io.OutputNode;
-import es.upv.mist.slicing.utils.Logger;
 
 /** Adds interprocedural arcs between the 'PDG components' of an SDG.
  * Arcs generated include {@link ParameterInOutArc parameter input/output} and
@@ -38,11 +36,6 @@ public class CallConnector {
         var callExpr = (Resolvable<? extends ResolvedMethodLikeDeclaration>) callNode.getAstNode();
         callGraph.getCallTargets(callExpr)
                 .map(sdg::findNodeByASTNode)
-                .filter(opt -> {
-                    if (opt.isEmpty())
-                        Logger.format("Method declaration not found: '%s'. Discarding", callExpr);
-                    return opt.isPresent();
-                })
                 .map(opt -> opt.orElseThrow(IllegalArgumentException::new))
                 .forEach(node -> connectCall(callNode, node));
     }
@@ -54,7 +47,6 @@ public class CallConnector {
 
         // Locate and connect all ACTUAL nodes
         sdg.outgoingEdgesOf(callNode).stream()
-                .filter(Arc::isControlDependencyArc)
                 .map(sdg::getEdgeTarget)
                 .filter(ActualIONode.class::isInstance)
                 .map(ActualIONode.class::cast)
@@ -67,9 +59,9 @@ public class CallConnector {
 
         // Locate and connect the -output- node
         sdg.outgoingEdgesOf(callNode).stream()
-                .filter(Arc::isControlDependencyArc)
                 .map(sdg::getEdgeTarget)
                 .filter(CallNode.Return.class::isInstance)
+                .map(CallNode.Return.class::cast)
                 .forEach(n -> connectOutput(declarationNode, n));
     }
 
@@ -80,7 +72,11 @@ public class CallConnector {
                 .filter(FormalIONode.class::isInstance)
                 .map(FormalIONode.class::cast)
                 .filter(actualIn::matchesFormalIO)
-                .forEach(formalIn -> sdg.addParameterInOutArc(actualIn, formalIn));
+                .forEach(formalIn -> createActualInConnection(actualIn, formalIn));
+    }
+
+    protected void createActualInConnection(ActualIONode actualIn, FormalIONode formalIn) {
+        sdg.addParameterInOutArc(actualIn, formalIn);
     }
 
     /** Connects an actual-out node to its formal-out counterpart. Arc in reverse direction. */
@@ -90,14 +86,23 @@ public class CallConnector {
                 .filter(FormalIONode.class::isInstance)
                 .map(FormalIONode.class::cast)
                 .filter(actualOut::matchesFormalIO)
-                .forEach(formalOut -> sdg.addParameterInOutArc(formalOut, actualOut));
+                .forEach(formalOut -> createActualOutConnection(formalOut, actualOut));
+    }
+
+    protected void createActualOutConnection(FormalIONode formalOut, ActualIONode actualOut) {
+        sdg.addParameterInOutArc(formalOut, actualOut);
     }
 
     /** Connects a method call return node to its method output counterpart. Arc in reverse direction. */
-    protected void connectOutput(GraphNode<? extends CallableDeclaration<?>> methodDeclaration, GraphNode<?> methodOutputNode) {
+    protected void connectOutput(GraphNode<? extends CallableDeclaration<?>> methodDeclaration, CallNode.Return callReturnNode) {
         sdg.outgoingEdgesOf(methodDeclaration).stream()
                 .map(sdg::getEdgeTarget)
                 .filter(OutputNode.class::isInstance)
-                .forEach(n -> sdg.addParameterInOutArc(n, methodOutputNode));
+                .map(OutputNode.class::cast)
+                .forEach(n -> createOutputReturnConnection(n, callReturnNode));
+    }
+
+    protected void createOutputReturnConnection(OutputNode<?> outputNode, CallNode.Return callReturnNode) {
+        sdg.addParameterInOutArc(outputNode, callReturnNode);
     }
 }

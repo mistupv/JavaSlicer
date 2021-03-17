@@ -17,7 +17,6 @@ import es.upv.mist.slicing.graphs.cfg.CFGBuilder;
 import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.nodes.exceptionsensitive.*;
 import es.upv.mist.slicing.nodes.io.MethodExitNode;
-import es.upv.mist.slicing.utils.ASTUtils;
 import es.upv.mist.slicing.utils.Logger;
 
 import java.util.*;
@@ -30,7 +29,8 @@ import java.util.*;
  * and multiple calls with exceptions per CFG node are not considered.
  */
 public class ESCFG extends ACFG {
-    protected static final String ACTIVE_EXCEPTION_VARIABLE = "-activeException-";
+    /** The name for the currently active exception variable. */
+    public static final String ACTIVE_EXCEPTION_VARIABLE = "-activeException-";
 
     @Override
     protected CFGBuilder newCFGBuilder() {
@@ -109,13 +109,7 @@ public class ESCFG extends ACFG {
         }
 
         @Override
-        protected void visitCallableDeclaration(CallableDeclaration<?> callableDeclaration, Void arg) {
-            buildRootNode(callableDeclaration);
-            hangingNodes.add(getRootNode());
-
-            ASTUtils.getCallableBody(callableDeclaration).accept(this, arg);
-            returnList.stream().filter(node -> !hangingNodes.contains(node)).forEach(hangingNodes::add);
-            // NEW vs ACFG
+        protected void buildExit(CallableDeclaration<?> callableDeclaration) {
             if (!exceptionSourceMap.isEmpty()) {
                 // Normal exit
                 NormalExitNode normalExit = new NormalExitNode(callableDeclaration);
@@ -127,7 +121,7 @@ public class ESCFG extends ACFG {
                 // Exception exit
                 Collection<ExceptionExitNode> exceptionExits = processExceptionSources(callableDeclaration);
                 for (ExceptionExitNode node : exceptionExits) {
-                    node.addUsedVariable(null, ACTIVE_EXCEPTION_VARIABLE);
+                    node.addVAUseActiveException();
                     hangingNodes.add(node);
                     lastNodes.addAll(hangingNodes);
                     clearHanging();
@@ -138,12 +132,12 @@ public class ESCFG extends ACFG {
 
             MethodExitNode exit = new MethodExitNode(callableDeclaration);
             addVertex(exit);
-            if (exceptionSourceMap.isEmpty()) // NEW vs ACFG
+            if (exceptionSourceMap.isEmpty())
                 addMethodOutput(callableDeclaration, exit);
-            nonExecHangingNodes.addAll(exitNonExecHangingNodes); // NEW vs ACFG
+            nonExecHangingNodes.addAll(exitNonExecHangingNodes);
             connectTo(exit);
 
-            processPendingNormalResultNodes(); // NEW vs ACFG
+            processPendingNormalResultNodes();
         }
 
         /** Converts the remaining exception sources into a collection of exception exit nodes.
@@ -240,7 +234,6 @@ public class ESCFG extends ACFG {
             stmtStack.push(n);
             GraphNode<ThrowStmt> stmt = connectTo(n);
             n.getExpression().accept(this, arg);
-            stmt.addDefinedVariable(null, ACTIVE_EXCEPTION_VARIABLE, n.getExpression());
             populateExceptionSourceMap(new ExceptionSource(stmt, n.getExpression().calculateResolvedType()));
             clearHanging();
             nonExecHangingNodes.add(stmt);
@@ -286,7 +279,7 @@ public class ESCFG extends ACFG {
             for (ResolvedType type : resolved.getSpecifiedExceptions()) {
                 hangingNodes.add(stmtNode);
                 ExceptionReturnNode exceptionReturn = addExceptionReturnNode(call, type);
-                exceptionReturn.addDefinedVariable(null, ACTIVE_EXCEPTION_VARIABLE, null); // TODO: improve initializer
+                exceptionReturn.addVADefineActiveException(null);
                 populateExceptionSourceMap(new ExceptionSource(exceptionReturn, type));
                 returnNodes.add(exceptionReturn);
                 connectTo(exceptionReturn);
@@ -313,7 +306,7 @@ public class ESCFG extends ACFG {
             for (ExceptionSource src : sources)
                 (src.isActive() ? hangingNodes : nonExecHangingNodes).add(src.source);
             GraphNode<?> node = connectTo(n, "catch (" + n.getParameter().toString() + ")");
-            node.addUsedVariable(null, ACTIVE_EXCEPTION_VARIABLE);
+            node.addVAUseActiveException();
             exceptionSourceMap.clear();
             // 2. Set up as exception source
             ExceptionSource catchES = ExceptionSource.merge(node, sources);

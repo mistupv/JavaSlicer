@@ -59,7 +59,7 @@ public class SlicerTest {
         return Optional.of(Arguments.of(javaFile, slice, criterion.get()));
     }
 
-    @ParameterizedTest(name = "[{index}] {0}")
+    @ParameterizedTest(name = "{0}")
     @MethodSource("findAllFiles")
     public void slicerRegressionTest(File source, File target, SlicingCriterion sc) throws FileNotFoundException {
         if (!target.exists())

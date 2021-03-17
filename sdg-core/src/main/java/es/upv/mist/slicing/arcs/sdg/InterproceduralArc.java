@@ -17,12 +17,11 @@ public abstract class InterproceduralArc extends Arc {
     public Map<String, Attribute> getDotAttributes() {
         var map = super.getDotAttributes();
         map.put("penwidth", DefaultAttribute.createAttribute("3"));
+        map.put("style", DefaultAttribute.createAttribute("dashed"));
         if (isInterproceduralInputArc())
-            map.put("color", DefaultAttribute.createAttribute("orange"));
+            map.put("color", DefaultAttribute.createAttribute("darkgreen"));
         else if (isInterproceduralOutputArc())
             map.put("color", DefaultAttribute.createAttribute("blue"));
-        else
-            map.put("color", DefaultAttribute.createAttribute("green"));
         return map;
     }
 

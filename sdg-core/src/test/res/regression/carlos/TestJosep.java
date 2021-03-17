@@ -1,5 +1,5 @@
 public class TestJosep {
-    int x = 0;
+    static int x = 0;
     public static void main(int y) {
         int z = 0;
         while (y > z) {
@@ -29,15 +29,15 @@ public class TestJosep {
         log(z);
     }
 
-    public void objetos() {
-        Object o = new Object();
-        o.x = 10;
-        Object y = new Object();
-        y.z = 210;
-        o = y;
-        log(o);
-        log(y);
-    }
+//    public void objetos() {
+//        Object o = new Object();
+//        o.x = 10;
+//        Object y = new Object();
+//        y.z = 210;
+//        o = y;
+//        log(o);
+//        log(y);
+//    }
 
-    public void log(Object o) {}
+    public static void log(Object o) {}
 }

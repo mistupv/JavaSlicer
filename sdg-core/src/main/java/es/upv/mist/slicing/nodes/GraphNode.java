@@ -9,10 +9,9 @@ import es.upv.mist.slicing.graphs.pdg.PDG;
 import es.upv.mist.slicing.graphs.sdg.SDG;
 import es.upv.mist.slicing.utils.ASTUtils;
 
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
+
+import static es.upv.mist.slicing.graphs.exceptionsensitive.ESCFG.ACTIVE_EXCEPTION_VARIABLE;
 
 /**
  * Represents a node in the various graphs ({@link CFG CFG}, {@link PDG PDG} and {@link SDG SDG}),
@@ -32,6 +31,9 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
     protected final List<VariableAction> variableActions;
     /** The method calls contained  */
     protected final List<Resolvable<? extends ResolvedMethodLikeDeclaration>> methodCalls = new LinkedList<>();
+    /** Nodes that are generated as a result of the instruction represented by this GraphNode and that may
+     *  be included in Movable actions. */
+    protected final Set<SyntheticNode<?>> syntheticNodesInMovables = new HashSet<>();
 
     /** @see #isImplicitInstruction() */
     protected boolean isImplicit = false;
@@ -79,6 +81,14 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
         return Collections.unmodifiableList(variableActions);
     }
 
+    /** Returns the last variable action in this node.
+     *  @throws IllegalStateException If there are no variable actions. */
+    public VariableAction getLastVariableAction() {
+        if (variableActions.isEmpty())
+            throw new IllegalStateException("There are no variable actions in this node");
+        return variableActions.get(variableActions.size() - 1);
+    }
+
     /** The node's label. It represents the portion of the node that
      *  is covered by this node, in the case of block statements. */
     public String getLabel() {
@@ -87,9 +97,9 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
 
     /** The node's long-form label, including its id and information on variables. */
     public String getLongLabel() {
-        String label = getId() + ": " + getLabel();
+        String label = getId() + ": " + getLabel().replace("\\", "\\\\");
         if (!getVariableActions().isEmpty())
-            label += "\n" + getVariableActions().stream().map(Object::toString).reduce((a, b) -> a + "," + b).orElse("--");
+            label += "\\n" + getVariableActions().stream().map(Object::toString).reduce((a, b) -> a + "," + b).orElse("--");
         return label;
     }
 
@@ -134,47 +144,66 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
         throw new IllegalArgumentException("Could not find markers for " + call.resolve().getSignature() + " in " + this);
     }
 
-    /** Append the given actions to after the actions of the given call. */
-    public void addActionsAfterCall(Resolvable<? extends ResolvedMethodLikeDeclaration> call, VariableAction... actions) {
+    /** Register a node that is contained in this node until the CFG
+     *  is converted into the PDG. */
+    public void addSyntheticNode(SyntheticNode<?> node) {
+        syntheticNodesInMovables.add(node);
+    }
+
+    /** @see #syntheticNodesInMovables */
+    public Collection<SyntheticNode<?>> getSyntheticNodesInMovables() {
+        return Collections.unmodifiableSet(syntheticNodesInMovables);
+    }
+
+    /** Append a variable action to the list of variable actions. When the action
+     *  is movable, its real node is registered in {@link #syntheticNodesInMovables}. */
+    public void addVariableAction(VariableAction action) {
+        if (action instanceof VariableAction.Movable)
+            syntheticNodesInMovables.add(((VariableAction.Movable) action).getRealNode());
+        variableActions.add(action);
+    }
+
+    /**
+     * Searches for the last variable action that matches the given real node, and appends
+     * the given action immediately after.
+     */
+    @SuppressWarnings("unchecked")
+    public void addVariableActionAfterLastMatchingRealNode(VariableAction.Movable action, SyntheticNode<?> realNode) {
+        boolean found = false;
         for (int i = 0; i < variableActions.size(); i++) {
-            VariableAction var = variableActions.get(i);
-            if (var instanceof VariableAction.CallMarker) {
-                VariableAction.CallMarker marker = (VariableAction.CallMarker) var;
-                if (marker.getCall().equals(call) && !marker.isEnter()) {
-                    variableActions.addAll(i + 1, List.of(actions));
-                    return;
-                }
+            VariableAction a = variableActions.get(i);
+            if (a instanceof VariableAction.Movable
+                    && ((VariableAction.Movable) a).getRealNode() == realNode) {
+                found = true;
+            } else if (found) {
+                // The previous one matched, this one does not. Add before this one.
+                variableActions.add(i, action);
+                return;
             }
         }
-        throw new IllegalArgumentException("Could not find markers for " + call.resolve().getSignature() + " in " + this);
+        // If the last one matched, add to the end
+        if (found)
+            variableActions.add(action);
+        else {
+            assert syntheticNodesInMovables.contains(realNode);
+            addActionsForCall(List.of(action), (Resolvable<? extends ResolvedMethodLikeDeclaration>) realNode.getAstNode(), true);
+        }
     }
 
-    /** Create and append a declaration of a variable to the list of actions of this node. */
-    public void addDeclaredVariable(Expression variable, String realName) {
-        variableActions.add(new VariableAction.Declaration(variable, realName, this));
+    /** Adds the variable action DEF(-active-exception-) to the end of this method. */
+    public void addVADefineActiveException(Expression expression) {
+        variableActions.add(new VariableAction.Definition(VariableAction.DeclarationType.SYNTHETIC, ACTIVE_EXCEPTION_VARIABLE, this, expression));
     }
 
-    /** Create and append a definition of a variable to the list of actions of this node. */
-    public void addDefinedVariable(Expression variable, String realName, Expression expression) {
-        VariableAction.Definition def = new VariableAction.Definition(variable, realName, this, expression);
-        variableActions.add(def);
-    }
-
-    /** Create and append a usage of a variable to the list of actions of this node. */
-    public void addUsedVariable(Expression variable, String realName) {
-        VariableAction.Usage use = new VariableAction.Usage(variable, realName, this);
-        variableActions.add(use);
+    /** Adds the variable action USE(-active-exception-) to the end of this method. */
+    public void addVAUseActiveException() {
+        variableActions.add(new VariableAction.Usage(VariableAction.DeclarationType.SYNTHETIC, ACTIVE_EXCEPTION_VARIABLE, this));
     }
 
     /** Create and append a call marker to the list of actions of this node. */
     public void addCallMarker(Resolvable<? extends ResolvedMethodLikeDeclaration> call, boolean enter) {
         if (enter) methodCalls.add(call);
         variableActions.add(new VariableAction.CallMarker(call, this, enter));
-    }
-
-    /** Create and append a movable variable action to the list of actions of this node. */
-    public void addMovableVariable(VariableAction.Movable movable) {
-        variableActions.add(movable);
     }
 
     // ============================================================

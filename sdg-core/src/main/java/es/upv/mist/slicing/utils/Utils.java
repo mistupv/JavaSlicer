@@ -3,10 +3,7 @@ package es.upv.mist.slicing.utils;
 import org.jgrapht.nio.Attribute;
 import org.jgrapht.nio.DefaultAttribute;
 
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /** General utilities. */
 public class Utils {
@@ -28,5 +25,13 @@ public class Utils {
         if (label != null)
             map.put("label", DefaultAttribute.createAttribute(label));
         return map;
+    }
+
+    /** Find the matching element in the set and return it.  */
+    public static <E> E setGet(Set<E> set, E object) {
+        for (E element : set)
+            if (element.hashCode() == object.hashCode() && Objects.equals(element, object))
+                return element;
+        throw new NoSuchElementException("Could not locate " + object + " in set.");
     }
 }

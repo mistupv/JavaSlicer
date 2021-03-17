@@ -4,10 +4,8 @@ import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.BodyDeclaration;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.resolution.Resolvable;
-import com.github.javaparser.resolution.declarations.ResolvedConstructorDeclaration;
-import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
-import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
+import es.upv.mist.slicing.utils.ASTUtils;
 
 import java.util.Objects;
 
@@ -15,8 +13,8 @@ import java.util.Objects;
 public class ActualIONode extends IONode<Node> {
     protected final Expression argument;
 
-    protected ActualIONode(Resolvable<? extends ResolvedMethodLikeDeclaration> astNode, ResolvedValueDeclaration variable, Expression argument, boolean isInput) {
-        super(createLabel(isInput, variable.getName(), argument), (Node) astNode, variable.getName(), isInput);
+    protected ActualIONode(Resolvable<? extends ResolvedMethodLikeDeclaration> astNode, String variable, Expression argument, boolean isInput) {
+        super(createLabel(isInput, variable, argument), (Node) astNode, variable, isInput);
         this.argument = argument;
     }
 
@@ -35,14 +33,10 @@ public class ActualIONode extends IONode<Node> {
                 && Objects.equals(o.getAstNode(), resolvedASTNode());
     }
 
+    @SuppressWarnings("unchecked")
     protected BodyDeclaration<?> resolvedASTNode() {
-        @SuppressWarnings("unchecked")
-        ResolvedMethodLikeDeclaration declaration = ((Resolvable<? extends ResolvedMethodLikeDeclaration>) astNode).resolve();
-        if (declaration instanceof ResolvedConstructorDeclaration)
-            return ((ResolvedConstructorDeclaration) declaration).toAst().orElse(null);
-        else if (declaration instanceof ResolvedMethodDeclaration)
-            return ((ResolvedMethodDeclaration) declaration).toAst().orElse(null);
-        throw new IllegalStateException("AST node of invalid type");
+        return ASTUtils.getResolvedAST(((Resolvable<? extends ResolvedMethodLikeDeclaration>) astNode).resolve())
+                .orElse(null);
     }
 
     @Override
@@ -63,11 +57,11 @@ public class ActualIONode extends IONode<Node> {
             return String.format("%s = %s_out", arg, paramName);
     }
 
-    public static ActualIONode createActualIn(Resolvable<? extends ResolvedMethodLikeDeclaration> methodCallExpr, ResolvedValueDeclaration resolvedDeclaration, Expression argument) {
-        return new ActualIONode(methodCallExpr, resolvedDeclaration, argument, true);
+    public static ActualIONode createActualIn(Resolvable<? extends ResolvedMethodLikeDeclaration> methodCallExpr, String name, Expression argument) {
+        return new ActualIONode(methodCallExpr, name, argument, true);
     }
 
-    public static ActualIONode createActualOut(Resolvable<? extends ResolvedMethodLikeDeclaration> methodCallExpr, ResolvedValueDeclaration resolvedDeclaration, Expression argument) {
-        return new ActualIONode(methodCallExpr, resolvedDeclaration, argument, false);
+    public static ActualIONode createActualOut(Resolvable<? extends ResolvedMethodLikeDeclaration> methodCallExpr, String name, Expression argument) {
+        return new ActualIONode(methodCallExpr, name, argument, false);
     }
 }

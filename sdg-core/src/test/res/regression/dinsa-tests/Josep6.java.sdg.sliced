@@ -1,9 +1,6 @@
 class A {
 
-    int xA = 0;
-
     A(int newx) {
-        xA = newx;
     }
 
     public static void main(String[] args) {
@@ -15,6 +12,8 @@ class A {
 }
 
 class B extends A {
+
+    int xB = 5;
 
     B(double valor) {
         super((int) valor);

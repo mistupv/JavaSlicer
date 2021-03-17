@@ -11,11 +11,13 @@ import org.jgrapht.nio.dot.DOTExporter;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Set;
 
 /** Utility to export a sliced SDG in dot and show the slices and slicing criterion. */
 public class SlicedSDGLog extends SDGLog {
     protected final Slice slice;
-    protected final GraphNode<?> sc;
+    protected final Set<GraphNode<?>> sc;
 
     public SlicedSDGLog(SDG graph, Slice slice) {
         this(graph, slice, null);
@@ -24,7 +26,11 @@ public class SlicedSDGLog extends SDGLog {
     public SlicedSDGLog(SDG graph, Slice slice, SlicingCriterion sc) {
         super(graph);
         this.slice = slice;
-        this.sc = sc == null ? null : sc.findNode(graph).orElse(null);
+        Set<GraphNode<?>> set = null;
+        try {
+            set = sc.findNode(graph);
+        } catch (NullPointerException | NoSuchElementException ignored) {}
+        this.sc = set;
     }
 
     @Override
@@ -38,12 +44,16 @@ public class SlicedSDGLog extends SDGLog {
 
     protected Map<String, Attribute> vertexAttributes(GraphNode<?> node) {
         Map<String, Attribute> map = new HashMap<>();
-        if (slice.contains(node) && node.equals(sc))
+        if (slice.contains(node) && sc.contains(node))
             map.put("style", DefaultAttribute.createAttribute("filled,bold"));
+        else if (slice.contains(node) && node.isImplicitInstruction())
+            map.put("style", DefaultAttribute.createAttribute("filled,dashed"));
         else if (slice.contains(node))
             map.put("style", DefaultAttribute.createAttribute("filled"));
-        else if (node.equals(sc))
+        else if (sc.contains(node))
             map.put("style", DefaultAttribute.createAttribute("bold"));
+        else if (node.isImplicitInstruction())
+            map.put("style", DefaultAttribute.createAttribute("dashed"));
         map.put("label", DefaultAttribute.createAttribute(node.getLongLabel()));
         return map;
     }

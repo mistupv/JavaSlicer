@@ -1,173 +1,139 @@
 package es.upv.mist.slicing.nodes;
 
-import com.github.javaparser.ast.expr.Expression;
-import com.github.javaparser.ast.expr.FieldAccessExpr;
+import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.resolution.Resolvable;
+import com.github.javaparser.resolution.UnsolvedSymbolException;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
-import com.github.javaparser.resolution.types.ResolvedType;
+import com.github.javaparser.symbolsolver.javaparsermodel.declarations.JavaParserSymbolDeclaration;
 import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.arcs.pdg.DataDependencyArc;
 import es.upv.mist.slicing.graphs.Graph;
+import es.upv.mist.slicing.graphs.jsysdg.JSysDG;
+import es.upv.mist.slicing.graphs.jsysdg.JSysPDG;
 import es.upv.mist.slicing.graphs.pdg.PDG;
-import org.jgrapht.graph.DefaultEdge;
-import org.jgrapht.graph.SimpleDirectedGraph;
 
-import java.lang.reflect.InvocationTargetException;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import static es.upv.mist.slicing.nodes.VariableAction.DeclarationType.*;
 
 /** An action upon a variable (e.g. usage, definition, declaration) */
 public abstract class VariableAction {
-    protected static final String VARIABLE_PATTERN = "([a-zA-Z][a-zA-Z0-9_]*|_[a-zA-Z0-9_]+)";
-    protected static final String FIELD_PATTERN = "^" + VARIABLE_PATTERN + "(\\." + VARIABLE_PATTERN + ")*" + "$";
+    /** The kinds of declaration that an action can act upon. */
+    public enum DeclarationType {
+        FIELD,
+        STATIC_FIELD,
+        PARAMETER,
+        LOCAL_VARIABLE,
+        SYNTHETIC;
 
-    protected final Expression variable;
-    protected final String realName;
-    protected final GraphNode<?> graphNode;
-    protected final SimpleDirectedGraph<String, DefaultEdge> objectTree = new SimpleDirectedGraph<>(null, DefaultEdge::new, false);
-
-    protected boolean optional = false;
-    protected ResolvedValueDeclaration resolvedVariableCache;
-
-    public VariableAction(Expression variable, String realName, GraphNode<?> graphNode) {
-        assert realName != null && !realName.isEmpty();
-        this.variable = variable;
-        this.realName = realName;
-        this.graphNode = graphNode;
-        this.objectTree.addVertex(realName);
-    }
-
-    /** Add a field of this object, such that the same action performed on the object
-     *  is applied to this field too. Fields of fields may be specified separated by dots. */
-    public void addObjectField(String fieldName) {
-        String parent = null;
-        for (String element : fieldName.split("\\.")) {
-            objectTree.addVertex(element);
-            if (parent != null)
-                objectTree.addEdge(parent, element);
-            parent = element;
+        public static DeclarationType valueOf(ResolvedValueDeclaration resolved) {
+            if (resolved.isType())
+                return STATIC_FIELD;
+            if (resolved.isField() && resolved.asField().isStatic())
+                return STATIC_FIELD;
+            if (resolved.isField())
+                return FIELD;
+            if (resolved.isParameter())
+                return PARAMETER;
+            if (resolved.isVariable())
+                return LOCAL_VARIABLE;
+            if (resolved instanceof JavaParserSymbolDeclaration)
+                return LOCAL_VARIABLE;
+            throw new IllegalArgumentException("Invalid resolved value declaration");
         }
-    }
 
-    public VariableAction getRootAction() {
-        assert !isRootAction();
-        assert variable == null || variable.isNameExpr() || variable.isFieldAccessExpr() || variable.isThisExpr();
-        if (this instanceof Movable) {
-            Movable movable = (Movable) this;
-            return new Movable(movable.inner.getRootAction(), (SyntheticNode<?>) graphNode);
-        }
-        Expression nVar;
-        String nRealName = getRootVariable();
-        GraphNode<?> nNode = graphNode;
-        Expression nExpr = isDefinition() ? asDefinition().expression : null;
-        if (variable == null || !(variable instanceof FieldAccessExpr)) {
-            // This appears only when generated from a field: just set the variable to null
-            assert realName.contains(".this.");
-            nVar = null;
-        } else { // We are in a FieldAccessExpr
-            nVar = variable;
-            while (nVar.isFieldAccessExpr())
-                nVar = variable.asFieldAccessExpr().getScope();
-        }
-        if (this instanceof Usage)
-            return new Usage(nVar, nRealName, nNode);
-        if (this instanceof Definition)
-            return new Definition(nVar, nRealName, nNode, nExpr);
-        if (this instanceof Declaration)
-            throw new UnsupportedOperationException("Can't create a root node for a declaration!");
-        throw new IllegalStateException("Invalid action type");
-    }
-
-    public String getRootVariable() {
-        Pattern rootVariable = Pattern.compile("^(?<root>(([_0-9A-Za-z]+\\.)*this)|([_0-9A-Za-z]+)).*$");
-        Matcher matcher = rootVariable.matcher(realName);
-        if (matcher.matches()) {
-            if (matcher.group("root") != null)
-                return matcher.group("root"); // [type.this] or [this]
+        public static DeclarationType valueOf(Expression expression) {
+            if (expression instanceof ThisExpr || expression instanceof SuperExpr)
+                return FIELD;
+            else if (expression instanceof NameExpr)
+                try {
+                    return valueOf(expression.asNameExpr().resolve());
+                } catch (UnsolvedSymbolException e) {
+                    return STATIC_FIELD;
+                }
+            else if (expression instanceof FieldAccessExpr)
+                return valueOf(expression.asFieldAccessExpr().getScope());
             else
-                throw new IllegalStateException("Invalid real name: " + realName);
-        } else {
-            return null;
+                throw new IllegalStateException("Invalid expression type");
         }
     }
 
-    public boolean isRootAction() {
-        return isSynthetic() || Objects.equals(getRootVariable(), realName);
+    protected final String name;
+    protected final DeclarationType declarationType;
+
+    protected GraphNode<?> graphNode;
+    protected ObjectTree objectTree;
+    protected boolean optional = false;
+
+    /** A list of pairs representing connections to be made between trees in the PDG.
+     *  The variable action that contains the tree we must connect to in the PDG.
+     *  The string, or member where the tree connection must start (in PDG). E.g.: our tree is "a.b.c" and this variable is "a",
+     *  the members "a.b" and "a.b.c" will be connected to "b" and "b.c" in treeConnectionTarget's tree.. */
+    protected final List<PDGConnection> pdgTreeConnections = new LinkedList<>();
+
+    private VariableAction(DeclarationType declarationType, String name, GraphNode<?> graphNode) {
+        this(declarationType, name, graphNode, null);
     }
 
-    public static boolean typeMatches(VariableAction a, VariableAction b) {
-        return (a.isDeclaration() && b.isDeclaration()) ||
-                (a.isDefinition() && b.isDefinition()) ||
-                (a.isUsage() && b.isUsage());
+    private VariableAction(DeclarationType declarationType, String name, GraphNode<?> graphNode, ObjectTree objectTree) {
+        assert name != null && !name.isEmpty();
+        this.declarationType = declarationType;
+        this.name = name;
+        this.graphNode = graphNode;
+        this.objectTree = objectTree;
     }
 
-    public static boolean rootMatches(VariableAction a, VariableAction b) {
-        return a.getRootVariable().equals(b.getRootVariable());
+    // ======================================================
+    // ================= BASIC GETTERS/SETTERS ==============
+    // ======================================================
+
+    public boolean isParameter() {
+        return PARAMETER == declarationType;
     }
 
-    /** Whether this action is performed upon an invented variable,
-     * introduced by this library (e.g. the active exception or the returned value). */
-    public boolean isSynthetic() {
-        return !getVariable().matches(FIELD_PATTERN);
+    public boolean isField() {
+        return declarationType == FIELD || declarationType == STATIC_FIELD;
     }
 
-    public String getVariable() {
-        return realName;
+    public boolean isStatic() {
+        return declarationType == STATIC_FIELD;
     }
 
-    public boolean hasVariableExpression() {
-        return variable != null;
-    }
-
-    public Expression getVariableExpression() {
-        return variable;
+    public boolean isLocalVariable() {
+        return declarationType == LOCAL_VARIABLE;
     }
 
     /**
-     * Returns the resolved value declaration. When the action being performed
-     * is done so on a ThisExpr, the resulting declaration has the following properties:
-     * <ul>
-     *     <li>Can return type and name</li>
-     *     <li>Is not a parameter, it's a field.</li>
-     *     <li>All other methods are left to their default implementations.</li>
-     * </ul>
+     * Warning! This method implicitly creates an object tree if there is none.
+     * To avoid modifying the variable action, check with {@link #hasObjectTree()}
+     * before calling this method.
      */
-    public ResolvedValueDeclaration getResolvedValueDeclaration() {
-        if (resolvedVariableCache == null) {
-            if (variable instanceof Resolvable) {
-                var resolved = ((Resolvable<?>) variable).resolve();
-                if (resolved instanceof ResolvedValueDeclaration)
-                    resolvedVariableCache = (ResolvedValueDeclaration) resolved;
-            }
-            if (resolvedVariableCache == null)
-                resolvedVariableCache = new ResolvedValueDeclaration() {
-                    @Override
-                    public ResolvedType getType() {
-                        return null;
-                    }
-
-                    @Override
-                    public String getName() {
-                        return realName;
-                    }
-
-                    @Override
-                    public boolean isField() {
-                        return true;
-                    }
-                };
-        }
-        return resolvedVariableCache;
+    public ObjectTree getObjectTree() {
+        if (!hasObjectTree())
+            setObjectTree(new ObjectTree(getName()));
+        return objectTree;
     }
 
-    // TODO: detected optional actions
+    protected void setObjectTree(ObjectTree objectTree) {
+        this.objectTree = objectTree;
+    }
+
+    public String getName() {
+        return name;
+    }
+
     /** Whether this action is always performed when its parent node is executed or not. */
     public boolean isOptional() {
         return optional;
+    }
+
+    public void setOptional(boolean optional) {
+        this.optional = optional;
     }
 
     /** The node that performs this action, in which this object is contained. */
@@ -175,10 +141,84 @@ public abstract class VariableAction {
         return graphNode;
     }
 
+    /** Whether this action is performed upon an invented variable,
+     * introduced by this library (e.g. the active exception or the returned value). */
+    public boolean isSynthetic() {
+        return declarationType == SYNTHETIC;
+    }
+
     /** Whether the argument is performed upon the same variable as this action. */
     public boolean matches(VariableAction action) {
-        return Objects.equals(action.realName, realName);
+        return name.equals(action.name);
     }
+
+    public boolean isPrimitive() {
+        return isRootAction() && !hasObjectTree();
+    }
+
+    // ======================================================
+    // =================== OBJECT TREE ======================
+    // ======================================================
+
+    public boolean hasTreeMember(String member) {
+        if (member.isEmpty())
+            return hasObjectTree();
+        if (!hasObjectTree())
+            return false;
+        return getObjectTree().hasMember(member);
+    }
+
+    public boolean hasObjectTree() {
+        return objectTree != null;
+    }
+
+    public void setPDGTreeConnectionTo(VariableAction targetAction, String sourcePrefixWithoutRoot, String targetPrefixWithoutRoot) {
+        pdgTreeConnections.add(new ObjectTreeConnection(this, targetAction, sourcePrefixWithoutRoot, targetPrefixWithoutRoot));
+    }
+
+    public void setPDGValueConnection(String member) {
+        pdgTreeConnections.add(new ValueConnection(this, member));
+    }
+
+    public void applyPDGTreeConnections(JSysPDG pdg) {
+        pdgTreeConnections.forEach(c -> c.apply(pdg));
+    }
+
+    public void applySDGTreeConnection(JSysDG sdg, VariableAction targetAction) {
+        ObjectTreeConnection connection = new ObjectTreeConnection(this, targetAction, "", "");
+        connection.applySDG(sdg);
+    }
+
+    // ======================================================
+    // =================== ROOT ACTIONS =====================
+    // ======================================================
+
+    public VariableAction getRootAction() {
+        assert !isRootAction();
+        if (this instanceof Movable) {
+            Movable movable = (Movable) this;
+            return new Movable(movable.inner.getRootAction(), movable.getRealNode());
+        }
+        if (this instanceof Usage)
+            return new Usage(declarationType, ObjectTree.removeFields(name), graphNode);
+        if (this instanceof Definition)
+            return new Definition(declarationType, ObjectTree.removeFields(name), graphNode, asDefinition().expression);
+        if (this instanceof Declaration)
+            throw new UnsupportedOperationException("Can't create a root node for a declaration!");
+        throw new IllegalStateException("Invalid action type");
+    }
+
+    public boolean isRootAction() {
+        return isSynthetic() || Objects.equals(ObjectTree.removeFields(name), name);
+    }
+
+    public boolean rootMatches(VariableAction b) {
+        return ObjectTree.removeFields(name).equals(ObjectTree.removeFields(b.name));
+    }
+
+    // ======================================================
+    // ============== SUBTYPES AND CLONING ==================
+    // ======================================================
 
     public boolean isUsage() {
         return this instanceof Usage;
@@ -206,36 +246,66 @@ public abstract class VariableAction {
 
     /** Creates a new usage action with the same variable and the given node. */
     public final Usage toUsage(GraphNode<?> graphNode) {
-        return new Usage(variable, realName, graphNode);
+        ObjectTree tree = hasObjectTree() ? (ObjectTree) getObjectTree().clone() : null;
+        return new Usage(declarationType, name, graphNode, tree);
     }
 
     /** Creates a new definition action with the same variable and the given node. */
     public final Definition toDefinition(GraphNode<?> graphNode) {
-        return new Definition(variable, realName, graphNode);
+        ObjectTree tree = hasObjectTree() ? (ObjectTree) getObjectTree().clone() : null;
+        return new Definition(declarationType, name, graphNode, tree);
     }
 
     /** Creates a new declaration action with the same variable and the given node. */
     public final Declaration toDeclaration(GraphNode<?> graphNode) {
-        return new Declaration(variable, realName, graphNode);
+        ObjectTree tree = hasObjectTree() ? (ObjectTree) getObjectTree().clone() : null;
+        return new Declaration(declarationType, name, graphNode, tree);
     }
+
+    public final <A extends VariableAction> A createCopy() {
+        return createCopy(null);
+    }
+
+    @SuppressWarnings("unchecked")
+    public final <A extends VariableAction> A createCopy(GraphNode<?> graphNode) {
+        if (this instanceof Usage)
+            return (A) toUsage(graphNode);
+        if (this instanceof Definition)
+            return (A) toDefinition(graphNode);
+        if (this instanceof Declaration)
+            return (A) toDeclaration(graphNode);
+        if (this instanceof Movable) {
+            assert graphNode == null || graphNode instanceof SyntheticNode;
+            Movable m = (Movable) this;
+            return (A) new Movable(m.inner.createCopy(), (SyntheticNode<?>) graphNode);
+        }
+        throw new IllegalStateException("This kind of variable action can't be copied");
+    }
+
+    // ======================================================
+    // =============== OVERRIDDEN METHODS ===================
+    // ======================================================
 
     @Override
     public boolean equals(Object obj) {
         return obj instanceof VariableAction &&
                 obj.getClass().equals(getClass()) &&
-                Objects.equals(variable, ((VariableAction) obj).variable) &&
-                realName.equals(((VariableAction) obj).realName);
+                name.equals(((VariableAction) obj).name);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getClass(), variable, realName);
+        return Objects.hash(getClass(), name);
     }
 
     @Override
     public String toString() {
-        return "{" + realName + "}";
+        return "{" + name + "}";
     }
+
+    // ======================================================
+    // ==================== SUBCLASSES ======================
+    // ======================================================
 
     /** An invented action used to locate the relative position of the start and end of a call inside a list of actions. */
     public static class CallMarker extends VariableAction {
@@ -246,6 +316,11 @@ public abstract class VariableAction {
             super(null, String.format("-%s-%s-", enter ? "call" : "return", call.resolve().getSignature()), graphNode);
             this.call = call;
             this.enter = enter;
+        }
+
+        @Override
+        public boolean isRootAction() {
+            return true;
         }
 
         /** The call this marker represents. */
@@ -272,8 +347,12 @@ public abstract class VariableAction {
 
     /** A usage of a variable. */
     public static class Usage extends VariableAction {
-        public Usage(Expression variable, String realName, GraphNode<?> graphNode) {
-            super(variable, realName, graphNode);
+        public Usage(DeclarationType declarationType, String name, GraphNode<?> graphNode) {
+            super(Objects.requireNonNull(declarationType), name, graphNode);
+        }
+
+        public Usage(DeclarationType declarationType, String name, GraphNode<?> graphNode, ObjectTree objectTree) {
+            super(Objects.requireNonNull(declarationType), name, graphNode, objectTree);
         }
 
         @Override
@@ -286,14 +365,40 @@ public abstract class VariableAction {
     public static class Definition extends VariableAction {
         /** The value to which the variable has been defined. */
         protected final Expression expression;
+        /** The members of the object tree that are total definitions. */
+        protected String totallyDefinedMember;
 
-        public Definition(Expression variable, String realName, GraphNode<?> graphNode) {
-            this(variable, realName, graphNode, null);
+        public Definition(DeclarationType declarationType, String name, GraphNode<?> graphNode) {
+            this(declarationType, name, graphNode, (Expression) null);
         }
 
-        public Definition(Expression variable, String realName, GraphNode<?> graphNode, Expression expression) {
-            super(variable, realName, graphNode);
+        public Definition(DeclarationType declarationType, String name, GraphNode<?> graphNode, Expression expression) {
+            super(Objects.requireNonNull(declarationType), name, graphNode);
             this.expression = expression;
+        }
+
+        public Definition(DeclarationType declarationType, String name, GraphNode<?> graphNode, ObjectTree objectTree) {
+            this(declarationType, name, graphNode, null, objectTree);
+        }
+
+        public Definition(DeclarationType declarationType, String name, GraphNode<?> graphNode, Expression expression, ObjectTree objectTree) {
+            super(Objects.requireNonNull(declarationType), name, graphNode, objectTree);
+            this.expression = expression;
+        }
+
+        public void setTotallyDefinedMember(String totallyDefinedMember) {
+            this.totallyDefinedMember = Objects.requireNonNull(totallyDefinedMember);
+        }
+
+        public boolean isTotallyDefinedMember(String member) {
+            if (totallyDefinedMember == null)
+                return false;
+            if (totallyDefinedMember.equals(member))
+                return true;
+            if (member.startsWith(totallyDefinedMember)
+                    || ObjectTree.removeRoot(member).startsWith(ObjectTree.removeRoot(totallyDefinedMember)))
+                return ObjectTree.removeRoot(member).isEmpty() || hasTreeMember(member);
+            return false;
         }
 
         /** @see #expression */
@@ -309,8 +414,12 @@ public abstract class VariableAction {
 
     /** A declaration of a variable. */
     public static class Declaration extends VariableAction {
-        public Declaration(Expression variable, String realName, GraphNode<?> graphNode) {
-            super(variable, realName, graphNode);
+        public Declaration(DeclarationType declarationType, String name, GraphNode<?> graphNode) {
+            super(Objects.requireNonNull(declarationType), name, graphNode);
+        }
+
+        public Declaration(DeclarationType declarationType, String name, GraphNode<?> graphNode, ObjectTree objectTree) {
+            super(Objects.requireNonNull(declarationType), name, graphNode, objectTree);
         }
 
         @Override
@@ -332,11 +441,28 @@ public abstract class VariableAction {
          * to generate dependencies and a {@link PDG PDG} node that
          * is the final location of this action. */
         public Movable(VariableAction inner, SyntheticNode<?> pdgNode) {
-            super(inner.variable, inner.realName, inner.graphNode);
+            super(inner.declarationType, inner.name, inner.graphNode);
             if (inner instanceof Movable)
                 throw new IllegalArgumentException("'inner' must be an unmovable action");
             this.realNode = pdgNode;
             this.inner = inner;
+        }
+
+        @Override
+        public ObjectTree getObjectTree() {
+            if (!inner.hasObjectTree())
+                inner.setObjectTree(new ObjectTree(getName()));
+            return inner.getObjectTree();
+        }
+
+        @Override
+        protected void setObjectTree(ObjectTree objectTree) {
+            inner.objectTree = objectTree;
+        }
+
+        @Override
+        public boolean hasObjectTree() {
+            return inner.objectTree != null;
         }
 
         /** The final location of this action. This node may not yet be present
@@ -349,31 +475,25 @@ public abstract class VariableAction {
          *  the action is deleted from its original node's list, a copy is created with the real
          *  target and any {@link DataDependencyArc} is relocated to match this change. */
         public VariableAction move(Graph graph) {
-            // Create unwrapped action (the graphNode field must be changed).
-            VariableAction newAction;
-            try {
-                if (inner instanceof Definition && inner.asDefinition().getExpression() != null)
-                    newAction = inner.getClass().getConstructor(Expression.class, String.class, GraphNode.class, Expression.class)
-                            .newInstance(variable, realName, realNode, inner.asDefinition().expression);
-                else
-                    newAction = inner.getClass().getConstructor(Expression.class, String.class, GraphNode.class)
-                            .newInstance(variable, realName, realNode);
-            } catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
-                throw new UnsupportedOperationException("The VariableAction constructor has changed!", e);
-            }
             // Add node
             graph.addVertex(realNode);
             // Move to node
-            graphNode.variableActions.remove(this);
-            realNode.variableActions.add(newAction);
+            moveOnly();
             // Move data dependencies
             Set.copyOf(graph.edgesOf(graphNode).stream()
                     .filter(Arc::isDataDependencyArc)
                     .map(Arc::asDataDependencyArc)
                     .filter(arc -> arc.getSourceVar() == this || arc.getTargetVar() == this)
                     .collect(Collectors.toSet())) // copying to avoid modifying while iterating
-                    .forEach(arc -> moveDataDependencyArc(arc, graph, newAction));
-            return newAction;
+                    .forEach(arc -> moveDataDependencyArc(arc, graph, inner));
+            return inner;
+        }
+
+        /** Relocate the inner VA from its current node to its real node. */
+        public void moveOnly() {
+            graphNode.variableActions.remove(this);
+            realNode.variableActions.add(inner);
+            inner.graphNode = realNode;
         }
 
         /** Relocates a data dependency arc, by creating a new one with matching information and deleting the old one. */
@@ -431,5 +551,15 @@ public abstract class VariableAction {
         public int hashCode() {
             return Objects.hash(super.hashCode(), realNode, inner);
         }
+    }
+
+    /**
+     * A connection that is setup in the CFG creation stage, but
+     * cannot be applied until the PDG creation stage.
+     */
+    public interface PDGConnection {
+        /** Apply the connection in the given PDG.
+         *  This action can be performed multiple times, but the connection will only be made once. */
+        void apply(JSysPDG graph);
     }
 }

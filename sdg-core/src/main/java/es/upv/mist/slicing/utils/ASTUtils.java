@@ -1,16 +1,17 @@
 package es.upv.mist.slicing.utils;
 
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.expr.*;
-import com.github.javaparser.ast.stmt.BlockStmt;
-import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
-import com.github.javaparser.ast.stmt.SwitchEntry;
-import com.github.javaparser.ast.stmt.SwitchStmt;
+import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.resolution.Resolvable;
-import com.github.javaparser.resolution.declarations.*;
+import com.github.javaparser.resolution.declarations.ResolvedConstructorDeclaration;
+import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
+import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
+import com.github.javaparser.resolution.declarations.ResolvedReferenceTypeDeclaration;
 import com.github.javaparser.resolution.types.ResolvedType;
 import com.github.javaparser.symbolsolver.model.typesystem.ReferenceTypeImpl;
 import es.upv.mist.slicing.nodes.GraphNode;
@@ -21,13 +22,6 @@ import java.util.*;
 public class ASTUtils {
     private ASTUtils() {
         throw new UnsupportedOperationException("This is a static, utility class");
-    }
-
-    public static boolean isContained(Node upper, Node contained) {
-        Optional<Node> parent = contained.getParentNode();
-        if (parent.isEmpty())
-            return false;
-        return equalsWithRangeInCU(upper, parent.get()) || isContained(upper, parent.get());
     }
 
     public static boolean switchHasDefaultCase(SwitchStmt stmt) {
@@ -41,11 +35,23 @@ public class ASTUtils {
         return null;
     }
 
+    public static boolean equalsInDeclaration(Node n1, Node n2) {
+        if (n1 == n2)
+            return true;
+        CallableDeclaration<?> d1 = getDeclarationNode(n1);
+        CallableDeclaration<?> d2 = getDeclarationNode(n2);
+        return n1.equals(n2) && equalsWithRange(d1, d2);
+    }
+
     public static boolean equalsWithRange(Node n1, Node n2) {
+        if (n1 == null || n2 == null)
+            return n1 == n2;
         return Objects.equals(n1.getRange(), n2.getRange()) && Objects.equals(n1, n2);
     }
 
     public static boolean equalsWithRangeInCU(Node n1, Node n2) {
+        if (n1 == null || n2 == null)
+            return n1 == n2;
         return n1.findCompilationUnit().equals(n2.findCompilationUnit())
                 && equalsWithRange(n1, n2);
     }
@@ -59,23 +65,20 @@ public class ASTUtils {
         throw new IllegalArgumentException("Call didn't resolve to either method or constructor!");
     }
 
-    public static int getMatchingParameterIndex(CallableDeclaration<?> declaration, ResolvedParameterDeclaration param) {
+    public static boolean declarationReturnIsObject(CallableDeclaration<?> declaration) {
+        if (declaration.isMethodDeclaration())
+            return declaration.asMethodDeclaration().getType().isClassOrInterfaceType();
+        if (declaration.isConstructorDeclaration())
+            return true;
+        throw new IllegalArgumentException("Declaration wasn't method or constructor");
+    }
+
+    public static int getMatchingParameterIndex(CallableDeclaration<?> declaration, String paramName) {
         var parameters = declaration.getParameters();
         for (int i = 0; i < parameters.size(); i++)
-            if (resolvedParameterEquals(param, parameters.get(i).resolve()))
+            if (parameters.get(i).getNameAsString().equals(paramName))
                 return i;
         throw new IllegalArgumentException("Expression resolved to a parameter, but could not be found!");
-    }
-
-    public static int getMatchingParameterIndex(ResolvedMethodLikeDeclaration declaration, ResolvedParameterDeclaration param) {
-        for (int i = 0; i < declaration.getNumberOfParams(); i++)
-            if (resolvedParameterEquals(declaration.getParam(i), param))
-                return i;
-        throw new IllegalArgumentException("Expression resolved to a parameter, but could not be found!");
-    }
-
-    protected static boolean resolvedParameterEquals(ResolvedParameterDeclaration p1, ResolvedParameterDeclaration p2) {
-        return p2.getType().equals(p1.getType()) && p2.getName().equals(p1.getName());
     }
 
     public static List<Expression> getResolvableArgs(Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
@@ -123,8 +126,8 @@ public class ASTUtils {
     }
 
     public static boolean constructorHasExplicitConstructorInvocation(ConstructorDeclaration declaration) {
-        return !getCallableBody(declaration).getStatements().isEmpty() &&
-                getCallableBody(declaration).getStatements().getFirst().get() instanceof ExplicitConstructorInvocationStmt;
+        final NodeList<Statement> statements = declaration.getBody().getStatements();
+        return !statements.isEmpty() && statements.get(0) instanceof ExplicitConstructorInvocationStmt;
     }
 
     /**
@@ -183,6 +186,14 @@ public class ASTUtils {
         while (!(upperNode instanceof ClassOrInterfaceDeclaration))
             upperNode = upperNode.getParentNode().orElseThrow();
         return (ClassOrInterfaceDeclaration) upperNode;
+    }
+
+    public static CallableDeclaration<?> getDeclarationNode(Node n) {
+        assert n instanceof Statement || n instanceof Expression || n instanceof CallableDeclaration;
+        Node upperNode = n;
+        while (!(upperNode instanceof CallableDeclaration))
+            upperNode = upperNode.getParentNode().orElseThrow();
+        return (CallableDeclaration<?>) upperNode;
     }
 
     /** Generates the default initializer, given a field. In Java, reference types

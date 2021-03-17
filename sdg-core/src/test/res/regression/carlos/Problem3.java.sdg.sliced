@@ -1,12 +1,10 @@
 public class Problem3 {
 
     public static void main() throws Exception {
-        x = 0;
         try {
             f();
         } catch (Exception e) {
         }
-        x = 1;
         f();
     }
 

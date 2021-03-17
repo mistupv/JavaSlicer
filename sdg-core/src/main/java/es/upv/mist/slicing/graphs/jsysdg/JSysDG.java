@@ -8,14 +8,21 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.visitor.ModifierVisitor;
 import com.github.javaparser.ast.visitor.Visitable;
+import es.upv.mist.slicing.graphs.ClassGraph;
 import es.upv.mist.slicing.graphs.augmented.PSDG;
 import es.upv.mist.slicing.graphs.cfg.CFG;
 import es.upv.mist.slicing.graphs.exceptionsensitive.ESSDG;
 import es.upv.mist.slicing.graphs.exceptionsensitive.ExceptionSensitiveCallConnector;
 import es.upv.mist.slicing.graphs.pdg.PDG;
+import es.upv.mist.slicing.slicing.JSysDGSlicingAlgorithm;
+import es.upv.mist.slicing.slicing.SlicingAlgorithm;
 import es.upv.mist.slicing.utils.NodeHashSet;
 
 public class JSysDG extends ESSDG {
+    @Override
+    protected SlicingAlgorithm createSlicingAlgorithm() {
+        return new JSysDGSlicingAlgorithm(this);
+    }
 
     @Override
     protected JSysDG.Builder createBuilder() {
@@ -48,7 +55,7 @@ public class JSysDG extends ESSDG {
 
         @Override
         protected void buildCFG(CallableDeclaration<?> declaration, CFG cfg) {
-            ((JSysCFG) cfg).build(declaration, newlyInsertedConstructors);
+            ((JSysCFG) cfg).build(declaration, newlyInsertedConstructors, ClassGraph.getInstance());
         }
 
         @Override
@@ -60,6 +67,16 @@ public class JSysDG extends ESSDG {
         protected PDG createPDG(CFG cfg) {
             assert cfg instanceof JSysCFG;
             return new JSysPDG((JSysCFG) cfg);
+        }
+
+        @Override
+        protected void connectCalls() {
+            new JSysCallConnector(JSysDG.this).connectAllCalls(callGraph);
+        }
+
+        @Override
+        protected void createSummaryArcs() {
+            new SummaryArcAnalyzer(JSysDG.this, callGraph).analyze();
         }
     }
 }

@@ -46,11 +46,6 @@ public abstract class Graph extends DirectedPseudograph<GraphNode<?>, Arc> {
         throw new IllegalStateException("There may only be one real node representing each AST node in the graph!");
     }
 
-    /** Search for a node in the graph given its id. */
-    public Optional<GraphNode<?>> findNodeById(long id) {
-        return findNodeBy(n -> n.getId() == id);
-    }
-
     /** Search for a node in the graph given a predicate it must pass.
      *  If multiple nodes match the predicate, the first one found is returned. */
     public Optional<GraphNode<?>> findNodeBy(Predicate<GraphNode<?>> p) {

@@ -328,10 +328,6 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
     @Override
     public void visit(ReturnStmt returnStmt, Void arg) {
         GraphNode<ReturnStmt> node = connectTo(returnStmt);
-        returnStmt.getExpression().ifPresent(n -> {
-            n.accept(this, arg);
-            node.addDefinedVariable(null, VARIABLE_NAME_OUTPUT, n);
-        });
         returnList.add(node);
         clearHanging();
     }
@@ -362,12 +358,25 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
      * to the exit node.
      */
     protected void visitCallableDeclaration(CallableDeclaration<?> callableDeclaration, Void arg) {
+        buildEnter(callableDeclaration);
+        visitCallableDeclarationBody(callableDeclaration, arg);
+        buildExit(callableDeclaration);
+    }
+
+    /** Generate the ENTER node and add it to the list of hanging nodes. */
+    protected void buildEnter(CallableDeclaration<?> callableDeclaration) {
         graph.buildRootNode(callableDeclaration);
         hangingNodes.add(graph.getRootNode());
+    }
 
+    /** Visit the body and add the return nodes to the hanging nodes list. */
+    protected void visitCallableDeclarationBody(CallableDeclaration<?> callableDeclaration, Void arg) {
         ASTUtils.getCallableBody(callableDeclaration).accept(this, arg);
         returnList.stream().filter(node -> !hangingNodes.contains(node)).forEach(hangingNodes::add);
+    }
 
+    /** Generate the method EXIT node. */
+    protected void buildExit(CallableDeclaration<?> callableDeclaration) {
         MethodExitNode exit = new MethodExitNode(callableDeclaration);
         graph.addVertex(exit);
         addMethodOutput(callableDeclaration, exit);
@@ -378,8 +387,8 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
      * @see #VARIABLE_NAME_OUTPUT */
     protected void addMethodOutput(CallableDeclaration<?> callableDeclaration, GraphNode<?> exit) {
         if (!(callableDeclaration instanceof MethodDeclaration) || !((MethodDeclaration) callableDeclaration).getType().isVoidType()) {
-            VariableAction usage = new VariableAction.Usage(null, VARIABLE_NAME_OUTPUT, exit);
-            exit.addMovableVariable(new VariableAction.Movable(usage, OutputNode.create(callableDeclaration)));
+            VariableAction usage = new VariableAction.Usage(VariableAction.DeclarationType.SYNTHETIC, VARIABLE_NAME_OUTPUT, exit);
+            exit.addVariableAction(new VariableAction.Movable(usage, OutputNode.create(callableDeclaration)));
         }
     }
 }

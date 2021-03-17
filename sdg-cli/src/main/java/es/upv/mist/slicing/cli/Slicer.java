@@ -7,9 +7,9 @@ import com.github.javaparser.ast.comments.BlockComment;
 import com.github.javaparser.ast.nodeTypes.NodeWithName;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
 import es.upv.mist.slicing.graphs.augmented.ASDG;
-import es.upv.mist.slicing.graphs.jsysdg.JSysDG;
 import es.upv.mist.slicing.graphs.augmented.PSDG;
 import es.upv.mist.slicing.graphs.exceptionsensitive.ESSDG;
+import es.upv.mist.slicing.graphs.jsysdg.JSysDG;
 import es.upv.mist.slicing.graphs.sdg.SDG;
 import es.upv.mist.slicing.slicing.FileLineSlicingCriterion;
 import es.upv.mist.slicing.slicing.Slice;
@@ -21,7 +21,9 @@ import org.apache.commons.cli.*;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -37,9 +39,8 @@ public class Slicer {
     static {
         String fileRe = "(?<file>[^#]+\\.java)";
         String lineRe = "(?<line>[1-9]\\d*)";
-        String varsRe = "(?<vars>[a-zA-Z_]\\w*(?:,[a-zA-Z_]\\w*)*)";
-        String numsRe = "(?<nums>[1-9]\\d*(?:,[1-9]\\d*)*)";
-        SC_PATTERN = Pattern.compile(fileRe + "#" + lineRe + "(?::" + varsRe + "(?:!" + numsRe + ")?)?");
+        String varsRe = "(?<var>[a-zA-Z_]\\w*(?:,[a-zA-Z_]\\w*)*)";
+        SC_PATTERN = Pattern.compile(fileRe + "#" + lineRe + "(?::" + varsRe + ")?");
     }
 
     static {
@@ -50,30 +51,21 @@ public class Slicer {
                 .build());
         OPTIONS.addOption(Option
                 .builder("l").longOpt("line")
-                .hasArg().argName("lineNumber").type(Number.class)
+                .hasArg().argName("line-number").type(Number.class)
                 .desc("The line that contains the statement of the slicing criterion.")
                 .build());
         OPTIONS.addOption(Option
                 .builder("v").longOpt("var")
-                .hasArgs().argName("variableName").valueSeparator(',')
+                .hasArgs().argName("variable-name")
                 .desc("The name of the variable of the slicing criterion. Not setting this option is" +
-                        " equivalent to selecting an empty set; setting multiple variables is allowed," +
-                        " separated by commas")
-                .build());
-        OPTIONS.addOption(Option
-                .builder("n").longOpt("number")
-                .hasArgs().argName("occurrenceNumber").valueSeparator(',')
-                .desc("The occurrence number of the variable(s) selected. If this argument is not set, it will" +
-                        " default to the first appearance of each variable. If the occurrence number must be set" +
-                        " for every variable in the same order.")
+                        " equivalent to selecting all the code in the given line number.")
                 .build());
         OPTIONS.addOption(Option
                 .builder("c").longOpt("criterion")
-                .hasArg().argName("file#line[:var[!occurrence]]")
-                .desc("The slicing criterion, in the format \"file#line:var\". Optionally, the occurrence can be" +
-                        " appended as \"!occurrence\". This option may be replaced by \"-f\", \"-l\", \"-v\" and \"-n\"." +
-                        " If both are specified, the others are discarded. It functions in a similar way: the variable" +
-                        " and occurrence may be skipped or declared multiple times.")
+                .hasArg().argName("file#line[:var]")
+                .desc("The slicing criterion, in the format \"file#line:var\". The variable is optional."+
+                        " This option may be replaced by \"-f\", \"-l\" and \"-v\"." +
+                        " If this argument is set, it will override the individual ones.")
                 .build());
         OPTIONS.addOption(Option
                 .builder("i").longOpt("include")
@@ -84,13 +76,13 @@ public class Slicer {
                 .build());
         OPTIONS.addOption(Option
                 .builder("o").longOpt("output")
-                .hasArg().argName("outputDir")
+                .hasArg().argName("output-dir")
                 .desc("The directory where the sliced source code should be placed. By default, it is placed at " +
                         DEFAULT_OUTPUT_DIR)
                 .build());
         OPTIONS.addOption(Option
                 .builder("t").longOpt("type")
-                .hasArg().argName("graph_type")
+                .hasArg().argName("graph-type")
                 .desc("The type of graph to be built. Available options are SDG, ASDG, PSDG, ESSDG.")
                 .build());
         OPTIONS.addOption(Option
@@ -103,8 +95,7 @@ public class Slicer {
     private File outputDir = DEFAULT_OUTPUT_DIR;
     private File scFile;
     private int scLine;
-    private final List<String> scVars = new ArrayList<>();
-    private final List<Integer> scVarOccurrences = new ArrayList<>();
+    private String scVar;
     private final CommandLine cliOpts;
 
     public Slicer(String... cliArgs) throws ParseException {
@@ -117,23 +108,14 @@ public class Slicer {
                 throw new ParseException("Invalid format for slicing criterion, see --help for more details");
             setScFile(matcher.group("file"));
             setScLine(Integer.parseInt(matcher.group("line")));
-            String vars = matcher.group("vars");
-            String nums = matcher.group("nums");
-            if (vars != null) {
-                if (nums != null)
-                    setScVars(vars.split(","), nums.split(","));
-                else
-                    setScVars(vars.split(","));
-            }
+            String var = matcher.group("var");
+            if (var != null)
+                setScVar(var);
         } else if (cliOpts.hasOption('f') && cliOpts.hasOption('l')) {
             setScFile(cliOpts.getOptionValue('f'));
             setScLine(((Number) cliOpts.getParsedOptionValue("l")).intValue());
-            if (cliOpts.hasOption('v')) {
-                if (cliOpts.hasOption('n'))
-                    setScVars(cliOpts.getOptionValues('v'), cliOpts.getOptionValues('n'));
-                else
-                    setScVars(cliOpts.getOptionValues('v'));
-            }
+            if (cliOpts.hasOption('v'))
+                setScVar(cliOpts.getOptionValue('v'));
         } else {
             throw new ParseException("Slicing criterion not specified: either use \"-c\" or \"-f\" and \"-l\".");
         }
@@ -164,26 +146,8 @@ public class Slicer {
         scLine = line;
     }
 
-    private void setScVars(String[] scVars) throws ParseException {
-        String[] array = new String[scVars.length];
-        Arrays.fill(array, "1");
-        setScVars(scVars, array);
-    }
-
-    private void setScVars(String[] scVars, String[] scOccurrences) throws ParseException {
-        if (scVars.length != scOccurrences.length)
-            throw new ParseException("If the number of occurrence is specified, it must be specified once per variable.");
-        try {
-            for (int i = 0; i < scVars.length; i++) {
-                this.scVars.add(scVars[i]);
-                int n = Integer.parseUnsignedInt(scOccurrences[i]);
-                if (n <= 0)
-                    throw new ParseException("The number of occurrence must be larger than 0.");
-                this.scVarOccurrences.add(n);
-            }
-        } catch (NumberFormatException e) {
-            throw new ParseException(e.getMessage());
-        }
+    private void setScVar(String scVar) {
+        this.scVar = scVar;
     }
 
     public Set<File> getDirIncludeSet() {
@@ -202,12 +166,8 @@ public class Slicer {
         return scLine;
     }
 
-    public List<String> getScVars() {
-        return Collections.unmodifiableList(scVars);
-    }
-
-    public List<Integer> getScVarOccurrences() {
-        return Collections.unmodifiableList(scVarOccurrences);
+    public String getScVar() {
+        return scVar;
     }
 
     public void slice() throws ParseException {
@@ -245,7 +205,7 @@ public class Slicer {
         sdg.build(new NodeList<>(units));
 
         // Slice the SDG
-        SlicingCriterion sc = new FileLineSlicingCriterion(scFile, scLine);
+        SlicingCriterion sc = new FileLineSlicingCriterion(scFile, scLine, scVar);
         Slice slice = sdg.slice(sc);
 
         // Convert the slice to code and output the result to `outputDir`
@@ -285,8 +245,8 @@ public class Slicer {
 
     protected String getDisclaimer(CompilationUnit.Storage s) {
         return String.format("\n\tThis file was automatically generated as part of a slice with criterion" +
-                        "\n\tfile: %s, line: %d, variable(s): %s\n\tOriginal file: %s\n",
-                scFile, scLine, String.join(", ", scVars), s.getPath());
+                        "\n\tfile: %s, line: %d, variable: %s\n\tOriginal file: %s\n",
+                scFile, scLine, scVar, s.getPath());
     }
 
     protected void printHelp() {

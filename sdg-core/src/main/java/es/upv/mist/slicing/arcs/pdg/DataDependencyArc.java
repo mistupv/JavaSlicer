@@ -31,7 +31,7 @@ public class DataDependencyArc extends Arc {
     protected final VariableAction targetVar;
 
     public DataDependencyArc(VariableAction sourceVar, VariableAction targetVar) {
-        super(sourceVar.getVariable());
+        super(sourceVar.getName());
         if (VALID_VA_COMBOS.stream().noneMatch(p -> p.test(sourceVar, targetVar)))
             throw new IllegalArgumentException("Illegal combination of actions: " + sourceVar + ", " + targetVar);
         this.sourceVar = sourceVar;

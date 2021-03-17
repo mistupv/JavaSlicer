@@ -4,55 +4,45 @@ import com.github.javaparser.Position;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
-import com.github.javaparser.ast.stmt.Statement;
-import es.upv.mist.slicing.graphs.cfg.CFG;
-import es.upv.mist.slicing.graphs.pdg.PDG;
+import es.upv.mist.slicing.arcs.pdg.StructuralArc;
 import es.upv.mist.slicing.graphs.sdg.SDG;
 import es.upv.mist.slicing.nodes.GraphNode;
-import es.upv.mist.slicing.utils.Logger;
+import es.upv.mist.slicing.nodes.ObjectTree;
 
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /** A criterion that locates nodes by line. It may only be used in single-declaration graphs. */
-public class LineNumberCriterion extends SlicingCriterion {
+public class LineNumberCriterion implements SlicingCriterion {
     protected static final Position DEFAULT_POSITION = new Position(0, 0);
 
     protected final int lineNumber;
+    protected String variable;
 
     public LineNumberCriterion(int lineNumber, String variable) {
-        super(variable);
+        this.variable = variable;
         this.lineNumber = lineNumber;
     }
 
     @Override
-    public Optional<GraphNode<?>> findNode(CFG graph) {
-        return Optional.empty();
-    }
-
-    @Override
-    public Optional<GraphNode<?>> findNode(PDG graph) {
-        // find node by line number
-        return graph.vertexSet().stream().filter(node -> {
-            Node astNode = node.getAstNode();
-
-            if (astNode.getBegin().isEmpty() || astNode.getEnd().isEmpty())
-                return false;
-
-            int begin = astNode.getBegin().get().line;
-            int end = astNode.getEnd().get().line;
-
-            Logger.format("begin %s end %s", begin, end);
-
-            return lineNumber == begin || lineNumber == end;
-        }).findFirst();
-    }
-
-    @Override
-    public Optional<GraphNode<?>> findNode(SDG graph) {
+    public Set<GraphNode<?>> findNode(SDG graph) {
         Optional<CompilationUnit> optCu = findCompilationUnit(graph.getCompilationUnits());
         if (optCu.isEmpty())
-            return Optional.empty();
-        return optCu.get().findFirst(Statement.class, this::matchesLine).flatMap(graph::findNodeByASTNode);
+            throw new NoSuchElementException();
+
+        Set<GraphNode<?>> set = optCu.get().findAll(Node.class, this::matchesLine).stream()
+                .map(graph::findNodeByASTNode)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .flatMap(node -> locateVariableNodes(node, graph))
+                .collect(Collectors.toSet());
+        if (set.isEmpty() && !variable.startsWith("this")) {
+            variable = "this." + variable;
+            return findNode(graph);
+        } else {
+            return set;
+        }
     }
 
     /** Locates the compilation unit that corresponds to this criterion's file. */
@@ -63,6 +53,37 @@ public class LineNumberCriterion extends SlicingCriterion {
     /** Check if a node matches the criterion's line. */
     protected boolean matchesLine(Node node) {
         return node.getBegin().orElse(DEFAULT_POSITION).line == lineNumber;
+    }
+
+    protected Stream<GraphNode<?>> locateVariableNodes(GraphNode<?> graphNode, SDG graph) {
+        if (variable == null)
+            return locateAllNodes(graphNode, graph);
+        return locateAllNodes(graphNode, graph)
+                .map(GraphNode::getVariableActions).flatMap(List::stream)
+                .map(variableAction -> {
+                    if (variableAction.getName().equals(variable)) {
+                        if (variableAction.hasObjectTree())
+                            return variableAction.getObjectTree().getMemberNode();
+                        else
+                            return variableAction.getGraphNode();
+                    } else if (variable.contains(".") && variableAction.getName().equals(ObjectTree.removeFields(variable))) {
+                        if (variableAction.hasTreeMember(variable))
+                            return variableAction.getObjectTree().getNodeFor(variable);
+                        else
+                            return null;
+                    } else {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull);
+    }
+
+    protected Stream<GraphNode<?>> locateAllNodes(GraphNode<?> graphNode, SDG graph) {
+        Stream<GraphNode<?>> result = graph.outgoingEdgesOf(graphNode).stream()
+                .filter(StructuralArc.class::isInstance)
+                .map(graph::getEdgeTarget)
+                .flatMap(node -> locateAllNodes(node, graph));
+        return Stream.concat(Stream.of(graphNode), result);
     }
 
     @Override

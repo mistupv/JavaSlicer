@@ -35,7 +35,7 @@ public class ExceptionSensitiveSlicingAlgorithm implements SlicingAlgorithm {
     protected static final Predicate<Arc> SDG_PASS_2 = Arc::isInterproceduralInputArc;
 
     protected final ESSDG graph;
-    protected GraphNode<?> slicingCriterion;
+    protected Set<GraphNode<?>> slicingCriterion;
 
     /** Set of the arcs that have been traversed in the slicing process. */
     protected final Set<Arc> traversedArcSet = new HashSet<>();
@@ -47,22 +47,26 @@ public class ExceptionSensitiveSlicingAlgorithm implements SlicingAlgorithm {
     }
 
     @Override
-    public Slice traverse(GraphNode<?> slicingCriterion) {
+    public Slice traverse(Set<GraphNode<?>> slicingCriterion) {
         this.slicingCriterion = slicingCriterion;
         Slice slice = new Slice();
-        slice.add(slicingCriterion);
-        pass(slice, SDG_PASS_1.or(this::ppdgIgnore).or(this::essdgIgnore));
-        pass(slice, SDG_PASS_2.or(this::ppdgIgnore).or(this::essdgIgnore));
+        slice.addAll(slicingCriterion);
+        pass(slice, SDG_PASS_1.or(this::commonIgnoreConditions));
+        pass(slice, SDG_PASS_2.or(this::commonIgnoreConditions));
         return slice;
     }
 
     @Override
     public Slice traverseProcedure(GraphNode<?> slicingCriterion) {
-        this.slicingCriterion = slicingCriterion;
+        this.slicingCriterion = Set.of(slicingCriterion);
         Slice slice = new Slice();
         slice.add(slicingCriterion);
         pass(slice, INTRAPROCEDURAL);
         return slice;
+    }
+
+    protected boolean commonIgnoreConditions(Arc arc) {
+        return ppdgIgnore(arc) || essdgIgnore(arc);
     }
 
     /**
@@ -117,7 +121,7 @@ public class ExceptionSensitiveSlicingAlgorithm implements SlicingAlgorithm {
         return arc.isUnconditionalControlDependencyArc() &&
                 graph.isPseudoPredicate(target) &&
                 reachedStream(target).allMatch(Arc::isUnconditionalControlDependencyArc) &&
-                !target.equals(slicingCriterion);
+                !slicingCriterion.contains(target);
     }
 
     /** Applies rule 4 of the algorithm. */

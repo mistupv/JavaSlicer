@@ -2,73 +2,89 @@ package es.upv.mist.slicing.graphs.sdg;
 
 import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.expr.Expression;
-import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
-import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
 import es.upv.mist.slicing.graphs.CallGraph;
 import es.upv.mist.slicing.graphs.cfg.CFG;
 import es.upv.mist.slicing.nodes.GraphNode;
+import es.upv.mist.slicing.nodes.ObjectTree;
 import es.upv.mist.slicing.nodes.VariableAction;
+import es.upv.mist.slicing.nodes.VariableAction.DeclarationType;
+import es.upv.mist.slicing.nodes.VariableAction.Definition;
+import es.upv.mist.slicing.nodes.VariableAction.Movable;
 import es.upv.mist.slicing.nodes.io.ActualIONode;
 import es.upv.mist.slicing.nodes.io.FormalIONode;
+import es.upv.mist.slicing.utils.ASTUtils;
 
 import java.util.*;
 import java.util.stream.Stream;
 
 /** An interprocedural definition finder, which adds the associated actions to formal and actual nodes in the CFGs. */
-public class InterproceduralDefinitionFinder extends InterproceduralActionFinder<VariableAction.Definition> {
+public class InterproceduralDefinitionFinder extends InterproceduralActionFinder<Definition> {
     public InterproceduralDefinitionFinder(CallGraph callGraph, Map<CallableDeclaration<?>, CFG> cfgMap) {
         super(callGraph, cfgMap);
     }
 
     @Override
-    protected void handleFormalAction(CallableDeclaration<?> declaration, VariableAction.Definition def) {
-        CFG cfg = cfgMap.get(declaration);
-        ResolvedValueDeclaration resolved = def.getResolvedValueDeclaration();
-        if (!resolved.isParameter() || !resolved.getType().isPrimitive()) {
-            FormalIONode formalOut = FormalIONode.createFormalOut(declaration, resolved);
-            cfg.getExitNode().addMovableVariable(new VariableAction.Movable(def.toUsage(cfg.getExitNode()), formalOut));
+    protected void handleFormalAction(CallGraph.Vertex vertex, Definition def) {
+        CFG cfg = cfgMap.get(vertex.getDeclaration());
+        if (!def.isParameter() || !def.isPrimitive()) {
+            FormalIONode formalOut = FormalIONode.createFormalOut(vertex.getDeclaration(), def.getName());
+            Movable movable = new Movable(def.toUsage(cfg.getExitNode()), formalOut);
+            cfg.getExitNode().addVariableAction(movable);
         }
-        FormalIONode formalIn = FormalIONode.createFormalInDecl(declaration, resolved);
-        cfg.getRootNode().addMovableVariable(new VariableAction.Movable(def.toDeclaration(cfg.getRootNode()), formalIn));
+        FormalIONode formalIn = FormalIONode.createFormalInDecl(vertex.getDeclaration(), def.getName());
+        cfg.getRootNode().addVariableAction(new Movable(def.toDeclaration(cfg.getRootNode()), formalIn));
     }
 
     @Override
-    protected void handleActualAction(CallGraph.Edge<?> edge, VariableAction.Definition def) {
-        List<VariableAction.Movable> movables = new LinkedList<>();
+    protected void handleActualAction(CallGraph.Edge<?> edge, Definition def) {
+        List<Movable> movables = new LinkedList<>();
         GraphNode<?> graphNode = edge.getGraphNode();
-        ResolvedValueDeclaration resolved = def.getResolvedValueDeclaration();
-        if (resolved.isParameter()) {
-            Expression arg = extractArgument(resolved.asParameter(), edge, false);
-            if (arg == null)
+        if (def.isParameter()) {
+            Optional<Expression> arg = extractArgument(def, edge, false);
+            if (arg.isEmpty())
                 return;
-            ActualIONode actualOut = ActualIONode.createActualOut(edge.getCall(), resolved, arg);
-            if (resolved.isParameter()) {
-                Set<NameExpr> exprSet = new HashSet<>();
-                arg.accept(new OutNodeVariableVisitor(), exprSet);
-                for (NameExpr nameExpr : exprSet)
-                    movables.add(new VariableAction.Movable(new VariableAction.Definition(nameExpr, nameExpr.toString(), graphNode), actualOut));
+            ActualIONode actualOut = ActualIONode.createActualOut(edge.getCall(), def.getName(), arg.get());
+            extractOutputVariablesAsMovables(arg.get(), movables, graphNode, actualOut, def);
+        } else if (def.isField()) {
+            if (def.isStatic()) {
+                // Known limitation: static fields
             } else {
-                movables.add(new VariableAction.Movable(def.toDefinition(graphNode), actualOut));
+                assert !(edge.getCall() instanceof ObjectCreationExpr);
+                ActualIONode actualOut = ActualIONode.createActualOut(edge.getCall(), def.getName(), null);
+                Optional<Expression> scope = ASTUtils.getResolvableScope(edge.getCall());
+                if (scope.isPresent()) {
+                    extractOutputVariablesAsMovables(scope.get(), movables, graphNode, actualOut, def);
+                } else {
+                    assert def.hasObjectTree();
+                    var movableDef = new Definition(DeclarationType.FIELD, "this", graphNode, (ObjectTree) def.getObjectTree().clone());
+                    movables.add(new Movable(movableDef, actualOut));
+                }
             }
-        } else if (resolved.isField()) {
-            // Known limitation: static fields
-            // An object creation expression doesn't alter an existing object via actual-out
-            // it is returned and assigned via -output-.
-            if (edge.getCall() instanceof ObjectCreationExpr)
-                return;
-            String aliasedName = obtainAliasedFieldName(def, edge);
-            ActualIONode actualOut = ActualIONode.createActualOut(edge.getCall(), resolved, null);
-            var movableDef  = new VariableAction.Definition(obtainScope(edge.getCall()), aliasedName, graphNode, null);
-            movables.add(new VariableAction.Movable(movableDef, actualOut));
         } else {
             throw new IllegalStateException("Definition must be either from a parameter or a field!");
         }
         graphNode.addActionsForCall(movables, edge.getCall(), false);
     }
 
+    /** For each variable of an expression that may be passed through it (i.e., that if passed as argument of a function, could
+     *  a modification to that reference affect any part of the variables passed as input?). It then generates the necessary
+     *  definitions and links between trees in order to define each of them as a function of the given actual out. */
+    protected void extractOutputVariablesAsMovables(Expression e, List<VariableAction.Movable> movables, GraphNode<?> graphNode, ActualIONode actualOut, VariableAction def) {
+        Set<Expression> defExpressions = new HashSet<>();
+        e.accept(new OutNodeVariableVisitor(), defExpressions);
+        for (Expression expression : defExpressions) {
+            assert def.hasObjectTree();
+            DeclarationType type = DeclarationType.valueOf(expression);
+            Definition inner = new Definition(type, expression.toString(), graphNode, (ObjectTree) def.getObjectTree().clone());
+            if (defExpressions.size() > 1)
+                inner.setOptional(true);
+            movables.add(new Movable(inner, actualOut));
+        }
+    }
+
     @Override
-    protected Stream<VariableAction.Definition> mapAndFilterActionStream(Stream<VariableAction> stream, CFG cfg) {
+    protected Stream<Definition> mapAndFilterActionStream(Stream<VariableAction> stream, CFG cfg) {
         return stream.filter(VariableAction::isDefinition)
                 .map(VariableAction::asDefinition)
                 .filter(def -> cfg.findDeclarationFor(def).isEmpty());

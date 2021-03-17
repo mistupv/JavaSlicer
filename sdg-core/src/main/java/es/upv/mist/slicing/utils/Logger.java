@@ -38,12 +38,7 @@ public class Logger {
     }
 
     public static void log(String context, String message) {
-        printStreams.forEach(out -> out.println(
-                String.format("%s%s",
-                        context.isEmpty() ? "" : String.format("[%s]: ", context),
-                        message
-                )
-        ));
+        printStreams.forEach(out -> out.println((context.isEmpty() ? "" : "[" + context + "]: ") + message));
     }
 
     public static void format(String message, Object... args) {

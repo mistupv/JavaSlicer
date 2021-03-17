@@ -33,11 +33,6 @@ public class Slice {
         return map.containsKey(node.getId());
     }
 
-    /** Whether the slice contains the given AST node. */
-    public boolean contains(Node node) {
-        return map.values().stream().anyMatch(gn -> gn.getAstNode() == node);
-    }
-
     @Override
     public int hashCode() {
         return map.hashCode();
@@ -60,7 +55,7 @@ public class Slice {
         // Add each node to the corresponding bucket of the map
         // Nodes may not belong to a compilation unit (fictional nodes), and they are skipped for the slice.
         for (GraphNode<?> graphNode : map.values()) {
-            if (graphNode.isImplicitInstruction())
+            if (graphNode.isImplicitInstruction() || graphNode.getAstNode() == null)
                 continue;
             Optional<CompilationUnit> cu = graphNode.getAstNode().findCompilationUnit();
             if (cu.isEmpty()) continue;

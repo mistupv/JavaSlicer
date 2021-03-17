@@ -21,7 +21,7 @@ public class Josep2 {
 
 class Numeros {
 
-    int noHaceFalta = 1;
+    int haceFalta = 1;
 
     int random() {
         return haceFalta;
@@ -31,9 +31,6 @@ class Numeros {
 class GrandesNumeros extends Numeros {
 
     GrandesNumeros(double x) {
-    }
-
-    int random() {
-        return haceFalta;
+        haceFalta = 0;
     }
 }
