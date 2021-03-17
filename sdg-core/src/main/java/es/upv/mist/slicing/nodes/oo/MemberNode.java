@@ -6,6 +6,9 @@ import es.upv.mist.slicing.nodes.SyntheticNode;
 
 import java.util.LinkedList;
 
+/** A synthetic node that represents an object or field that is within a
+ *  VariableAction. They are placed in the graph when the PDG is built,
+ *  and allow for a more granular representation and slicing of objects. */
 public class MemberNode extends SyntheticNode<Node> {
     protected GraphNode<?> parent;
 

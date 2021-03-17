@@ -54,6 +54,7 @@ public class CFG extends GraphWithRootNode<CallableDeclaration<?>> {
         addEdge(from, to, arc);
     }
 
+    /** Whether the given node is a predicate or not. A node is a predicate if it has more than one outgoing edge. */
     public boolean isPredicate(GraphNode<?> graphNode) {
         return outgoingEdgesOf(graphNode).size() > 1;
     }

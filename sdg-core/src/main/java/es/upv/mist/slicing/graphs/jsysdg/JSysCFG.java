@@ -74,6 +74,7 @@ public class JSysCFG extends ESCFG {
         return findLastVarActionsFrom(usage, VariableAction::isDefinition);
     }
 
+    /** Given a field declaration, locate all definitions that affect the given member. */
     public List<VariableAction> findAllFutureObjectDefinitionsFor(VariableAction action) {
         List<VariableAction> list = new LinkedList<>();
         Predicate<VariableAction> filter = a -> a.isDefinition() && a.getName().equals("this") && a.hasTreeMember(action.getName());
@@ -81,6 +82,9 @@ public class JSysCFG extends ESCFG {
         return list;
     }
 
+    /** Locate variable actions that match the given filter, starting in {@code currentNode}, at variable action
+     *  {@code var} and searching forwards through the control-flow graph. The resulting variable actions are
+     *  placed in the given argument. This search does not stop when an action in that control-flow branch is found. */
     protected void findAllFutureVarActionsFor(Set<GraphNode<?>> visited, List<VariableAction> result,
                                             GraphNode<?> currentNode, VariableAction var,
                                             Predicate<VariableAction> filter) {
@@ -100,6 +104,8 @@ public class JSysCFG extends ESCFG {
                 findAllFutureVarActionsFor(visited, result, getEdgeTarget(arc), var, filter);
     }
 
+    /** Given an action that defines a member, locates the previous total definition that gave
+     *  it value. */
     public List<VariableAction> findLastTotalDefinitionOf(VariableAction action, String member) {
         return findLastVarActionsFrom(action, def ->
                 (def.isDeclaration() && def.hasTreeMember(member))
@@ -119,6 +125,9 @@ public class JSysCFG extends ESCFG {
         return list;
     }
 
+    /** Locate variable actions that match the given filter and variable name, starting in {@code currentNode},
+     *  at variable action {@code var} and searching backwards. The resulting variable actions are placed in
+     *  the given argument. This search stops after finding a matching action in each branch. */
     protected boolean findNextVarActionsFor(Set<GraphNode<?>> visited, List<VariableAction> result,
                                             GraphNode<?> currentNode, VariableAction var,
                                             Predicate<VariableAction> filter, String memberName) {
@@ -222,6 +231,11 @@ public class JSysCFG extends ESCFG {
             }
         }
 
+        /**
+         * Sets the expression for all return statements contained in its argument.
+         * @param node The AST to search for return statements.
+         * @param expressionSupplier The expression to be set.
+         */
         protected void modifyAllReturnExpr(Node node, Supplier<Expression> expressionSupplier) {
             node.accept(new ModifierVisitor<Void>() {
                 @Override
@@ -243,6 +257,13 @@ public class JSysCFG extends ESCFG {
             }
         }
 
+        /**
+         * Generates the object tree for the output of a declaration, and copies that same tree
+         * to each of its return statements. It also sets the connection between them, to be applied
+         * later.
+         * @param callableDeclaration The root of the declarations' AST.
+         * @param useOutput The variable at the method's exit that uses -output-.
+         */
         protected void expandOutputVariable(CallableDeclaration<?> callableDeclaration, VariableAction useOutput) {
             // Generate the full tree for the method's returned type (static)
             var fields = classGraph.generateObjectTreeForReturnOf(callableDeclaration);

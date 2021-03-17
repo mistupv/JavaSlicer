@@ -81,6 +81,8 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
         return Collections.unmodifiableList(variableActions);
     }
 
+    /** Returns the last variable action in this node.
+     *  @throws IllegalStateException If there are no variable actions. */
     public VariableAction getLastVariableAction() {
         if (variableActions.isEmpty())
             throw new IllegalStateException("There are no variable actions in this node");
@@ -142,20 +144,29 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
         throw new IllegalArgumentException("Could not find markers for " + call.resolve().getSignature() + " in " + this);
     }
 
+    /** Register a node that is contained in this node until the CFG
+     *  is converted into the PDG. */
     public void addSyntheticNode(SyntheticNode<?> node) {
         syntheticNodesInMovables.add(node);
     }
 
+    /** @see #syntheticNodesInMovables */
     public Collection<SyntheticNode<?>> getSyntheticNodesInMovables() {
         return Collections.unmodifiableSet(syntheticNodesInMovables);
     }
 
+    /** Append a variable action to the list of variable actions. When the action
+     *  is movable, its real node is registered in {@link #syntheticNodesInMovables}. */
     public void addVariableAction(VariableAction action) {
         if (action instanceof VariableAction.Movable)
             syntheticNodesInMovables.add(((VariableAction.Movable) action).getRealNode());
         variableActions.add(action);
     }
 
+    /**
+     * Searches for the last variable action that matches the given real node, and appends
+     * the given action immediately after.
+     */
     @SuppressWarnings("unchecked")
     public void addVariableActionAfterLastMatchingRealNode(VariableAction.Movable action, SyntheticNode<?> realNode) {
         boolean found = false;
@@ -179,14 +190,14 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
         }
     }
 
+    /** Adds the variable action DEF(-active-exception-) to the end of this method. */
     public void addVADefineActiveException(Expression expression) {
-        VariableAction.Definition def = new VariableAction.Definition(VariableAction.DeclarationType.SYNTHETIC, ACTIVE_EXCEPTION_VARIABLE, this, expression);
-        variableActions.add(def);
+        variableActions.add(new VariableAction.Definition(VariableAction.DeclarationType.SYNTHETIC, ACTIVE_EXCEPTION_VARIABLE, this, expression));
     }
 
+    /** Adds the variable action USE(-active-exception-) to the end of this method. */
     public void addVAUseActiveException() {
-        VariableAction.Usage use = new VariableAction.Usage(VariableAction.DeclarationType.SYNTHETIC, ACTIVE_EXCEPTION_VARIABLE, this);
-        variableActions.add(use);
+        variableActions.add(new VariableAction.Usage(VariableAction.DeclarationType.SYNTHETIC, ACTIVE_EXCEPTION_VARIABLE, this));
     }
 
     /** Create and append a call marker to the list of actions of this node. */

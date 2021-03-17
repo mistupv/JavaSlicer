@@ -13,6 +13,18 @@ import es.upv.mist.slicing.utils.ASTUtils;
 
 import java.util.List;
 
+/**
+ * Generates interprocedural arcs between call sites and declarations.
+ * In the JSysDG, these include:
+ * <ul>
+ *     <li>Actual-in to formal-in.</li>
+ *     <li>Formal-out to actual-out.</li>
+ *     <li>Output to call return (equivalent to the previous element but for the method's output).</li>
+ *     <li>Exception exit to exception return.</li>
+ *     <li>Normal exit to normal return.</li>
+ * </ul>
+ * For each node that features an object tree, that tree is connected in the same manner.
+ */
 public class JSysCallConnector extends ExceptionSensitiveCallConnector {
     public JSysCallConnector(JSysDG sdg) {
         super(sdg);
@@ -37,12 +49,15 @@ public class JSysCallConnector extends ExceptionSensitiveCallConnector {
             connectObjectInterprocedurally(formalOut, actualOut);
     }
 
+    /** Whether the given formal node represents an object with an object tree. */
     protected boolean formalIsObject(FormalIONode formalNode) {
         return formalNode.getVariableName().equals("this")
                 || !formalNode.getAstNode().getParameterByName(formalNode.getVariableName())
                 .orElseThrow().getType().isPrimitiveType();
     }
 
+    /** Connects the object tree from the last variable action in the source node to
+     *  each object tree in the target node. */
     protected void connectObjectInterprocedurally(GraphNode<?> source, GraphNode<?> target) {
         assert !target.getVariableActions().isEmpty();
         assert !source.getVariableActions().isEmpty();
@@ -58,6 +73,7 @@ public class JSysCallConnector extends ExceptionSensitiveCallConnector {
             super.createOutputReturnConnection(outputNode, callReturnNode);
     }
 
+    /** Generates the tree connection between the output and return nodes (definition to call). */
     protected void connectObjectOutput(GraphNode<?> methodOutputNode, GraphNode<?> callReturnNode) {
         List<VariableAction> outputList = methodOutputNode.getVariableActions();
         assert outputList.size() == 1;

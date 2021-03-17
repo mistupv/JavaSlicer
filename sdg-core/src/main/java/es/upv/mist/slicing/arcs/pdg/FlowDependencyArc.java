@@ -6,6 +6,7 @@ import org.jgrapht.nio.DefaultAttribute;
 
 import java.util.Map;
 
+/** Represents a data dependency in an object-oriented SDG or PDG. */
 public class FlowDependencyArc extends Arc {
     public FlowDependencyArc() {
         super();

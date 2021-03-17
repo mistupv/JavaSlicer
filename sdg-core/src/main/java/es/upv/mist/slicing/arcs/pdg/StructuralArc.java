@@ -6,6 +6,9 @@ import org.jgrapht.nio.DefaultAttribute;
 
 import java.util.Map;
 
+/** Replaces control dependencies that were used to generate a tree-like
+ *  structure in the PDG and SDG. Some examples include the connection
+ *  of actual/formal-in/out and object trees. They should always be traversed. */
 public class StructuralArc extends Arc {
     @Override
     public Map<String, Attribute> getDotAttributes() {

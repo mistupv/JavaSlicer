@@ -93,7 +93,6 @@ public class JSysPDG extends ESPDG {
 
     protected class Builder extends ESPDG.Builder {
 
-        /** Computes all the data dependencies between {@link VariableAction variable actions} of this graph. */
         @Override
         protected void buildDataDependency() {
             addSyntheticNodesToPDG();
@@ -102,6 +101,7 @@ public class JSysPDG extends ESPDG {
             valueDependencyForThrowStatements();
         }
 
+        /** Compute flow, object flow and total definition dependence. */
         protected void buildJSysDataDependency() {
             JSysCFG jSysCFG = (JSysCFG) cfg;
             for (GraphNode<?> node : vertexSet()) {
@@ -174,6 +174,7 @@ public class JSysPDG extends ESPDG {
             }
         }
 
+        /** Add movables to the PDG, and all MemberNodes contained in object trees. */
         protected void addSyntheticNodesToPDG() {
             for (GraphNode<?> node : cfg.vertexSet()) {
                 Deque<CallNode> callNodeStack = new LinkedList<>();
@@ -224,12 +225,14 @@ public class JSysPDG extends ESPDG {
             }
         }
 
+        /** Apply the pre-assigned connections between object trees. */
         protected void applyTreeConnections() {
             cfg.vertexSet().stream()
                     .flatMap(node -> node.getVariableActions().stream())
                     .forEach(va -> va.applyPDGTreeConnections(JSysPDG.this));
         }
 
+        /** Inserts a member node from an object tree onto the PDG. */
         protected void insertMemberNode(MemberNode memberNode, GraphNode<?> parentNode) {
             if (memberNode.getParent() == null)
                 memberNode.setParent(parentNode);
@@ -238,6 +241,7 @@ public class JSysPDG extends ESPDG {
             addStructuralArc(memberNode.getParent(), memberNode);
         }
 
+        /** Connects the tree that represents the active exception to its parent graph node. */
         protected void valueDependencyForThrowStatements() {
             for (GraphNode<?> node : vertexSet())
                 for (VariableAction action : node.getVariableActions())

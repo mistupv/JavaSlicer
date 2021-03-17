@@ -11,6 +11,12 @@ import es.upv.mist.slicing.nodes.io.OutputNode;
 import java.util.*;
 import java.util.stream.Stream;
 
+/**
+ * Base class for generating and placing in an SDG the summary arcs.
+ * @param <ActualIn> The type of node for actual-in nodes.
+ * @param <FormalOut> The type of node for formal-out nodes.
+ * @param <FormalIn> The type of node for formal-in nodes.
+ */
 public abstract class AbstractSummaryArcAnalyzer<ActualIn extends SyntheticNode<?>, FormalOut extends SyntheticNode<?>, FormalIn extends SyntheticNode<?>>
         extends BackwardDataFlowAnalysis<CallGraph.Vertex, CallGraph.Edge<?>, Map<FormalOut, Set<FormalIn>>> {
     protected final SDG sdg;

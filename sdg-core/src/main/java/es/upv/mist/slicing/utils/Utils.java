@@ -1,6 +1,5 @@
 package es.upv.mist.slicing.utils;
 
-import es.upv.mist.slicing.nodes.VariableAction;
 import org.jgrapht.nio.Attribute;
 import org.jgrapht.nio.DefaultAttribute;
 
@@ -28,10 +27,11 @@ public class Utils {
         return map;
     }
 
-    public static <A extends VariableAction> A setGet(Set<A> set, A action) {
-        for (A aFromSet : set)
-            if (aFromSet.hashCode() == action.hashCode() && Objects.equals(aFromSet, action))
-                return aFromSet;
-        throw new NoSuchElementException("Could not locate " + action + " in set.");
+    /** Find the matching element in the set and return it.  */
+    public static <E> E setGet(Set<E> set, E object) {
+        for (E element : set)
+            if (element.hashCode() == object.hashCode() && Objects.equals(element, object))
+                return element;
+        throw new NoSuchElementException("Could not locate " + object + " in set.");
     }
 }

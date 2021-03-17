@@ -14,6 +14,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * Generates the summary arcs between actual-in and actual-out, return and exception/exit return nodes.
+ */
 public class SummaryArcAnalyzer extends AbstractSummaryArcAnalyzer<ActualIONode, SyntheticNode<CallableDeclaration<?>>, FormalIONode> {
     public SummaryArcAnalyzer(SDG sdg, CallGraph graph) {
         super(sdg, graph);

@@ -11,6 +11,8 @@ import es.upv.mist.slicing.nodes.oo.MemberNode;
 
 import java.util.function.Supplier;
 
+/** A connection between two object trees. This object can specify the connection between two different
+ *  levels of object trees, for example to represent the assignment {@code a.b = c.d}. */
 class ObjectTreeConnection implements VariableAction.PDGConnection {
 
     protected final VariableAction sourceAction;
@@ -27,6 +29,7 @@ class ObjectTreeConnection implements VariableAction.PDGConnection {
         this.targetMember = targetMember;
     }
 
+    /** Apply the connection represented by this object on an SDG. This means that all arcs will be interprocedural. */
     public void applySDG(JSysDG graph) {
         if (!applied) {
             connectTrees(graph, ParameterInOutArc::new, ParameterInOutArc.ObjectFlow::new);
@@ -34,6 +37,7 @@ class ObjectTreeConnection implements VariableAction.PDGConnection {
         }
     }
 
+    @Override
     public void apply(JSysPDG graph) {
         if (!applied) {
             connectTrees(graph, FlowDependencyArc::new, ObjectFlowDependencyArc::new);

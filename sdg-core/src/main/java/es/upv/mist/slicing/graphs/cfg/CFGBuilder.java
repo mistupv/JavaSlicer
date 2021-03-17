@@ -363,16 +363,19 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
         buildExit(callableDeclaration);
     }
 
+    /** Generate the ENTER node and add it to the list of hanging nodes. */
     protected void buildEnter(CallableDeclaration<?> callableDeclaration) {
         graph.buildRootNode(callableDeclaration);
         hangingNodes.add(graph.getRootNode());
     }
 
+    /** Visit the body and add the return nodes to the hanging nodes list. */
     protected void visitCallableDeclarationBody(CallableDeclaration<?> callableDeclaration, Void arg) {
         ASTUtils.getCallableBody(callableDeclaration).accept(this, arg);
         returnList.stream().filter(node -> !hangingNodes.contains(node)).forEach(hangingNodes::add);
     }
 
+    /** Generate the method EXIT node. */
     protected void buildExit(CallableDeclaration<?> callableDeclaration) {
         MethodExitNode exit = new MethodExitNode(callableDeclaration);
         graph.addVertex(exit);

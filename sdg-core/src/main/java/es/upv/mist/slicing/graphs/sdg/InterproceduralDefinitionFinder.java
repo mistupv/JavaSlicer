@@ -67,6 +67,9 @@ public class InterproceduralDefinitionFinder extends InterproceduralActionFinder
         graphNode.addActionsForCall(movables, edge.getCall(), false);
     }
 
+    /** For each variable of an expression that may be passed through it (i.e., that if passed as argument of a function, could
+     *  a modification to that reference affect any part of the variables passed as input?). It then generates the necessary
+     *  definitions and links between trees in order to define each of them as a function of the given actual out. */
     protected void extractOutputVariablesAsMovables(Expression e, List<VariableAction.Movable> movables, GraphNode<?> graphNode, ActualIONode actualOut, VariableAction def) {
         Set<Expression> defExpressions = new HashSet<>();
         e.accept(new OutNodeVariableVisitor(), defExpressions);

@@ -69,6 +69,7 @@ public class InterproceduralUsageFinder extends InterproceduralActionFinder<Usag
         }
     }
 
+    /** Locates the actual-in node associated with the given variable name and call edge. */
     protected ActualIONode locateActualInNode(CallGraph.Edge<?> edge, String name) {
         return edge.getGraphNode().getSyntheticNodesInMovables().stream()
                 .filter(ActualIONode.class::isInstance)

@@ -22,6 +22,7 @@ import java.util.stream.Stream;
 public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, ClassGraph.ClassArc> implements Buildable<NodeList<CompilationUnit>> {
     private static ClassGraph instance = null;
 
+    /** Generates and returns a new class graph. This destroys the reference to the previous instance. */
     public static ClassGraph getNewInstance() {
         instance = null;
         return getInstance();

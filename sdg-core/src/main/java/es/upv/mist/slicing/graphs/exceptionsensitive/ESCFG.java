@@ -29,6 +29,7 @@ import java.util.*;
  * and multiple calls with exceptions per CFG node are not considered.
  */
 public class ESCFG extends ACFG {
+    /** The name for the currently active exception variable. */
     public static final String ACTIVE_EXCEPTION_VARIABLE = "-activeException-";
 
     @Override

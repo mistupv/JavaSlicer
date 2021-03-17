@@ -14,6 +14,10 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 
+/**
+ * Generates and places on the graph all summary arcs between actual-in and actual-out, return and exception/normal
+ * return nodes. Additionally, it generates them between the object trees of each of the aforementioned nodes.
+ */
 public class SummaryArcAnalyzer extends AbstractSummaryArcAnalyzer<SyntheticNode<?>, SyntheticNode<?>, SyntheticNode<?>> {
     public SummaryArcAnalyzer(JSysDG sdg, CallGraph graph) {
         super(sdg, graph);

@@ -5,6 +5,8 @@ import es.upv.mist.slicing.graphs.jsysdg.JSysPDG;
 
 import static es.upv.mist.slicing.nodes.ObjectTree.ROOT_NAME;
 
+/** A connection that represents a value dependence, from one element of an object tree to the
+ *  main GraphNode that represents the instruction. */
 public class ValueConnection implements VariableAction.PDGConnection {
     protected final VariableAction action;
     protected final String member;

@@ -23,6 +23,7 @@ import static es.upv.mist.slicing.nodes.VariableAction.DeclarationType.*;
 
 /** An action upon a variable (e.g. usage, definition, declaration) */
 public abstract class VariableAction {
+    /** The kinds of declaration that an action can act upon. */
     public enum DeclarationType {
         FIELD,
         STATIC_FIELD,
@@ -69,7 +70,6 @@ public abstract class VariableAction {
     protected ObjectTree objectTree;
     protected boolean optional = false;
 
-    /// Variables that control the automatic connection of ObjectTrees between VariableAction
     /** A list of pairs representing connections to be made between trees in the PDG.
      *  The variable action that contains the tree we must connect to in the PDG.
      *  The string, or member where the tree connection must start (in PDG). E.g.: our tree is "a.b.c" and this variable is "a",
@@ -108,6 +108,11 @@ public abstract class VariableAction {
         return declarationType == LOCAL_VARIABLE;
     }
 
+    /**
+     * Warning! This method implicitly creates an object tree if there is none.
+     * To avoid modifying the variable action, check with {@link #hasObjectTree()}
+     * before calling this method.
+     */
     public ObjectTree getObjectTree() {
         if (!hasObjectTree())
             setObjectTree(new ObjectTree(getName()));
@@ -548,7 +553,13 @@ public abstract class VariableAction {
         }
     }
 
+    /**
+     * A connection that is setup in the CFG creation stage, but
+     * cannot be applied until the PDG creation stage.
+     */
     public interface PDGConnection {
+        /** Apply the connection in the given PDG.
+         *  This action can be performed multiple times, but the connection will only be made once. */
         void apply(JSysPDG graph);
     }
 }

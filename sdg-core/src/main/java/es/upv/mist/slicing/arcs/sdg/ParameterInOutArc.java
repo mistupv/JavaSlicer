@@ -38,6 +38,9 @@ public class ParameterInOutArc extends InterproceduralArc {
         return graphNode;
     }
 
+    /** Represents an input/output arc with an additional traversal restriction.
+     *  It merges the functions of an interprocedural input/output arc and an
+     *  object-flow arc. */
     public static class ObjectFlow extends ParameterInOutArc {
         @Override
         public boolean isObjectFlow() {
