@@ -5,7 +5,6 @@ import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.UnsolvedSymbolException;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
-import com.github.javaparser.symbolsolver.javaparsermodel.declarations.JavaParserSymbolDeclaration;
 import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.arcs.pdg.DataDependencyArc;
 import es.upv.mist.slicing.graphs.Graph;
@@ -41,8 +40,6 @@ public abstract class VariableAction {
             if (resolved.isParameter())
                 return PARAMETER;
             if (resolved.isVariable())
-                return LOCAL_VARIABLE;
-            if (resolved instanceof JavaParserSymbolDeclaration)
                 return LOCAL_VARIABLE;
             throw new IllegalArgumentException("Invalid resolved value declaration");
         }
