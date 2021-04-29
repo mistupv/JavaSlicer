@@ -55,6 +55,10 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex, ClassGrap
         return vertexDeclarationMap.get(mapKey(declaration, ASTUtils.getClassNode(declaration)));
     }
 
+    public boolean containsType(ResolvedReferenceType type) {
+        return vertexDeclarationMap.containsKey(mapKey(type));
+    }
+
     public Set<MethodDeclaration> overriddenSetOf(MethodDeclaration method) {
         return subclassesStreamOf(classVertexOf(findMethodVertex(method)))
                 .flatMap(vertex -> outgoingEdgesOf(vertex).stream()

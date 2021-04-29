@@ -99,6 +99,16 @@ public class ASTUtils {
         throw new IllegalStateException("The method must have a body!");
     }
 
+    public static ResolvedType getCallResolveType(Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
+        if (call instanceof MethodCallExpr)
+            return ((MethodCallExpr) call).calculateResolvedType();
+        if (call instanceof ObjectCreationExpr)
+            return ((ObjectCreationExpr) call).calculateResolvedType();
+        if (call instanceof ExplicitConstructorInvocationStmt)
+            return resolvedTypeDeclarationToResolvedType(((ExplicitConstructorInvocationStmt) call).resolve().declaringType());
+        throw new IllegalArgumentException("Call wasn't of a compatible type!");
+    }
+
     public static Optional<Expression> getResolvableScope(Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
         if (call instanceof MethodCallExpr)
             return ((MethodCallExpr) call).getScope();

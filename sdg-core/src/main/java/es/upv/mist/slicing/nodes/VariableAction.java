@@ -1,22 +1,23 @@
 package es.upv.mist.slicing.nodes;
 
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.UnsolvedSymbolException;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
+import com.github.javaparser.resolution.types.ResolvedType;
 import com.github.javaparser.symbolsolver.javaparsermodel.declarations.JavaParserSymbolDeclaration;
 import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.arcs.pdg.DataDependencyArc;
+import es.upv.mist.slicing.graphs.ClassGraph;
 import es.upv.mist.slicing.graphs.Graph;
 import es.upv.mist.slicing.graphs.jsysdg.JSysDG;
 import es.upv.mist.slicing.graphs.jsysdg.JSysPDG;
 import es.upv.mist.slicing.graphs.pdg.PDG;
+import es.upv.mist.slicing.utils.ASTUtils;
 
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static es.upv.mist.slicing.nodes.VariableAction.DeclarationType.*;
@@ -65,7 +66,9 @@ public abstract class VariableAction {
 
     protected final String name;
     protected final DeclarationType declarationType;
+    protected final Set<ResolvedType> dynamicTypes = new HashSet<>();
 
+    protected ResolvedType staticType;
     protected GraphNode<?> graphNode;
     protected ObjectTree objectTree;
     protected boolean optional = false;
@@ -156,6 +159,22 @@ public abstract class VariableAction {
         return isRootAction() && !hasObjectTree();
     }
 
+    public void setStaticType(ResolvedType staticType) {
+        this.staticType = staticType;
+        dynamicTypes.clear();
+        dynamicTypes.add(staticType);
+        if (staticType.isReferenceType() && ClassGraph.getInstance().containsType(staticType.asReferenceType())) {
+            ClassGraph.getInstance().subclassesOf(staticType.asReferenceType()).stream()
+                    .map(ClassOrInterfaceDeclaration::resolve)
+                    .map(ASTUtils::resolvedTypeDeclarationToResolvedType)
+                    .forEach(dynamicTypes::add);
+        }
+    }
+
+    public ResolvedType getStaticType() {
+        return staticType;
+    }
+
     // ======================================================
     // =================== OBJECT TREE ======================
     // ======================================================
@@ -199,13 +218,17 @@ public abstract class VariableAction {
             Movable movable = (Movable) this;
             return new Movable(movable.inner.getRootAction(), movable.getRealNode());
         }
+        VariableAction action;
         if (this instanceof Usage)
-            return new Usage(declarationType, ObjectTree.removeFields(name), graphNode);
-        if (this instanceof Definition)
-            return new Definition(declarationType, ObjectTree.removeFields(name), graphNode, asDefinition().expression);
-        if (this instanceof Declaration)
+            action = new Usage(declarationType, ObjectTree.removeFields(name), graphNode);
+        else if (this instanceof Definition)
+            action = new Definition(declarationType, ObjectTree.removeFields(name), graphNode, asDefinition().expression);
+        else if (this instanceof Declaration)
             throw new UnsupportedOperationException("Can't create a root node for a declaration!");
-        throw new IllegalStateException("Invalid action type");
+        else
+            throw new IllegalStateException("Invalid action type");
+        action.setStaticType(staticType);
+        return action;
     }
 
     public boolean isRootAction() {
@@ -463,6 +486,16 @@ public abstract class VariableAction {
         @Override
         public boolean hasObjectTree() {
             return inner.objectTree != null;
+        }
+
+        @Override
+        public void setStaticType(ResolvedType staticType) {
+            inner.setStaticType(staticType);
+        }
+
+        @Override
+        public ResolvedType getStaticType() {
+            return inner.getStaticType();
         }
 
         /** The final location of this action. This node may not yet be present
