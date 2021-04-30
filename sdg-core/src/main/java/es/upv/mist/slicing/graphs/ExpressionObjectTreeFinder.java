@@ -196,14 +196,14 @@ public class ExpressionObjectTreeFinder {
                 visitCall(n, arg);
             }
 
-            protected void visitCall(Expression call, String arg) {
-                if (ASTUtils.shouldVisitArgumentsForMethodCalls((Resolvable<? extends ResolvedMethodLikeDeclaration>) call))
+            protected void visitCall(Resolvable<? extends ResolvedMethodLikeDeclaration> call, String arg) {
+                if (ASTUtils.shouldVisitArgumentsForMethodCalls(call))
                     return;
                 VariableAction lastUseOut = null;
                 for (VariableAction variableAction : graphNode.getVariableActions()) {
                     if (variableAction instanceof VariableAction.CallMarker) {
                         VariableAction.CallMarker marker = (VariableAction.CallMarker) variableAction;
-                        if (ASTUtils.equalsWithRange((Node) marker.getCall(), call) && !marker.isEnter()) {
+                        if (ASTUtils.equalsWithRange((Node) marker.getCall(), (Node) call) && !marker.isEnter()) {
                             assert lastUseOut != null;
                             list.add(new Pair<>(lastUseOut, arg));
                             return;
@@ -252,7 +252,10 @@ public class ExpressionObjectTreeFinder {
         VariableAction sourceAction = sourcePair.a;
         String sourceMember = sourcePair.b;
         if (targetAction.hasObjectTree()) {
-            ObjectTree.copyTargetTreeToSource(sourceAction.getObjectTree(), targetAction.getObjectTree(), sourceMember, targetMember);
+            boolean sourceTypesInClassGraph = sourceAction.getDynamicTypes().stream()
+                    .anyMatch(ClassGraph.getInstance()::containsType);
+            if (sourceTypesInClassGraph && !sourceAction.hasObjectTree())
+                ObjectTree.copyTargetTreeToSource(sourceAction.getObjectTree(), targetAction.getObjectTree(), sourceMember, targetMember);
             sourceAction.setPDGTreeConnectionTo(targetAction, sourceMember, targetMember);
         } else {
             sourceAction.setPDGValueConnection(sourceMember);

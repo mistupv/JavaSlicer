@@ -9,7 +9,10 @@ import es.upv.mist.slicing.graphs.sdg.SDG;
 import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.nodes.ObjectTree;
 
-import java.util.*;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -60,22 +63,21 @@ public class LineNumberCriterion implements SlicingCriterion {
             return locateAllNodes(graphNode, graph);
         return locateAllNodes(graphNode, graph)
                 .map(GraphNode::getVariableActions).flatMap(List::stream)
-                .map(variableAction -> {
+                .flatMap(variableAction -> {
                     if (variableAction.getName().equals(variable)) {
                         if (variableAction.hasObjectTree())
-                            return variableAction.getObjectTree().getMemberNode();
+                            return Stream.of(variableAction.getObjectTree().getMemberNode());
                         else
-                            return variableAction.getGraphNode();
+                            return Stream.of(variableAction.getGraphNode());
                     } else if (variable.contains(".") && variableAction.getName().equals(ObjectTree.removeFields(variable))) {
-                        if (variableAction.hasTreeMember(variable))
-                            return variableAction.getObjectTree().getNodeFor(variable);
+                        if (variableAction.hasPolyTreeMember(variable))
+                            return variableAction.getObjectTree().getNodesForPoly(variable).stream();
                         else
-                            return null;
+                            return Stream.empty();
                     } else {
-                        return null;
+                        return Stream.empty();
                     }
-                })
-                .filter(Objects::nonNull);
+                });
     }
 
     protected Stream<GraphNode<?>> locateAllNodes(GraphNode<?> graphNode, SDG graph) {

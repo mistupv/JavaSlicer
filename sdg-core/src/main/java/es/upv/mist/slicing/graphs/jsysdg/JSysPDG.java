@@ -54,8 +54,8 @@ public class JSysPDG extends ESPDG {
     }
 
     protected void addDeclarationFlowDependencyArc(VariableAction declaration, VariableAction definition) {
-        MemberNode defMember = definition.getObjectTree().getNodeFor(declaration.getName());
-        addEdge(graphNodeOf(declaration), defMember, new FlowDependencyArc());
+        for (MemberNode target : definition.getObjectTree().getNodesForPoly(declaration.getName()))
+            addEdge(graphNodeOf(declaration), target, new FlowDependencyArc());
     }
 
     // definicion de miembro --flow--> uso de miembro

@@ -99,7 +99,8 @@ public class ASTUtils {
         throw new IllegalStateException("The method must have a body!");
     }
 
-    public static ResolvedType getCallResolveType(Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
+    /** Compute the resolved type that is returned from a given method call. */
+    public static ResolvedType getCallResolvedType(Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
         if (call instanceof MethodCallExpr)
             return ((MethodCallExpr) call).calculateResolvedType();
         if (call instanceof ObjectCreationExpr)

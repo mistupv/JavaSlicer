@@ -2,6 +2,7 @@ package es.upv.mist.slicing.nodes;
 
 import es.upv.mist.slicing.arcs.pdg.FlowDependencyArc;
 import es.upv.mist.slicing.graphs.jsysdg.JSysPDG;
+import es.upv.mist.slicing.nodes.oo.MemberNode;
 
 import static es.upv.mist.slicing.nodes.ObjectTree.ROOT_NAME;
 
@@ -23,7 +24,8 @@ public class ValueConnection implements VariableAction.PDGConnection {
             statementNode = ((VariableAction.Movable) action).getRealNode();
         else
             statementNode = action.getGraphNode();
-        if (action.hasTreeMember(member))
-            graph.addEdge(action.getObjectTree().getNodeFor(member), statementNode, new FlowDependencyArc());
+        if (action.hasPolyTreeMember(member))
+            for (MemberNode source : action.getObjectTree().getNodesForPoly(member))
+                graph.addEdge(source, statementNode, new FlowDependencyArc());
     }
 }

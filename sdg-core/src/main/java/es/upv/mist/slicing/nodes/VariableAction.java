@@ -175,16 +175,32 @@ public abstract class VariableAction {
         return staticType;
     }
 
+    public Set<ResolvedType> getDynamicTypes() {
+        return dynamicTypes;
+    }
+
     // ======================================================
     // =================== OBJECT TREE ======================
     // ======================================================
 
+    /** Whether there is an object tree and it contains the given member.
+     *  The search will match exactly the argument given in the tree's structure. */
     public boolean hasTreeMember(String member) {
         if (member.isEmpty())
             return hasObjectTree();
         if (!hasObjectTree())
             return false;
         return getObjectTree().hasMember(member);
+    }
+
+    /** Whether there is an object tree and it contains the given member.
+     *  The search will skip polymorphic nodes if they haven't been specified in the argument. */
+    public boolean hasPolyTreeMember(String member) {
+        if (member.isEmpty())
+            return hasObjectTree();
+        if (!hasObjectTree())
+            return false;
+        return getObjectTree().hasPolyMember(member);
     }
 
     public boolean hasObjectTree() {
@@ -496,6 +512,11 @@ public abstract class VariableAction {
         @Override
         public ResolvedType getStaticType() {
             return inner.getStaticType();
+        }
+
+        @Override
+        public Set<ResolvedType> getDynamicTypes() {
+            return inner.getDynamicTypes();
         }
 
         /** The final location of this action. This node may not yet be present
