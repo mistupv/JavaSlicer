@@ -43,7 +43,7 @@ public class Example {
 The program can be saved to `Example.java`, and the slicer run with:
 
 ```
-java -jar sdg-cli.jar -c Example.java#11:sum -t SDG
+java -jar sdg-cli.jar -c Example.java#11:sum
 ```
 
 A more detailed description of the available options can be seen with:
@@ -57,7 +57,7 @@ java -jar sdg-cli.jar --help
 Our slicer requires the input Java program to be compilable, so all libraries must be provided using the `-i` flag. For the cases where the source code is not available, you may include the required libraries in the Java classpath by using the following call:
 
 ```
-java -cp sdg-cli.jar:your-libraries.jar es.upv.slicing.cli.Slicer -c Example.java#11:sum -t SDG
+java -cp sdg-cli.jar:your-libraries.jar es.upv.slicing.cli.Slicer -c Example.java#11:sum
 ```
 
 This approach produces lower quality slices, as the contents of the library calls are unknown.
