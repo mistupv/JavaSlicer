@@ -643,7 +643,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
      *  to new object tree with polymorphic nodes.
      *  @see #generatePolyTrees(GraphNode) */
     protected void polyUnit(ObjectTree oldOT, ObjectTree newOT, Set<ResolvedType> types, ClassGraph classGraph) {
-        boolean skipPolyNodes = types.stream().noneMatch(classGraph::containsType) || oldOT.hasChildren() || oldOT.hasPoly();
+        boolean skipPolyNodes = types.stream().noneMatch(classGraph::containsType) || !oldOT.hasChildren() || oldOT.hasPoly();
         if (skipPolyNodes) {
             // Copy as-is
             newOT.addAll(oldOT);
