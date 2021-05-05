@@ -11,9 +11,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static es.upv.mist.slicing.graphs.cfg.CFGBuilder.VARIABLE_NAME_OUTPUT;
-import static es.upv.mist.slicing.graphs.exceptionsensitive.ESCFG.ACTIVE_EXCEPTION_VARIABLE;
-
 /**
  * A tree data structure that mimics the tree found in an object's fields.
  * Each tree contains a MemberNode that represents its, including a name.
@@ -29,7 +26,7 @@ public class ObjectTree implements Cloneable {
     public static final String ROOT_NAME = "-root-";
 
     /** Regex pattern to split the root from the fields of a field access expression. */
-    private static final Pattern FIELD_SPLIT = Pattern.compile("^(?<root>(([_0-9A-Za-z]+\\.)*this)|([_0-9A-Za-z]+)|(" + ROOT_NAME + ")|(" + VARIABLE_NAME_OUTPUT + ")|(" + ACTIVE_EXCEPTION_VARIABLE + "))(\\.(?<fields>.+))?$");
+    private static final Pattern FIELD_SPLIT = Pattern.compile("^(?<root>(([_0-9A-Za-z]+\\.)*this)|(?<dash>(-?))([_0-9A-Za-z]+\\k<dash>)+)(\\.(?<fields>.+))?$");
 
     /** Direct children of this tree node, mapped by field name. */
     private final Map<String, ObjectTree> childrenMap = new HashMap<>();

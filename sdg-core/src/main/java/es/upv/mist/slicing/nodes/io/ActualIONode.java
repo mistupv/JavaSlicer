@@ -1,11 +1,9 @@
 package es.upv.mist.slicing.nodes.io;
 
 import com.github.javaparser.ast.Node;
-import com.github.javaparser.ast.body.BodyDeclaration;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
-import es.upv.mist.slicing.utils.ASTUtils;
 
 import java.util.Objects;
 
@@ -28,15 +26,7 @@ public class ActualIONode extends IONode<Node> {
                 // 2. Our variables must match (type + name)
                 && Objects.equals(variableName, o.variableName)
                 // 3. in matches in, out matches out
-                && isInput() == o.isInput()
-                // 4. The method call must resolve to the method declaration of the argument.
-                && Objects.equals(o.getAstNode(), resolvedASTNode());
-    }
-
-    @SuppressWarnings("unchecked")
-    protected BodyDeclaration<?> resolvedASTNode() {
-        return ASTUtils.getResolvedAST(((Resolvable<? extends ResolvedMethodLikeDeclaration>) astNode).resolve())
-                .orElse(null);
+                && isInput() == o.isInput();
     }
 
     @Override

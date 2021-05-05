@@ -475,6 +475,10 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
                         acceptAction(FIELD, "this", USE);
                         graphNode.getLastVariableAction().setStaticType(ASTUtils.resolvedTypeDeclarationToResolvedType(((MethodCallExpr) call).findAncestor(ClassOrInterfaceDeclaration.class).orElseThrow().resolve()));
                     });
+            // Generate -scope-in- action, so that InterproceduralUsageFinder does not need to do so.
+            VariableAction.Definition def = new VariableAction.Definition(VariableAction.DeclarationType.SYNTHETIC, "-scope-in-", graphNode);
+            VariableAction.Movable movDef = new VariableAction.Movable(def, scopeIn);
+            graphNode.addVariableAction(movDef);
             realNodeStack.pop();
         }
         // Args
@@ -485,6 +489,10 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
             graphNode.addSyntheticNode(actualIn);
             realNodeStack.push(actualIn);
             argument.accept(this, action);
+            // Generate -arg-in- action, so that InterproceduralUsageFinder does not need to do so.
+            VariableAction.Definition def = new VariableAction.Definition(VariableAction.DeclarationType.SYNTHETIC, "-arg-in-", graphNode);
+            VariableAction.Movable movDef = new VariableAction.Movable(def, actualIn);
+            graphNode.addVariableAction(movDef);
             realNodeStack.pop();
         }
         // Return
