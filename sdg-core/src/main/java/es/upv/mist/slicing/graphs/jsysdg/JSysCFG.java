@@ -77,7 +77,7 @@ public class JSysCFG extends ESCFG {
     /** Given a field declaration, locate all definitions that affect the given member. */
     public List<VariableAction> findAllFutureObjectDefinitionsFor(VariableAction action) {
         List<VariableAction> list = new LinkedList<>();
-        Predicate<VariableAction> filter = a -> a.isDefinition() && a.getName().equals("this") && a.hasTreeMember(action.getName());
+        Predicate<VariableAction> filter = a -> a.isDefinition() && a.getName().equals("this") && a.hasPolyTreeMember(action.getName());
         findAllFutureVarActionsFor(new HashSet<>(), list, action.getGraphNode(), action, filter);
         return list;
     }

@@ -81,7 +81,7 @@ public class ExpressionObjectTreeFinder {
                 else if (foundDecl)
                     return lastDef;
             } else if (a.isDefinition() && a.getName().equals(root)) {
-                if (root.equals(realName) || a.hasTreeMember(realName))
+                if (root.equals(realName) || a.hasPolyTreeMember(realName))
                     lastDef = a;
             }
         }
