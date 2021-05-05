@@ -44,21 +44,28 @@ public class InterproceduralDefinitionFinder extends InterproceduralActionFinder
             Optional<Expression> arg = extractArgument(def, edge, false);
             if (arg.isEmpty())
                 return;
-            ActualIONode actualOut = ActualIONode.createActualOut(edge.getCall(), def.getName(), arg.get());
+            ActualIONode actualOut = locateActualOutNode(edge, def.getName())
+                    .orElseGet(() -> ActualIONode.createActualOut(edge.getCall(), def.getName(), arg.get()));
             extractOutputVariablesAsMovables(arg.get(), movables, graphNode, actualOut, def);
         } else if (def.isField()) {
             if (def.isStatic()) {
                 // Known limitation: static fields
             } else {
                 assert !(edge.getCall() instanceof ObjectCreationExpr);
-                ActualIONode actualOut = ActualIONode.createActualOut(edge.getCall(), def.getName(), null);
+                ActualIONode actualOut = locateActualOutNode(edge, def.getName())
+                        .orElseGet(() -> ActualIONode.createActualOut(edge.getCall(), def.getName(), null));
                 Optional<Expression> scope = ASTUtils.getResolvableScope(edge.getCall());
                 if (scope.isPresent()) {
                     extractOutputVariablesAsMovables(scope.get(), movables, graphNode, actualOut, def);
                 } else {
                     assert def.hasObjectTree();
-                    var movableDef = new Definition(DeclarationType.FIELD, "this", graphNode, (ObjectTree) def.getObjectTree().clone());
-                    movables.add(new Movable(movableDef, actualOut));
+                    Optional<VariableAction> optVA = locateDefinition(graphNode, "this");
+                    if (optVA.isPresent())
+                        optVA.get().getObjectTree().addAll(def.getObjectTree());
+                    else {
+                        var movableDef = new Definition(DeclarationType.FIELD, "this", graphNode, (ObjectTree) def.getObjectTree().clone());
+                        movables.add(new Movable(movableDef, actualOut));
+                    }
                 }
             }
         } else {
@@ -75,12 +82,36 @@ public class InterproceduralDefinitionFinder extends InterproceduralActionFinder
         e.accept(new OutNodeVariableVisitor(), defExpressions);
         for (Expression expression : defExpressions) {
             assert def.hasObjectTree();
-            DeclarationType type = DeclarationType.valueOf(expression);
-            Definition inner = new Definition(type, expression.toString(), graphNode, (ObjectTree) def.getObjectTree().clone());
-            if (defExpressions.size() > 1)
-                inner.setOptional(true);
-            movables.add(new Movable(inner, actualOut));
+            Optional<VariableAction> optVa = locateDefinition(graphNode, expression.toString());
+            if (optVa.isPresent()) {
+                optVa.get().getObjectTree().addAll(def.getObjectTree());
+            } else {
+                DeclarationType type = DeclarationType.valueOf(expression);
+                Definition inner = new Definition(type, expression.toString(), graphNode, (ObjectTree) def.getObjectTree().clone());
+                if (defExpressions.size() > 1)
+                    inner.setOptional(true);
+                movables.add(new Movable(inner, actualOut));
+            }
         }
+    }
+
+    /** Find the actual out node in the given edge call that corresponds to the given variable name. */
+    protected Optional<ActualIONode> locateActualOutNode(CallGraph.Edge<?> edge, String name) {
+        return edge.getGraphNode().getSyntheticNodesInMovables().stream()
+                .filter(ActualIONode.class::isInstance)
+                .map(ActualIONode.class::cast)
+                .filter(ActualIONode::isOutput)
+                .filter(actual -> actual.getVariableName().equals(name))
+                .filter(actual -> ASTUtils.equalsWithRange(actual.getAstNode(), edge.getCall()))
+                .findFirst();
+    }
+
+    /** Try to locate the definition for the given variable name in the given node. */
+    protected Optional<VariableAction> locateDefinition(GraphNode<?> graphNode, String name) {
+        return graphNode.getVariableActions().stream()
+                .filter(va -> va.getName().equals(name))
+                .filter(VariableAction::isDefinition)
+                .findAny();
     }
 
     @Override

@@ -1,6 +1,5 @@
 package es.upv.mist.slicing.graphs;
 
-import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
@@ -203,7 +202,7 @@ public class ExpressionObjectTreeFinder {
                 for (VariableAction variableAction : graphNode.getVariableActions()) {
                     if (variableAction instanceof VariableAction.CallMarker) {
                         VariableAction.CallMarker marker = (VariableAction.CallMarker) variableAction;
-                        if (ASTUtils.equalsWithRange((Node) marker.getCall(), (Node) call) && !marker.isEnter()) {
+                        if (ASTUtils.equalsWithRange(marker.getCall(), call) && !marker.isEnter()) {
                             assert lastUseOut != null;
                             list.add(new Pair<>(lastUseOut, arg));
                             return;

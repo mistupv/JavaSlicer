@@ -43,12 +43,26 @@ public class ASTUtils {
         return n1.equals(n2) && equalsWithRange(d1, d2);
     }
 
+    /** @see #equalsWithRange(Node, Node) */
+    public static boolean equalsWithRange(Resolvable<? extends ResolvedMethodLikeDeclaration> n1, Resolvable<? extends ResolvedMethodLikeDeclaration> n2) {
+        return equalsWithRange((Node) n1, (Node) n2);
+    }
+
+    /** @see #equalsWithRange(Node, Node) */
+    public static boolean equalsWithRange(Node n1, Resolvable<? extends ResolvedMethodLikeDeclaration> n2) {
+        return equalsWithRange(n1, (Node) n2);
+    }
+
+    /** Compares two JavaParser nodes and their ranges (position in the file). If you need to compare between nodes
+     *  from different files, you may want to use {@link #equalsWithRangeInCU(Node, Node)} */
     public static boolean equalsWithRange(Node n1, Node n2) {
         if (n1 == null || n2 == null)
             return n1 == n2;
         return Objects.equals(n1.getRange(), n2.getRange()) && Objects.equals(n1, n2);
     }
 
+    /** Compares two JavaParser nodes, their ranges (position in the file) and compilation units (file they're in).
+     *  If the nodes belong to the same CU or have no CU, you can use {@link #equalsWithRange(Node, Node)}*/
     public static boolean equalsWithRangeInCU(Node n1, Node n2) {
         if (n1 == null || n2 == null)
             return n1 == n2;
