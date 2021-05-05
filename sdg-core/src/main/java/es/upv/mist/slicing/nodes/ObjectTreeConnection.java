@@ -9,6 +9,8 @@ import es.upv.mist.slicing.graphs.jsysdg.JSysDG;
 import es.upv.mist.slicing.graphs.jsysdg.JSysPDG;
 import es.upv.mist.slicing.nodes.oo.MemberNode;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.function.Supplier;
 
 /** A connection between two object trees. This object can specify the connection between two different
@@ -46,37 +48,38 @@ class ObjectTreeConnection implements VariableAction.PDGConnection {
     }
 
     protected void connectTrees(Graph graph, Supplier<Arc> flowSupplier, Supplier<Arc> objFlowSupplier) {
-        Supplier<Arc> valueSupplier = flowSupplier;
-        ObjectTree source = null, target = null;
-        GraphNode<?> rootSrc, rootTgt;
+        Collection<ObjectTree> source = Collections.singleton(null);
+        Collection<ObjectTree> target = Collections.singleton(null);
         assert sourceMember.isEmpty() || sourceAction.hasObjectTree();
         assert targetMember.isEmpty() || targetAction.hasObjectTree();
-        if (sourceAction.hasObjectTree()) {
-            source = sourceAction.getObjectTree().findObjectTreeOfMember(sourceMember);
-            rootSrc = source.getMemberNode();
-        } else {
-            rootSrc = sourceAction.getGraphNode();
-        }
-        if (targetAction.hasObjectTree()) {
-            target = targetAction.getObjectTree().findObjectTreeOfMember(targetMember);
-            rootTgt = target.getMemberNode();
-        } else {
-            rootTgt = targetAction.getGraphNode();
-        }
+        if (sourceAction.hasObjectTree())
+            source = sourceAction.getObjectTree().findObjectTreeOfPolyMember(sourceMember);
+        if (targetAction.hasObjectTree())
+            target = targetAction.getObjectTree().findObjectTreeOfPolyMember(targetMember);
+        for (ObjectTree treeSrc : source)
+            for (ObjectTree treeTgt : target)
+                connectOT(treeSrc, treeTgt,
+                        treeSrc != null ? treeSrc.getMemberNode() : sourceAction.getGraphNode(),
+                        treeTgt != null ? treeTgt.getMemberNode() : targetAction.getGraphNode(),
+                        graph, flowSupplier, objFlowSupplier);
+    }
+
+    private void connectOT(ObjectTree source, ObjectTree target, GraphNode<?> rootSrc, GraphNode<?> rootTgt,
+                           Graph graph, Supplier<Arc> flowSupplier, Supplier<Arc> objFlowSupplier) {
         if (source == null || target == null) {
             if (!rootSrc.equals(rootTgt))
-                graph.addEdge(rootSrc, rootTgt, valueSupplier.get());
+                graph.addEdge(rootSrc, rootTgt, flowSupplier.get());
         } else {
             graph.addEdge(rootSrc, rootTgt, objFlowSupplier.get());
-            graph.addEdge(rootSrc, rootTgt, valueSupplier.get());
-            for (ObjectTree tree : target.treeIterable()) {
-                MemberNode src = source.getNodeForNonRoot(tree.getMemberName());
-                MemberNode tgt = tree.getMemberNode();
-                if (tree.hasChildren()) {
+            graph.addEdge(rootSrc, rootTgt, flowSupplier.get());
+            for (String treeMember : target.nameIterable()) {
+                if (!source.hasMember(treeMember))
+                    continue;
+                MemberNode src = source.getNodeFor(treeMember);
+                MemberNode tgt = target.getNodeFor(treeMember);
+                if (target.hasChildren(treeMember))
                     graph.addEdge(src, tgt, objFlowSupplier.get());
-                    graph.addEdge(src, tgt, valueSupplier.get());
-                } else
-                    graph.addEdge(src, tgt, flowSupplier.get());
+                graph.addEdge(src, tgt, flowSupplier.get());
             }
         }
     }

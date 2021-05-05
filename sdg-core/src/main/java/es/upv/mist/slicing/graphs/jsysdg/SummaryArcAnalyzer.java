@@ -31,11 +31,8 @@ public class SummaryArcAnalyzer extends AbstractSummaryArcAnalyzer<SyntheticNode
                 continue;
             assert node.getVariableActions().size() == 1;
             VariableAction action = node.getVariableActions().get(0);
-            if (action.hasObjectTree()) {
-                set.add(action.getObjectTree().getMemberNode());
-                for (MemberNode memberNode : action.getObjectTree().nodeIterable())
-                    set.add(memberNode);
-            }
+            if (action.hasObjectTree())
+                set.addAll(action.getObjectTree().leaves());
         }
         return set;
     }

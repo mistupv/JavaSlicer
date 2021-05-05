@@ -1,10 +1,7 @@
 package es.upv.mist.slicing.nodes;
 
 import com.github.javaparser.ast.Node;
-import com.github.javaparser.ast.body.CallableDeclaration;
-import com.github.javaparser.ast.body.FieldDeclaration;
-import com.github.javaparser.ast.body.Parameter;
-import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.nodeTypes.NodeWithArguments;
 import com.github.javaparser.ast.stmt.*;
@@ -14,6 +11,7 @@ import com.github.javaparser.resolution.UnsolvedSymbolException;
 import com.github.javaparser.resolution.declarations.AssociableToAST;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
+import com.github.javaparser.resolution.types.ResolvedType;
 import com.github.javaparser.symbolsolver.javaparsermodel.declarations.JavaParserMethodDeclaration;
 import es.upv.mist.slicing.graphs.ClassGraph;
 import es.upv.mist.slicing.graphs.ExpressionObjectTreeFinder;
@@ -24,10 +22,8 @@ import es.upv.mist.slicing.nodes.io.CallNode;
 import es.upv.mist.slicing.utils.ASTUtils;
 import es.upv.mist.slicing.utils.Logger;
 
-import java.util.Deque;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static es.upv.mist.slicing.graphs.cfg.CFGBuilder.VARIABLE_NAME_OUTPUT;
 import static es.upv.mist.slicing.graphs.exceptionsensitive.ESCFG.ACTIVE_EXCEPTION_VARIABLE;
@@ -76,11 +72,18 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     public void startVisit(GraphNode<?> node) {
         startVisit(node, USE);
         groupActionsByRoot(node);
+        generatePolyTrees(node);
     }
 
     @Override
     public void visit(NameExpr n, Action action) {
-        acceptAction(n, action);
+        String realName = getRealName(n);
+        if (realName.equals(n.toString())) {
+            acceptAction(n, action);
+        } else {
+            acceptAction(DeclarationType.valueOf(n), realName, action);
+            graphNode.getLastVariableAction().setStaticType(ASTUtils.resolvedTypeDeclarationToResolvedType(n.findAncestor(ClassOrInterfaceDeclaration.class).orElseThrow().resolve()));
+        }
     }
 
     @Override
@@ -110,14 +113,22 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         }
         // Only accept the field access as action if it is a sequence of names (a.b.c.d, this.a.b.c)
         // Otherwise, we traverse the scope to handle other structures (calls, arrays, etc).
-        if (scope.isNameExpr() || scope.isThisExpr())
-            acceptAction(n, action); // a.b.c.d
-        else
+        if (scope.isNameExpr() || scope.isThisExpr()) {
+            String realName = getRealName(n);
+            if (realName.equals(n.toString())) {
+                acceptAction(n, action); // a.b.c.d
+                vaSetStaticType(scope);
+            } else {
+                acceptAction(DeclarationType.valueOf(n), realName, action);
+                graphNode.getLastVariableAction().setStaticType(ASTUtils.resolvedTypeDeclarationToResolvedType(n.findAncestor(ClassOrInterfaceDeclaration.class).orElseThrow().resolve()));
+            }
+        } else
             n.getScope().accept(this, action); // this.call().c.d
     }
 
     protected void acceptAction(Expression n, Action action) {
         acceptAction(DeclarationType.valueOf(n), getRealName(n), action, false);
+        vaSetStaticType(n);
     }
 
     protected void acceptAction(DeclarationType declarationType, String realName, Action action) {
@@ -126,6 +137,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
 
     protected void acceptAction(Expression n, String realName, Action action) {
         acceptAction(DeclarationType.valueOf(n), realName, action, false);
+        vaSetStaticType(n);
     }
 
     protected void acceptActionNullDefinition(DeclarationType declarationType, String realName) {
@@ -179,6 +191,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         if (n.getExpression().isPresent()) {
             definitionStack.push(n.getExpression().get());
             acceptAction(SYNTHETIC, VARIABLE_NAME_OUTPUT, DEFINITION);
+            vaSetStaticType(n.getExpression().get());
             definitionStack.pop();
             graphNode.getLastVariableAction().asDefinition()
                     .setTotallyDefinedMember(ROOT_NAME);
@@ -190,6 +203,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         super.visit(n, arg);
         definitionStack.push(n.getExpression());
         acceptAction(SYNTHETIC, ACTIVE_EXCEPTION_VARIABLE, DEFINITION);
+        vaSetStaticType(n.getExpression());
         definitionStack.pop();
         var fields = ClassGraph.getInstance().generateObjectTreeFor(n.getExpression().calculateResolvedType().asReferenceType());
         graphNode.getLastVariableAction().getObjectTree().addAll(fields);
@@ -201,8 +215,10 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         n.getIterable().accept(this, USE);
         for (VariableDeclarator variable : n.getVariable().getVariables()) {
             acceptAction(LOCAL_VARIABLE, variable.getNameAsString(), DECLARATION);
+            graphNode.getLastVariableAction().setStaticType(variable.getType().resolve());
             // ForEach initializes to each value of the iterable, but that expression is not available.
             acceptActionNullDefinition(LOCAL_VARIABLE, variable.getNameAsString());
+            graphNode.getLastVariableAction().setStaticType(variable.getType().resolve());
         }
     }
 
@@ -254,8 +270,9 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
                     realNameWithoutRootList.add("");
                 } else {
                     String root = ObjectTree.removeFields(realName);
-                    acceptAction(nameExpr, root, DEFINITION);
+                    acceptAction(DeclarationType.valueOf(nameExpr), root, DEFINITION);
                     VariableAction.Definition def = getLastDefinition();
+                    def.setStaticType(ASTUtils.resolvedTypeDeclarationToResolvedType(nameExpr.findAncestor(ClassOrInterfaceDeclaration.class).orElseThrow().resolve()));
                     def.getObjectTree().addField(realName);
                     def.setTotallyDefinedMember(realName);
                     realNameWithoutRootList.add(ObjectTree.removeRoot(realName));
@@ -284,8 +301,10 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
                 definitionStack.push(n.getValue());
                 if (root.equals(scope.toString()))
                     acceptAction(scope, root, DEFINITION);
-                else
+                else {
                     acceptAction(FIELD, root, DEFINITION);
+                    graphNode.getLastVariableAction().setStaticType(ASTUtils.resolvedTypeDeclarationToResolvedType(fieldAccessExpr.findAncestor(ClassOrInterfaceDeclaration.class).orElseThrow().resolve()));
+                }
                 definitionStack.pop();
                 VariableAction.Definition def = getLastDefinition();
                 def.setTotallyDefinedMember(realName);
@@ -334,10 +353,12 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     public void visit(VariableDeclarationExpr n, Action action) {
         for (VariableDeclarator v : n.getVariables()) {
             acceptAction(LOCAL_VARIABLE, v.getNameAsString(), DECLARATION);
+            graphNode.getLastVariableAction().setStaticType(v.getType().resolve());
             v.getInitializer().ifPresent(init -> {
                 init.accept(this, action);
                 definitionStack.push(init);
                 acceptAction(LOCAL_VARIABLE, v.getNameAsString(), DEFINITION);
+                graphNode.getLastVariableAction().setStaticType(v.getType().resolve());
                 definitionStack.pop();
                 if (v.getType().isClassOrInterfaceType())
                     getLastDefinition().setTotallyDefinedMember(v.getNameAsString());
@@ -348,13 +369,16 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
 
     @Override
     public void visit(FieldDeclaration n, Action action) {
+        ResolvedType staticType = ASTUtils.resolvedTypeDeclarationToResolvedType(n.findAncestor(ClassOrInterfaceDeclaration.class).orElseThrow().resolve());
         for (VariableDeclarator v : n.getVariables()) {
             String realName = getRealNameForFieldDeclaration(v);
             acceptAction(FIELD, realName, DECLARATION);
+            graphNode.getLastVariableAction().setStaticType(staticType);
             Expression init = v.getInitializer().orElseGet(() -> ASTUtils.initializerForField(n));
             init.accept(this, action);
             definitionStack.push(init);
             acceptAction(FIELD, realName, DEFINITION);
+            graphNode.getLastVariableAction().setStaticType(staticType);
             definitionStack.pop();
             if (v.getType().isClassOrInterfaceType())
                 getLastDefinition().setTotallyDefinedMember(realName);
@@ -382,7 +406,9 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     @Override
     public void visit(Parameter n, Action arg) {
         acceptAction(PARAMETER, n.getNameAsString(), DECLARATION);
+        graphNode.getLastVariableAction().setStaticType(n.getType().resolve());
         acceptActionNullDefinition(PARAMETER, n.getNameAsString());
+        graphNode.getLastVariableAction().setStaticType(n.getType().resolve());
     }
 
     // =======================================================================
@@ -401,10 +427,12 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     public void visit(ExplicitConstructorInvocationStmt n, Action arg) {
         if (visitCall(n, arg)) {
             acceptAction(FIELD, "this", DECLARATION);
+            graphNode.getLastVariableAction().setStaticType(ASTUtils.resolvedTypeDeclarationToResolvedType(ASTUtils.getClassNode(n).resolve()));
             super.visit(n, arg);
         }
         // Regardless of whether it resolves or not, 'this' is defined
         acceptActionNullDefinition(FIELD, "this");
+        graphNode.getLastVariableAction().setStaticType(ASTUtils.resolvedTypeDeclarationToResolvedType(ASTUtils.getClassNode(n).resolve()));
         // setup a connection between USE(-output-) and DEF(this)
         List<VariableAction> vaList = graphNode.getVariableActions();
         if (vaList.size() >= 5) { // call-super, DEC(this), USE(-output-), ret-super, DEF(this)
@@ -433,15 +461,20 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         // Start
         graphNode.addCallMarker(call, true);
         // Scope
-        if (call instanceof ExplicitConstructorInvocationStmt)
+        if (call instanceof ExplicitConstructorInvocationStmt) {
             acceptAction(FIELD, "this", DECLARATION);
+            graphNode.getLastVariableAction().setStaticType(ASTUtils.resolvedTypeDeclarationToResolvedType(((ExplicitConstructorInvocationStmt) call).findAncestor(ClassOrInterfaceDeclaration.class).orElseThrow().resolve()));
+        }
         if (call instanceof MethodCallExpr && !((JavaParserMethodDeclaration) call.resolve()).isStatic()) {
             ActualIONode scopeIn = ActualIONode.createActualIn(call, "this", ((MethodCallExpr) call).getScope().orElse(null));
             graphNode.addSyntheticNode(scopeIn);
             realNodeStack.push(scopeIn);
             ASTUtils.getResolvableScope(call).ifPresentOrElse(
                     scope -> scope.accept(this, action),
-                    () -> acceptAction(FIELD, "this", USE));
+                    () -> {
+                        acceptAction(FIELD, "this", USE);
+                        graphNode.getLastVariableAction().setStaticType(ASTUtils.resolvedTypeDeclarationToResolvedType(((MethodCallExpr) call).findAncestor(ClassOrInterfaceDeclaration.class).orElseThrow().resolve()));
+                    });
             realNodeStack.pop();
         }
         // Args
@@ -470,12 +503,15 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
                 fields.map(tree -> (ObjectTree) tree.clone()).orElse(null));
         def.setTotallyDefinedMember(ROOT_NAME);
         var defMov = new VariableAction.Movable(def, CallNode.Return.create(call));
+        defMov.setStaticType(ASTUtils.getCallResolvedType(call));
         graphNode.addVariableAction(defMov);
         // The container of the call uses -output-, unless the call is wrapped in an ExpressionStmt
         Optional<Node> parentNode = ((Node) call).getParentNode();
-        if (parentNode.isEmpty() || !(parentNode.get() instanceof ExpressionStmt))
+        if (parentNode.isEmpty() || !(parentNode.get() instanceof ExpressionStmt)) {
             graphNode.addVariableAction(new VariableAction.Usage(SYNTHETIC, VARIABLE_NAME_OUTPUT, graphNode,
                     fields.map(tree -> (ObjectTree) tree.clone()).orElse(null)));
+            graphNode.getLastVariableAction().setStaticType(ASTUtils.getCallResolvedType(call));
+        }
     }
 
     protected Optional<ObjectTree> getFieldsForReturn(Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
@@ -550,7 +586,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
                 // in the first, we can use the expression to obtain the 'type.this' or 'object_name'
                 // in the second, the expression is null but we can extract 'type.this' from realName
             } else if (!action.rootMatches(lastRootAction)
-                    || !typeMatches(action, lastRootAction)) {
+                    || !actionTypeMatches(action, lastRootAction)) {
                 // No match: add the root before the current element and update counter
                 graphNode.variableActions.add(i, lastRootAction);
                 i++;
@@ -566,13 +602,78 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
             graphNode.variableActions.add(lastRootAction);
     }
 
-    private static boolean typeMatches(VariableAction a, VariableAction b) {
+    /** Whether two variable actions perform the same action. */
+    private static boolean actionTypeMatches(VariableAction a, VariableAction b) {
         return (a.isDeclaration() && b.isDeclaration()) ||
                 (a.isDefinition() && b.isDefinition()) ||
                 (a.isUsage() && b.isUsage());
     }
 
+    /** Obtain the last variable action in the current graph node, cast to definition. */
     protected VariableAction.Definition getLastDefinition() {
         return graphNode.getLastVariableAction().asDefinition();
+    }
+
+    /** Set the static type of the last variable action in the current graph node to
+     *  the static type of the given expression. */
+    protected void vaSetStaticType(Expression e) {
+        graphNode.getLastVariableAction().setStaticType(e.calculateResolvedType());
+    }
+
+    /** Given a graph node, modify the existing object trees in each variable action
+     *  to include polymorphic nodes, according to the dynamic types that are included.
+     *  <br>
+     *  <b>Static variable actions are excluded from this process.</b>
+     *  <br>
+     *  Polymorphic nodes are only generated if (a) at least one of the dynamic types is
+     *  contained in the class graph, (b) the polymorphic variable has fields and (c) there
+     *  aren't any polymorphic nodes in the object tree already. */
+    protected void generatePolyTrees(GraphNode<?> graphNode) {
+        ClassGraph classGraph = ClassGraph.getInstance();
+        for (VariableAction va : graphNode.getVariableActions()) {
+            if (va.isStatic() || !va.hasObjectTree())
+                continue;
+            ObjectTree newTree = new ObjectTree(va.getName());
+            polyUnit(va.getObjectTree(), newTree, va.getDynamicTypes(), classGraph);
+            va.setObjectTree(newTree);
+        }
+    }
+
+    /** Handle a single level of conversion between object tree without polymorphic nodes
+     *  to new object tree with polymorphic nodes.
+     *  @see #generatePolyTrees(GraphNode) */
+    protected void polyUnit(ObjectTree oldOT, ObjectTree newOT, Set<ResolvedType> types, ClassGraph classGraph) {
+        boolean skipPolyNodes = types.stream().noneMatch(classGraph::containsType) || !oldOT.hasChildren() || oldOT.hasPoly();
+        if (skipPolyNodes) {
+            // Copy as-is
+            newOT.addAll(oldOT);
+        } else {
+            // Copy with typing information
+            for (ResolvedType rt : types) {
+                boolean rtInGraph = classGraph.containsType(rt);
+                ObjectTree typeRoot = newOT.addType(rt);
+                // Insert type node and copy members over
+                for (Map.Entry<String,ObjectTree> entry : oldOT.entrySet())
+                    polyUnit(entry.getValue(),
+                            typeRoot.addImmediateField(entry.getKey()),
+                            rtInGraph ? dynamicTypesOf(rt, entry.getKey(), classGraph) : Collections.emptySet(),
+                            classGraph);
+            }
+        }
+    }
+
+    /** Obtain the set of possible dynamic types of the given field within a given type.
+     *  Doesn't take into account the CFG, only the class graph. */
+    protected Set<ResolvedType> dynamicTypesOf(ResolvedType rt, String fieldName, ClassGraph classGraph) {
+        Optional<FieldDeclaration> field = classGraph.findClassField(rt, fieldName);
+        if (field.isEmpty())
+            return Collections.emptySet();
+        ResolvedType fieldType = field.get().getVariable(0).getType().resolve();
+        if (!fieldType.isReferenceType() || !classGraph.containsType(fieldType))
+            return Set.of(fieldType);
+        return classGraph.subclassesOf(fieldType.asReferenceType()).stream()
+                .map(ClassOrInterfaceDeclaration::resolve)
+                .map(ASTUtils::resolvedTypeDeclarationToResolvedType)
+                .collect(Collectors.toSet());
     }
 }

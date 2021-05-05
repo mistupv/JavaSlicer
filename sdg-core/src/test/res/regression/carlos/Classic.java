@@ -5,6 +5,7 @@ public class Classic {
         int sum = 0;
         int product = 1;
         int w = 7;
+        int N = 10;
         for (int i = 1; i < N; i++) {
             sum = sum + i + w;
             product *= i;

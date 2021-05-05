@@ -61,7 +61,7 @@ public class ExceptionSensitiveSlicingAlgorithm implements SlicingAlgorithm {
         this.slicingCriterion = Set.of(slicingCriterion);
         Slice slice = new Slice();
         slice.add(slicingCriterion);
-        pass(slice, INTRAPROCEDURAL);
+        pass(slice, INTRAPROCEDURAL.or(this::commonIgnoreConditions));
         return slice;
     }
 

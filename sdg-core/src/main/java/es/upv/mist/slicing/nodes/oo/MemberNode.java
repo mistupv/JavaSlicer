@@ -33,4 +33,9 @@ public class MemberNode extends SyntheticNode<Node> {
                 getLabel()
         );
     }
+
+    /** Create a copy of this node with the given argument as its parent node. */
+    public MemberNode copyToParent(GraphNode<?> parent) {
+        return new MemberNode(label, parent);
+    }
 }
