@@ -3,12 +3,11 @@ import java.util.Scanner;
 public class Classic {
 
     public static void main(String[] args) {
-        int sum = 0;
-        int w = 7;
+        int product = 1;
         int N = 10;
         for (int i = 1; i < N; i++) {
-            sum = sum + i + w;
+            product *= i;
         }
-        System.out.println(sum);
+        System.out.println(product);
     }
 }

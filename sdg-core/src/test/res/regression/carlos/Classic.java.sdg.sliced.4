@@ -1,0 +1,23 @@
+import java.util.Scanner;
+
+public class Classic {
+
+    public static void main2(String[] args) {
+        String text = new Scanner(System.in).nextLine();
+        int n = new Scanner(System.in).nextInt();
+        String subtext = "";
+        int i = 0;
+        while (i < text.length()) {
+            char c = text.charAt(i);
+            if (c == '\n') {
+            } else {
+                if (n != 0) {
+                    subtext = subtext + c;
+                    n -= 1;
+                }
+            }
+            i++;
+        }
+        System.out.println(subtext);
+    }
+}

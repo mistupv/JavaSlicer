@@ -1,0 +1,20 @@
+import java.util.Scanner;
+
+public class Classic {
+
+    public static void main2(String[] args) {
+        String text = new Scanner(System.in).nextLine();
+        int chars = 1;
+        int i = 0;
+        while (i < text.length()) {
+            char c = text.charAt(i);
+            if (c == '\n') {
+                chars += 1;
+            } else {
+                chars += 1;
+            }
+            i++;
+        }
+        System.out.println(chars);
+    }
+}

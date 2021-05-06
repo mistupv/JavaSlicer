@@ -2,13 +2,15 @@ public class TestJosep {
 
     public static void main(int y) {
         int z = 0;
-        switch(z) {
-            case 1:
-                x--;
-                break;
-            case 2:
-                x++;
+        while (y > z) {
+            y--;
         }
-        log(x);
+        switch(z) {
+            default:
+                break;
+            case 3:
+                y = x + z;
+        }
+        log(y);
     }
 }
