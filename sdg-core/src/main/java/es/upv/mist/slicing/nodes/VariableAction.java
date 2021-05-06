@@ -502,6 +502,26 @@ public abstract class VariableAction {
         }
 
         @Override
+        public void setPDGTreeConnectionTo(VariableAction targetAction, String sourcePrefixWithoutRoot, String targetPrefixWithoutRoot) {
+            inner.setPDGTreeConnectionTo(targetAction, sourcePrefixWithoutRoot, targetPrefixWithoutRoot);
+        }
+
+        @Override
+        public void setPDGValueConnection(String member) {
+            inner.setPDGValueConnection(member);
+        }
+
+        @Override
+        public void applyPDGTreeConnections(JSysPDG pdg) {
+            inner.applyPDGTreeConnections(pdg);
+        }
+
+        @Override
+        public void applySDGTreeConnection(JSysDG sdg, VariableAction targetAction) {
+            inner.applySDGTreeConnection(sdg, targetAction);
+        }
+
+        @Override
         public void setStaticType(ResolvedType staticType) {
             inner.setStaticType(staticType);
         }
