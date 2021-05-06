@@ -15,6 +15,7 @@ import es.upv.mist.slicing.graphs.jsysdg.JSysDG;
 import es.upv.mist.slicing.graphs.jsysdg.JSysPDG;
 import es.upv.mist.slicing.graphs.pdg.PDG;
 import es.upv.mist.slicing.utils.ASTUtils;
+import es.upv.mist.slicing.utils.NodeHashSet;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -64,6 +65,7 @@ public abstract class VariableAction {
     protected final String name;
     protected final DeclarationType declarationType;
     protected final Set<ResolvedType> dynamicTypes = new HashSet<>();
+    protected final Set<Expression> expressions = new NodeHashSet<>();
 
     protected ResolvedType staticType;
     protected GraphNode<?> graphNode;
@@ -174,6 +176,21 @@ public abstract class VariableAction {
 
     public Set<ResolvedType> getDynamicTypes() {
         return dynamicTypes;
+    }
+
+    public void addExpression(Expression expression) {
+        expressions.add(expression);
+    }
+
+    public void copyExpressions(VariableAction variableAction) {
+        if (variableAction instanceof Movable)
+            variableAction = ((Movable) variableAction).inner;
+        variableAction.expressions.forEach(this::addExpression);
+    }
+
+    /** Whether this variable action represents the given expression. */
+    public boolean matches(Expression expression) {
+        return expressions.contains(expression);
     }
 
     // ======================================================
@@ -519,6 +536,16 @@ public abstract class VariableAction {
         @Override
         public void applySDGTreeConnection(JSysDG sdg, VariableAction targetAction) {
             inner.applySDGTreeConnection(sdg, targetAction);
+        }
+
+        @Override
+        public void addExpression(Expression expression) {
+            inner.addExpression(expression);
+        }
+
+        @Override
+        public boolean matches(Expression expression) {
+            return inner.matches(expression);
         }
 
         @Override

@@ -3,7 +3,6 @@ package es.upv.mist.slicing.graphs.sdg;
 import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
-import com.github.javaparser.ast.expr.ThisExpr;
 import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
 import es.upv.mist.slicing.graphs.CallGraph;
@@ -18,7 +17,6 @@ import es.upv.mist.slicing.nodes.io.FormalIONode;
 import es.upv.mist.slicing.utils.ASTUtils;
 
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -45,8 +43,10 @@ public class InterproceduralUsageFinder extends InterproceduralActionFinder<Usag
                     if (va instanceof Movable && ((Movable) va).getRealNode().equals(actualIn)) {
                         ExpressionObjectTreeFinder finder = new ExpressionObjectTreeFinder(edge.getGraphNode());
                         if (va.getName().equals("-scope-in-")) {
-                            Expression scope = Objects.requireNonNullElseGet(actualIn.getArgument(), ThisExpr::new);
-                            finder.locateAndMarkTransferenceToRoot(scope, va);
+                            if (actualIn.getArgument() == null)
+                                finder.locateAndMarkTransferenceToRoot(edge.getCall(), va);
+                            else
+                                finder.locateAndMarkTransferenceToRoot(actualIn.getArgument(), va);
                         } else if (va.getName().equals("-arg-in-")) {
                             finder.locateAndMarkTransferenceToRoot(actualIn.getArgument(), va);
                         }

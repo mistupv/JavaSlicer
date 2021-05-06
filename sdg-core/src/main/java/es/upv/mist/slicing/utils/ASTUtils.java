@@ -250,4 +250,9 @@ public class ASTUtils {
         }
         return classInit;
     }
+
+    public static ResolvedType resolvedTypeOfCurrentClass(Node n) {
+        return ASTUtils.resolvedTypeDeclarationToResolvedType(
+                n.findAncestor(ClassOrInterfaceDeclaration.class).orElseThrow().resolve());
+    }
 }

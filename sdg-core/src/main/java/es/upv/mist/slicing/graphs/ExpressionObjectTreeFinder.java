@@ -14,6 +14,8 @@ import es.upv.mist.slicing.utils.ASTUtils;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.Predicate;
 
 import static es.upv.mist.slicing.graphs.cfg.CFGBuilder.VARIABLE_NAME_OUTPUT;
 
@@ -124,6 +126,26 @@ public class ExpressionObjectTreeFinder {
                 .forEach(pair -> markTransference(pair, targetAction, ""));
     }
 
+    public void locateAndMarkTransferenceToRoot(Resolvable<? extends ResolvedMethodLikeDeclaration> call, VariableAction targetAction) {
+        boolean enteredCall = false;
+        for (VariableAction va : graphNode.getVariableActions()) {
+            if (va instanceof VariableAction.CallMarker &&
+                    ASTUtils.equalsWithRange(((VariableAction.CallMarker) va).getCall(), call)) {
+                if (((VariableAction.CallMarker) va).isEnter())
+                    enteredCall = true;
+                else
+                    break;
+            }
+            if (enteredCall && va.isDefinition() && va.getName().equals("-scope-in-"))
+                break;
+            if (enteredCall && va.isUsage() && va.getName().equals("this")) {
+                markTransference(new Pair<>(va, ""), targetAction, "");
+                return;
+            }
+        }
+        throw new IllegalStateException("Can't locate USE(this)--scope--for call " + call);
+    }
+
     /**
      * Finds object trees that correspond to the output of the given expression.
      * @param expression An expression that outputs an object.
@@ -155,27 +177,25 @@ public class ExpressionObjectTreeFinder {
                 if (resolved.isType())
                     return;
                 if (resolved.isField() && !resolved.asField().isStatic()) {
-                    new FieldAccessExpr(new ThisExpr(), n.getNameAsString()).accept(this, arg);
-                    return;
+                    String newArg = n.getNameAsString() + (!arg.isEmpty() ? "." : "") + arg;
+                    var optVa = locateVariableAction(n, va -> va.getName().matches("^.*this$"));
+                    if (optVa.isEmpty())
+                        throw new IllegalStateException("Could not find USE action for var " + newArg);
+                    list.add(new Pair<>(optVa.get(), newArg));
+                } else {
+                    var optVa = locateVariableAction(n, va -> va.getName().equals(n.getNameAsString()));
+                    if (optVa.isEmpty())
+                        throw new IllegalStateException("Cannot find USE action for var " + n);
+                    list.add(new Pair<>(optVa.get(), arg));
                 }
-                for (VariableAction action : graphNode.getVariableActions()) {
-                    if (action.isUsage() && action.getName().equals(n.getNameAsString())) {
-                        list.add(new Pair<>(action, arg));
-                        return;
-                    }
-                }
-                throw new IllegalStateException("Cannot find USE action for var " + n);
             }
 
             @Override
             public void visit(ThisExpr n, String arg) {
-                for (VariableAction action : graphNode.getVariableActions()) {
-                    if (action.isUsage() && action.getName().matches("^.*this$")) {
-                        list.add(new Pair<>(action, arg));
-                        return;
-                    }
-                }
-                throw new IllegalStateException("Could not find USE(this)");
+                var vaOpt = locateVariableAction(n, va -> va.getName().matches("^.*this$"));
+                if (vaOpt.isEmpty())
+                    throw new IllegalStateException("Could not find USE(this)");
+                list.add(new Pair<>(vaOpt.get(), arg));
             }
 
             @Override
@@ -247,6 +267,14 @@ public class ExpressionObjectTreeFinder {
 
             @Override
             public void visit(PatternExpr n, String arg) {}
+
+            protected Optional<VariableAction> locateVariableAction(Expression expression, Predicate<VariableAction> predicate) {
+                return graphNode.getVariableActions().stream()
+                        .filter(VariableAction::isUsage)
+                        .filter(predicate)
+                        .filter(va -> va.matches(expression))
+                        .findAny();
+            }
         }, "");
         return list;
     }
