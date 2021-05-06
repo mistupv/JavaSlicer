@@ -47,23 +47,25 @@ public class SlicerTest {
     public static Arguments[] findAllFiles() {
         Collection<Arguments> args = new LinkedList<>();
         File testFolder = new File(Thread.currentThread().getContextClassLoader().getResource(TEST_PKG).getPath());
-        findFiles(testFolder, DOT_JAVA, f -> createArgumentForTest(f).ifPresent(args::add));
+        findFiles(testFolder, DOT_JAVA, f -> args.addAll(createArgumentForTest(f)));
         return args.toArray(Arguments[]::new);
     }
 
-    private static Optional<Arguments> createArgumentForTest(File javaFile) {
-        File slice = new File(javaFile.getParent(), javaFile.getName() + SDG_SLICE);
-        Optional<SlicingCriterion> criterion = findSDGCriterion(javaFile);
-        if (!slice.isFile() || !slice.canRead() || criterion.isEmpty())
-            return Optional.empty();
-        return Optional.of(Arguments.of(javaFile, slice, criterion.get()));
+    private static Collection<Arguments> createArgumentForTest(File javaFile) {
+        List<SlicingCriterion> criteria = findSDGCriterion(javaFile);
+        Collection<Arguments> args = new LinkedList<>();
+        for (int i = 0; i < criteria.size(); i++) {
+            File slice = generateSliceFile(javaFile, i);
+            if (slice.isFile() && slice.canRead())
+                args.add(Arguments.of(javaFile, slice, criteria.get(i)));
+        }
+        return args;
     }
 
-    @ParameterizedTest(name = "{0}")
+    @ParameterizedTest(name = "{2}")
     @MethodSource("findAllFiles")
     public void slicerRegressionTest(File source, File target, SlicingCriterion sc) throws FileNotFoundException {
-        if (!target.exists())
-            return;
+        assert target.exists(): "The reference slice does not exist!";
         Slice slice = slice(source ,sc);
         boolean equal = slicesMatch(slice, target);
         assert equal: "The slice for " + source.toString() + " has changed, please fix the error or update the reference slice.";
@@ -75,26 +77,36 @@ public class SlicerTest {
         findFiles(testFolder, DOT_JAVA, SlicerTest::createAndSaveSlice);
     }
 
-    private static Optional<SlicingCriterion> findSDGCriterion(File javaFile) {
+    private static List<SlicingCriterion> findSDGCriterion(File javaFile) {
         File criterionFile = new File(javaFile.getParentFile(), javaFile.getName() + SDG_CRITERION);
         try (Scanner in = new Scanner(criterionFile)) {
-            return Optional.of(new FileLineSlicingCriterion(javaFile, in.nextInt()));
+            List<SlicingCriterion> criteria = new LinkedList<>();
+            while (in.hasNextInt()) {
+                int line = in.nextInt();
+                String var = null;
+                if (in.hasNext())
+                    var = in.next();
+                criteria.add(new FileLineSlicingCriterion(javaFile, line, var));
+            }
+            return criteria;
         } catch (FileNotFoundException | NoSuchElementException e) {
-            return Optional.empty();
+            return new LinkedList<>();
         }
     }
 
     private static void createAndSaveSlice(File javaFile) {
         try {
-            File sliceFile = new File(javaFile.getParent(), javaFile.getName() + SDG_SLICE);
-            Optional<SlicingCriterion> sc = findSDGCriterion(javaFile);
-            if (sc.isEmpty() || sliceFile.exists())
-                return;
-            Slice slice = slice(javaFile, sc.get());
-            var cus = slice.toAst();
-            assert cus.size() == 1;
-            try (PrintWriter pw = new PrintWriter(sliceFile)) {
-                pw.write(cus.getFirst().get().toString());
+            List<SlicingCriterion> criteria = findSDGCriterion(javaFile);
+            for (int i = 0; i < criteria.size(); i++) {
+                File sliceFile = generateSliceFile(javaFile, i);
+                if (sliceFile.exists())
+                    continue;
+                Slice slice = slice(javaFile, criteria.get(i));
+                var cus = slice.toAst();
+                assert cus.size() == 1;
+                try (PrintWriter pw = new PrintWriter(sliceFile)) {
+                    pw.write(cus.getFirst().get().toString());
+                }
             }
         } catch (FileNotFoundException e) {
             System.err.println("Could not save slice due to missing file or permissions");
@@ -103,6 +115,10 @@ public class SlicerTest {
             System.err.println(e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    private static File generateSliceFile(File javaFile, int scIndex) {
+        return new File(javaFile.getParent(), javaFile.getName() + SDG_SLICE + (scIndex > 0 ? "." + scIndex : ""));
     }
 
     private static boolean slicesMatch(Slice slice, File referenceSlice) {

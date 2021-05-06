@@ -25,6 +25,7 @@
                     <include>**/*.java</include>
                     <include>**/*.java.*.criterion</include>
                     <include>**/*.java.*.sliced</include>
+                    <include>**/*.java.*.sliced.*</include>
                 </includes>
             </testResource>
         </testResources>

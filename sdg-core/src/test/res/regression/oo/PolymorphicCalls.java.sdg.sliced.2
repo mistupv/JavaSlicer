@@ -1,0 +1,31 @@
+class Test {
+
+    public static void main(String[] args) {
+        A a;
+        if (Math.random() > 0)
+            a = new A(10);
+        else
+            a = new B(5, 1);
+        int k = a.h();
+    }
+}
+
+class A {
+
+    int x;
+
+    public A(int a) {
+        this.x = a;
+    }
+
+    public int h() {
+        return x;
+    }
+}
+
+class B extends A {
+
+    public B(int a, int b) {
+        super(a);
+    }
+}
