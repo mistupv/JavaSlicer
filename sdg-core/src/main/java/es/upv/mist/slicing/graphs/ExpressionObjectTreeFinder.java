@@ -222,16 +222,22 @@ public class ExpressionObjectTreeFinder {
             public void visit(ArrayInitializerExpr n, String arg) {}
 
             @Override
-            public void visit(BinaryExpr n, String arg) {}
+            public void visit(BinaryExpr n, String arg) {
+                super.visit(n, "");
+            }
 
             @Override
             public void visit(ClassExpr n, String arg) {}
 
             @Override
-            public void visit(InstanceOfExpr n, String arg) {}
+            public void visit(InstanceOfExpr n, String arg) {
+                super.visit(n, "");
+            }
 
             @Override
-            public void visit(UnaryExpr n, String arg) {}
+            public void visit(UnaryExpr n, String arg) {
+                super.visit(n, "");
+            }
 
             @Override
             public void visit(LambdaExpr n, String arg) {}
