@@ -35,6 +35,6 @@ public class FileLineSlicingCriterion extends LineNumberCriterion {
 
     @Override
     public String toString() {
-        return file + "#" + lineNumber + ":" + variable;
+        return file + "#" + lineNumber + (variable != null ? ":" + variable : "");
     }
 }
