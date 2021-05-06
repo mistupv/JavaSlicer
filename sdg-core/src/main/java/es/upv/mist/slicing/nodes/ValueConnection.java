@@ -12,6 +12,8 @@ public class ValueConnection implements VariableAction.PDGConnection {
     protected final VariableAction action;
     protected final String member;
 
+    protected boolean applied = false;
+
     public ValueConnection(VariableAction action, String member) {
         this.action = action;
         this.member = member.isEmpty() ? ROOT_NAME : ROOT_NAME + "." + member;
@@ -19,13 +21,18 @@ public class ValueConnection implements VariableAction.PDGConnection {
 
     @Override
     public void apply(JSysPDG graph) {
+        if (applied)
+            return;
         GraphNode<?> statementNode;
         if (action instanceof VariableAction.Movable)
             statementNode = ((VariableAction.Movable) action).getRealNode();
         else
             statementNode = action.getGraphNode();
         if (action.hasPolyTreeMember(member))
-            for (MemberNode source : action.getObjectTree().getNodesForPoly(member))
+            for (MemberNode source : action.getObjectTree().getNodesForPoly(member)) {
                 graph.addEdge(source, statementNode, new FlowDependencyArc());
+                applied = true;
+            }
+
     }
 }

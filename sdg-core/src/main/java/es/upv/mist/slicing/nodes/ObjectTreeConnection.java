@@ -41,10 +41,8 @@ class ObjectTreeConnection implements VariableAction.PDGConnection {
 
     @Override
     public void apply(JSysPDG graph) {
-        if (!applied) {
+        if (!applied)
             connectTrees(graph, FlowDependencyArc::new, ObjectFlowDependencyArc::new);
-            applied = true;
-        }
     }
 
     protected void connectTrees(Graph graph, Supplier<Arc> flowSupplier, Supplier<Arc> objFlowSupplier) {
@@ -67,9 +65,12 @@ class ObjectTreeConnection implements VariableAction.PDGConnection {
     private void connectOT(ObjectTree source, ObjectTree target, GraphNode<?> rootSrc, GraphNode<?> rootTgt,
                            Graph graph, Supplier<Arc> flowSupplier, Supplier<Arc> objFlowSupplier) {
         if (source == null || target == null) {
-            if (!rootSrc.equals(rootTgt))
+            if (!rootSrc.equals(rootTgt)) {
                 graph.addEdge(rootSrc, rootTgt, flowSupplier.get());
+                applied = true;
+            }
         } else {
+            applied = true;
             graph.addEdge(rootSrc, rootTgt, objFlowSupplier.get());
             graph.addEdge(rootSrc, rootTgt, flowSupplier.get());
             for (String treeMember : target.nameIterable()) {
