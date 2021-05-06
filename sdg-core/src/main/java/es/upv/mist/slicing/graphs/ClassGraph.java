@@ -11,6 +11,7 @@ import com.github.javaparser.resolution.types.ResolvedType;
 import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.nodes.ObjectTree;
 import es.upv.mist.slicing.utils.ASTUtils;
+import es.upv.mist.slicing.utils.StaticConfig;
 import es.upv.mist.slicing.utils.Utils;
 import org.jgrapht.graph.DirectedPseudograph;
 import org.jgrapht.nio.dot.DOTExporter;
@@ -183,31 +184,33 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex<?>, ClassG
     protected ObjectTree generateObjectTreeFor(Vertex<ClassOrInterfaceDeclaration> classVertex) {
         if (classVertex == null)
             return new ObjectTree();
-        return generatePolyObjectTreeFor(classVertex, new ObjectTree(), ObjectTree.ROOT_NAME);
+        return generatePolyObjectTreeFor(classVertex, new ObjectTree(), ObjectTree.ROOT_NAME, 0);
     }
 
-    protected ObjectTree generatePolyObjectTreeFor(Vertex<ClassOrInterfaceDeclaration> classVertex, ObjectTree tree, String level) {
+    protected ObjectTree generatePolyObjectTreeFor(Vertex<ClassOrInterfaceDeclaration> classVertex, ObjectTree tree, String level, int depth) {
+        if (depth >= StaticConfig.K_LIMIT)
+            return tree;
         Set<ClassOrInterfaceDeclaration> types = subclassesOf(classVertex);
         if (types.isEmpty()) {
-            generateObjectTreeFor(classVertex, tree, level);
+            generateObjectTreeFor(classVertex, tree, level, depth);
         } else {
             for (ClassOrInterfaceDeclaration type : types) {
                 Vertex<ClassOrInterfaceDeclaration> subclassVertex = classDeclarationMap.get(mapKey(type));
                 if (!findAllFieldsOf(subclassVertex).isEmpty()) {
                     ObjectTree newType = tree.addType(ASTUtils.resolvedTypeDeclarationToResolvedType(type.resolve()));
-                    generateObjectTreeFor(subclassVertex, tree, level + '.' + newType.getMemberNode().getLabel());
+                    generateObjectTreeFor(subclassVertex, tree, level + '.' + newType.getMemberNode().getLabel(), depth);
                 }
             }
         }
         return tree;
     }
 
-    protected void generateObjectTreeFor(Vertex<ClassOrInterfaceDeclaration> classVertex, ObjectTree tree, String level) {
+    protected void generateObjectTreeFor(Vertex<ClassOrInterfaceDeclaration> classVertex, ObjectTree tree, String level, int depth) {
         Map<String, Vertex<ClassOrInterfaceDeclaration>> classFields = findAllFieldsOf(classVertex);
         for (var entry : classFields.entrySet()) {
             tree.addField(level + '.' + entry.getKey());
             if (entry.getValue() != null)
-                generatePolyObjectTreeFor(entry.getValue(), tree, level + '.' + entry.getKey());
+                generatePolyObjectTreeFor(entry.getValue(), tree, level + '.' + entry.getKey(), depth);
         }
     }
 
