@@ -56,6 +56,7 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
         Set<GraphNode<?>> slicingCriterionNodes;
         try {
             slicingCriterionNodes = slicingCriterion.findNode(this);
+            assert !slicingCriterionNodes.isEmpty();
         } catch (NoSuchElementException e) {
             throw new IllegalArgumentException("Could not locate the slicing criterion " + slicingCriterion);
         }
