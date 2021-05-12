@@ -1,0 +1,19 @@
+class Test {
+
+    A a = new A();
+
+    public static void main(String[] args) {
+        System.out.println(new Test().a.b.i);
+    }
+}
+
+class A {
+
+    B b = new B();
+}
+
+class B {
+
+    int i = 10;
+}
+
