@@ -1,3 +1,0 @@
-[submodule "sdg-core/src/test/res/java-slicing-benchmarks"]
-	path = sdg-core/src/test/res/java-slicing-benchmarks
-	url = https://kaz.dsic.upv.es/git/program-slicing/java-benchmarks.git
