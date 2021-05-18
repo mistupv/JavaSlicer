@@ -16,6 +16,17 @@ import java.util.*;
 public class Slice {
     /** Nodes contained in this slice, mapped by id. */
     private final Map<Long, GraphNode<?>> map = new HashMap<>();
+    /** The nodes that conform the slicing criterion. */
+    private final Set<GraphNode<?>> immutableSC;
+
+    public Slice(Set<GraphNode<?>> slicingCriterion) {
+        immutableSC = Set.copyOf(slicingCriterion);
+        addAll(slicingCriterion);
+    }
+
+    public Set<GraphNode<?>> getCriterion() {
+        return immutableSC;
+    }
 
     /** Add a node to this slice. */
     public void add(GraphNode<?> node) {

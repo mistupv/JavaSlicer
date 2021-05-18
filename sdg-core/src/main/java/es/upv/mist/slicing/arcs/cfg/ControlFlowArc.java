@@ -3,10 +3,6 @@ package es.upv.mist.slicing.arcs.cfg;
 import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.graphs.augmented.ACFG;
 import es.upv.mist.slicing.graphs.cfg.CFG;
-import org.jgrapht.nio.Attribute;
-import org.jgrapht.nio.DefaultAttribute;
-
-import java.util.Map;
 
 /**
  * An edge of the {@link CFG}, representing the direct
@@ -25,11 +21,5 @@ public class ControlFlowArc extends Arc {
      * @see ControlFlowArc
      */
     public static final class NonExecutable extends ControlFlowArc {
-        @Override
-        public Map<String, Attribute> getDotAttributes() {
-            Map<String, Attribute> map = super.getDotAttributes();
-            map.put("style", DefaultAttribute.createAttribute("dashed"));
-            return map;
-        }
     }
 }

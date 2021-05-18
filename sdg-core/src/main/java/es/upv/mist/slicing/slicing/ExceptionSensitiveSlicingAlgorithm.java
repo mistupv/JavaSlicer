@@ -49,8 +49,7 @@ public class ExceptionSensitiveSlicingAlgorithm implements SlicingAlgorithm {
     @Override
     public Slice traverse(Set<GraphNode<?>> slicingCriterion) {
         this.slicingCriterion = slicingCriterion;
-        Slice slice = new Slice();
-        slice.addAll(slicingCriterion);
+        Slice slice = new Slice(slicingCriterion);
         pass(slice, SDG_PASS_1.or(this::commonIgnoreConditions));
         pass(slice, SDG_PASS_2.or(this::commonIgnoreConditions));
         return slice;
@@ -59,8 +58,7 @@ public class ExceptionSensitiveSlicingAlgorithm implements SlicingAlgorithm {
     @Override
     public Slice traverseProcedure(GraphNode<?> slicingCriterion) {
         this.slicingCriterion = Set.of(slicingCriterion);
-        Slice slice = new Slice();
-        slice.add(slicingCriterion);
+        Slice slice = new Slice(this.slicingCriterion);
         pass(slice, INTRAPROCEDURAL.or(this::commonIgnoreConditions));
         return slice;
     }

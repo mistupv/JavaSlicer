@@ -11,11 +11,8 @@ import es.upv.mist.slicing.graphs.cfg.CFG;
 import es.upv.mist.slicing.graphs.pdg.PDG;
 import es.upv.mist.slicing.graphs.sdg.SDG;
 import es.upv.mist.slicing.nodes.GraphNode;
-import es.upv.mist.slicing.utils.Utils;
 import org.jgrapht.graph.DefaultEdge;
-import org.jgrapht.nio.Attribute;
 
-import java.util.Map;
 import java.util.Objects;
 
 /** The root class from which all arcs in the {@link CFG CFG}, {@link PDG PDG}
@@ -139,11 +136,6 @@ public abstract class Arc extends DefaultEdge {
     public String toString() {
         return String.format("%s{%d -> %d}", getClass().getName(),
                 ((GraphNode<?>) super.getSource()).getId(), ((GraphNode<?>) super.getTarget()).getId());
-    }
-
-    /** A map of DOT attributes that define the style of this arc. */
-    public Map<String, Attribute> getDotAttributes() {
-        return Utils.dotLabel(getLabel());
     }
 
     @Override

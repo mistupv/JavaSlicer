@@ -1,10 +1,6 @@
 package es.upv.mist.slicing.arcs.pdg;
 
 import es.upv.mist.slicing.graphs.exceptionsensitive.ConditionalControlDependencyBuilder;
-import org.jgrapht.nio.Attribute;
-import org.jgrapht.nio.DefaultAttribute;
-
-import java.util.Map;
 
 /**
  * An arc that represents conditional control dependency (CCD): a node {@code a}
@@ -23,12 +19,6 @@ public abstract class ConditionalControlDependencyArc extends ControlDependencyA
      * @see ConditionalControlDependencyArc
      */
     public static class CC1 extends ConditionalControlDependencyArc {
-        @Override
-        public Map<String, Attribute> getDotAttributes() {
-            Map<String, Attribute> map = super.getDotAttributes();
-            map.put("color", DefaultAttribute.createAttribute("orange"));
-            return map;
-        }
     }
 
     /**
@@ -38,11 +28,5 @@ public abstract class ConditionalControlDependencyArc extends ControlDependencyA
      * @see ConditionalControlDependencyArc
      */
     public static class CC2 extends ConditionalControlDependencyArc {
-        @Override
-        public Map<String, Attribute> getDotAttributes() {
-            Map<String, Attribute> map = super.getDotAttributes();
-            map.put("color", DefaultAttribute.createAttribute("green"));
-            return map;
-        }
     }
 }

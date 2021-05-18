@@ -4,11 +4,8 @@ import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.graphs.pdg.PDG;
 import es.upv.mist.slicing.graphs.sdg.SDG;
 import es.upv.mist.slicing.nodes.VariableAction;
-import org.jgrapht.nio.Attribute;
-import org.jgrapht.nio.DefaultAttribute;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.function.BiPredicate;
 
@@ -59,11 +56,5 @@ public class DataDependencyArc extends Arc {
         return Objects.hash(super.hashCode(), sourceVar, targetVar);
     }
 
-    @Override
-    public Map<String, Attribute> getDotAttributes() {
-        Map<String, Attribute> map = super.getDotAttributes();
-        map.put("color", DefaultAttribute.createAttribute(targetVar.isDefinition() ? "pink" : "red"));
-        return map;
-    }
 }
 

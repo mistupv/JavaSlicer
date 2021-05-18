@@ -6,10 +6,6 @@ import es.upv.mist.slicing.nodes.io.CallNode;
 import es.upv.mist.slicing.nodes.io.FormalIONode;
 import es.upv.mist.slicing.nodes.io.OutputNode;
 import es.upv.mist.slicing.nodes.oo.MemberNode;
-import org.jgrapht.nio.Attribute;
-import org.jgrapht.nio.DefaultAttribute;
-
-import java.util.Map;
 
 /** An interprocedural arc connecting {@link ActualIONode actual} and {@link FormalIONode formal}
  * nodes. The source and target must match: both must either be inputs or outputs. This arc may be an input or output. */
@@ -45,13 +41,6 @@ public class ParameterInOutArc extends InterproceduralArc {
         @Override
         public boolean isObjectFlow() {
             return true;
-        }
-
-        @Override
-        public Map<String, Attribute> getDotAttributes() {
-            Map<String, Attribute> map = super.getDotAttributes();
-            map.put("style", DefaultAttribute.createAttribute("dotted"));
-            return map;
         }
     }
 }

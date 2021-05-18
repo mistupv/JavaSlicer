@@ -2,7 +2,6 @@ module sdg.core {
   requires com.github.javaparser.core;
   requires com.github.javaparser.symbolsolver.core;
   requires org.jgrapht.core;
-  requires org.jgrapht.io;
 
   exports es.upv.mist.slicing.slicing;
   exports es.upv.mist.slicing.graphs;

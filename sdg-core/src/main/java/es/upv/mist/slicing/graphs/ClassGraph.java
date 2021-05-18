@@ -12,9 +12,7 @@ import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.nodes.ObjectTree;
 import es.upv.mist.slicing.utils.ASTUtils;
 import es.upv.mist.slicing.utils.StaticConfig;
-import es.upv.mist.slicing.utils.Utils;
 import org.jgrapht.graph.DirectedPseudograph;
-import org.jgrapht.nio.dot.DOTExporter;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -391,14 +389,6 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex<?>, ClassG
             if (source != null && containsVertex(v))
                 addEdge(source, v, new ClassArc.Implements());
         });
-    }
-
-    /** Creates a graph-appropriate DOT exporter. */
-    public DOTExporter<ClassGraph.Vertex<?>, ClassGraph.ClassArc> getDOTExporter() {
-        DOTExporter<ClassGraph.Vertex<?>, ClassGraph.ClassArc> dot = new DOTExporter<>();
-        dot.setVertexAttributeProvider(vertex -> Utils.dotLabel(vertex.declaration.toString().replaceAll("\\{.*}", "")));
-        dot.setEdgeAttributeProvider(edge -> Utils.dotLabel(edge.getClass().getSimpleName()));
-        return dot;
     }
 
     /** A vertex containing the declaration it represents. It only exists because

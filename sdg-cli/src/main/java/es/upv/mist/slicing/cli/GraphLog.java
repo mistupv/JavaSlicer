@@ -56,7 +56,7 @@ public abstract class GraphLog<G extends Graph> {
                 "****************************"
         );
         try (StringWriter stringWriter = new StringWriter()) {
-            getDOTExporter(graph).exportGraph(graph, stringWriter);
+            getDOTExporter().exportGraph(graph, stringWriter);
             stringWriter.append('\n');
             Logger.log(stringWriter.toString());
         }
@@ -80,7 +80,7 @@ public abstract class GraphLog<G extends Graph> {
 
         // Graph -> DOT -> file
         try (Writer w = new FileWriter(tmpDot)) {
-            getDOTExporter(graph).exportGraph(graph, w);
+            getDOTExporter().exportGraph(graph, w);
         }
         // Execute dot
         ProcessBuilder pb = new ProcessBuilder("dot",
@@ -130,7 +130,23 @@ public abstract class GraphLog<G extends Graph> {
         return new File(outputDir, imageName + "." + format);
     }
 
-    protected DOTExporter<GraphNode<?>, Arc> getDOTExporter(G graph) {
-        return graph.getDOTExporter();
+    protected DOTExporter<GraphNode<?>, Arc> getDOTExporter() {
+        DOTExporter<GraphNode<?>, Arc> exporter = new DOTExporter<>();
+        exporter.setVertexIdProvider(node -> String.valueOf(node.getId()));
+        exporter.setVertexAttributeProvider(v -> vertexAttributes(v).build());
+        exporter.setEdgeAttributeProvider(v -> edgeAttributes(v).build());
+        return exporter;
+    }
+
+    protected DOTAttributes vertexAttributes(GraphNode<?> node) {
+        DOTAttributes res = new DOTAttributes();
+        res.set("label", node.getLongLabel());
+        if (node.isImplicitInstruction())
+            res.add("style", "dashed");
+        return res;
+    }
+
+    protected DOTAttributes edgeAttributes(Arc arc) {
+        return new DOTAttributes();
     }
 }

@@ -109,7 +109,7 @@ public class PHPSlice {
         sdg.build(units);
 
         SlicingCriterion sc = graph -> Set.of(graph.findNodeBy(n -> n.getId() == (long) 0).orElseThrow());
-        Slice slice = new Slice();
+        Slice slice = new Slice(Set.of());
         if (scId != 0) {
             // Slice the SDG
             sc = new FileLineSlicingCriterion(scFile, scId);
@@ -132,7 +132,7 @@ public class PHPSlice {
         File imageDir = new File(outputDir, "images");
         imageDir.mkdir();
         // Output the sliced graph to the output directory
-        SDGLog sdgLog = new SlicedSDGLog(sdg, slice, sc);
+        SDGLog sdgLog = new SDGLog(sdg, slice);
         sdgLog.setDirectory(outputDir);
         sdgLog.generateImages("graph", "svg");
         for (CFG cfg : sdg.getCFGs()) {

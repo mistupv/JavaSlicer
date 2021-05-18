@@ -1,9 +1,9 @@
 package es.upv.mist.slicing.utils;
 
-import org.jgrapht.nio.Attribute;
-import org.jgrapht.nio.DefaultAttribute;
-
-import java.util.*;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.Set;
 
 /** General utilities. */
 public class Utils {
@@ -18,13 +18,6 @@ public class Utils {
         E e = it.next();
         it.remove();
         return e;
-    }
-
-    public static Map<String, Attribute> dotLabel(String label) {
-        Map<String, Attribute> map = new HashMap<>();
-        if (label != null)
-            map.put("label", DefaultAttribute.createAttribute(label));
-        return map;
     }
 
     /** Find the matching element in the set and return it.  */
