@@ -10,9 +10,10 @@ import es.upv.mist.slicing.nodes.VariableAction;
 import es.upv.mist.slicing.nodes.io.FormalIONode;
 import es.upv.mist.slicing.nodes.oo.MemberNode;
 
+import java.util.Collection;
 import java.util.HashSet;
-import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Generates and places on the graph all summary arcs between actual-in and actual-out, return and exception/normal
@@ -47,23 +48,23 @@ public class SummaryArcAnalyzer extends AbstractSummaryArcAnalyzer<SyntheticNode
     }
 
     @Override
-    protected Optional<? extends SyntheticNode<?>> findActualIn(CallGraph.Edge<?> edge, SyntheticNode<?> formalIn) {
+    protected Collection<? extends SyntheticNode<?>> findActualIn(CallGraph.Edge<?> edge, SyntheticNode<?> formalIn) {
         return sdg.incomingEdgesOf(formalIn).stream()
                 .filter(Arc::isInterproceduralInputArc)
                 .map(sdg::getEdgeSource)
                 .filter(actualIn -> goToParent(actualIn).getAstNode() == edge.getCall())
                 .map(node -> (SyntheticNode<?>) node)
-                .findAny();
+                .collect(Collectors.toSet());
     }
 
     @Override
-    protected Optional<? extends SyntheticNode<?>> findOutputNode(CallGraph.Edge<?> edge, SyntheticNode<?> formalOut) {
+    protected Collection<? extends SyntheticNode<?>> findOutputNode(CallGraph.Edge<?> edge, SyntheticNode<?> formalOut) {
         return sdg.outgoingEdgesOf(formalOut).stream()
                 .filter(Arc::isInterproceduralOutputArc)
                 .map(sdg::getEdgeTarget)
                 .filter(actualOut -> goToParent(actualOut).getAstNode() == edge.getCall())
                 .map(node -> (SyntheticNode<?>) node)
-                .findAny();
+                .collect(Collectors.toSet());
     }
 
     private boolean isFormalIn(GraphNode<?> graphNode) {

@@ -38,22 +38,61 @@ import static es.upv.mist.slicing.nodes.VariableVisitor.Action.*;
 public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Action> {
     /** The default action that a found variable performs. */
     public enum Action {
-        DECLARATION, DEFINITION, USE;
+        DECLARATION(true),
+        DEFINITION(true),
+        USE(true),
+        OPT_DEFINITION(false),
+        OPT_USE(false);
 
         /** Whether the action is performed in all executions of the node. */
-        private boolean always = true;
+        private final boolean always;
+
+        Action(boolean always) {
+            this.always = always;
+        }
 
         /** Join multiple actions into one. */
         public Action or(Action action) {
             if (action == DECLARATION || this == DECLARATION)
                 return DECLARATION;
-            if (action == DEFINITION || this == DEFINITION)
-                return DEFINITION;
-            return USE;
+            if (action == DEFINITION || this == DEFINITION || this == OPT_DEFINITION)
+                return always ? DEFINITION : OPT_DEFINITION;
+            return this;
         }
 
-        public void setAlways(boolean always) {
-            this.always = always;
+        public Action andUse() {
+            return always ? USE : OPT_USE;
+        }
+
+        public boolean isUse() {
+            return this == USE || this == OPT_USE;
+        }
+
+        public boolean isDefinition() {
+            return this == DEFINITION || this == OPT_DEFINITION;
+        }
+
+        public boolean isDeclaration() {
+            return this == DECLARATION;
+        }
+
+        public boolean isOptional() {
+            return !always;
+        }
+
+        public Action optional() {
+            switch (this) {
+                case OPT_DEFINITION:
+                case OPT_USE:
+                    return this;
+                case USE:
+                    return OPT_USE;
+                case DEFINITION:
+                    return OPT_DEFINITION;
+                case DECLARATION:
+                default:
+                    throw new UnsupportedOperationException("Action unsupported");
+            }
         }
     }
 
@@ -157,20 +196,17 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
 
     protected VariableAction acceptAction(DeclarationType declarationType, String realName, Action action, boolean canDefBeNull) {
         VariableAction va;
-        switch (action) {
-            case DECLARATION:
-                va = new VariableAction.Declaration(declarationType, realName, graphNode);
-                break;
-            case DEFINITION:
-                assert !definitionStack.isEmpty() || canDefBeNull;
-                va = new VariableAction.Definition(declarationType, realName, graphNode, definitionStack.peek());
-                break;
-            case USE:
-                va = new VariableAction.Usage(declarationType, realName, graphNode);
-                break;
-            default:
-                throw new UnsupportedOperationException();
+        if (action.isDeclaration()) {
+            va = new VariableAction.Declaration(declarationType, realName, graphNode);
+        } else if (action.isDefinition()) {
+            assert !definitionStack.isEmpty() || canDefBeNull;
+            va = new VariableAction.Definition(declarationType, realName, graphNode, definitionStack.peek());
+        } else if (action.isUse()) {
+            va = new VariableAction.Usage(declarationType, realName, graphNode);
+        } else {
+            throw new UnsupportedOperationException();
         }
+        va.setOptional(action.isOptional());
         if (!realNodeStack.isEmpty()) {
             va = new VariableAction.Movable(va, realNodeStack.peek());
         }
@@ -187,10 +223,10 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     // Modified traversal (there may be variable definitions or declarations)
     @Override
     public void visit(ArrayAccessExpr n, Action arg) {
-        if (arg == DEFINITION) {
+        if (arg.isDefinition()) {
             n.getName().accept(this, arg);
-            n.getIndex().accept(this, USE);
-        } else if (arg == USE) {
+            n.getIndex().accept(this, arg.andUse());
+        } else if (arg.isUse()) {
             super.visit(n, arg);
         } else {
             throw new IllegalStateException("Array accesses cannot be declared");
@@ -236,11 +272,8 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     @Override
     public void visit(ConditionalExpr n, Action arg) {
         n.getCondition().accept(this, arg);
-        boolean always = arg.always;
-        arg.setAlways(false);
-        n.getThenExpr().accept(this, arg);
-        n.getElseExpr().accept(this, arg);
-        arg.setAlways(always);
+        n.getThenExpr().accept(this, arg.optional());
+        n.getElseExpr().accept(this, arg.optional());
     }
 
     @Override
@@ -249,10 +282,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         switch (n.getOperator()) {
             case OR:
             case AND:
-                boolean always = arg.always;
-                arg.setAlways(false);
-                n.getRight().accept(this, arg);
-                arg.setAlways(always);
+                n.getRight().accept(this, arg.optional());
                 break;
             default:
                 n.getRight().accept(this, arg);
@@ -275,12 +305,12 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
                 String realName = getRealName(nameExpr);
                 definitionStack.push(n.getValue());
                 if (!realName.contains(".")) {
-                    VariableAction va = acceptAction(nameExpr, realName, DEFINITION);
+                    VariableAction va = acceptAction(nameExpr, realName, action.or(DEFINITION));
                     va.asDefinition().setTotallyDefinedMember(realName);
                     realNameWithoutRootList.add("");
                 } else {
                     String root = ObjectTree.removeFields(realName);
-                    VariableAction va = acceptAction(DeclarationType.valueOf(nameExpr), root, DEFINITION);
+                    VariableAction va = acceptAction(DeclarationType.valueOf(nameExpr), root, action.or(DEFINITION));
                     va.setStaticType(ASTUtils.resolvedTypeOfCurrentClass(nameExpr));
                     va.getObjectTree().addField(realName);
                     va.asDefinition().setTotallyDefinedMember(realName);
@@ -311,9 +341,9 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
                 definitionStack.push(n.getValue());
                 VariableAction va;
                 if (root.equals(scope.toString()))
-                    va = acceptAction(scope, root, DEFINITION);
+                    va = acceptAction(scope, root, action.or(DEFINITION));
                 else {
-                    va = acceptAction(FIELD, root, DEFINITION);
+                    va = acceptAction(FIELD, root, action.or(DEFINITION));
                     va.setStaticType(ASTUtils.resolvedTypeOfCurrentClass(fieldAccessExpr));
                 }
                 // Register both expressions, as ExpressionObjectTreeFinder will search based on scope.
@@ -328,7 +358,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
             @Override
             public void visit(ArrayAccessExpr n, Void arg) {
                 n.getName().accept(this, arg);
-                n.getIndex().accept(VariableVisitor.this, USE);
+                n.getIndex().accept(VariableVisitor.this, action.andUse());
                 foundArray.add(true);
             }
         }, null);
@@ -487,7 +517,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
             ASTUtils.getResolvableScope(call).ifPresentOrElse(
                     scope -> scope.accept(this, action),
                     () -> {
-                        VariableAction va = acceptAction(FIELD, "this", USE);
+                        VariableAction va = acceptAction(FIELD, "this", action);
                         va.setStaticType(ASTUtils.resolvedTypeOfCurrentClass((MethodCallExpr) call));
                     });
             // Generate -scope-in- action, so that InterproceduralUsageFinder does not need to do so.

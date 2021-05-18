@@ -35,14 +35,6 @@ public class ASTUtils {
         return null;
     }
 
-    public static boolean equalsInDeclaration(Node n1, Node n2) {
-        if (n1 == n2)
-            return true;
-        CallableDeclaration<?> d1 = getDeclarationNode(n1);
-        CallableDeclaration<?> d2 = getDeclarationNode(n2);
-        return n1.equals(n2) && equalsWithRange(d1, d2);
-    }
-
     /** @see #equalsWithRange(Node, Node) */
     public static boolean equalsWithRange(Resolvable<? extends ResolvedMethodLikeDeclaration> n1, Resolvable<? extends ResolvedMethodLikeDeclaration> n2) {
         return equalsWithRange((Node) n1, (Node) n2);
@@ -211,14 +203,6 @@ public class ASTUtils {
         while (!(upperNode instanceof ClassOrInterfaceDeclaration))
             upperNode = upperNode.getParentNode().orElseThrow();
         return (ClassOrInterfaceDeclaration) upperNode;
-    }
-
-    public static CallableDeclaration<?> getDeclarationNode(Node n) {
-        assert n instanceof Statement || n instanceof Expression || n instanceof CallableDeclaration;
-        Node upperNode = n;
-        while (!(upperNode instanceof CallableDeclaration))
-            upperNode = upperNode.getParentNode().orElseThrow();
-        return (CallableDeclaration<?>) upperNode;
     }
 
     /** Generates the default initializer, given a field. In Java, reference types

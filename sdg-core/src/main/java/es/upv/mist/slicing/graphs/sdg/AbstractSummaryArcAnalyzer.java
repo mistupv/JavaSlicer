@@ -79,15 +79,17 @@ public abstract class AbstractSummaryArcAnalyzer<ActualIn extends SyntheticNode<
         var result = vertexDataMap.get(vertex);
         for (CallGraph.Edge<?> edge : graph.incomingEdgesOf(vertex)) {
             for (var entry : result.entrySet()) {
-                var actualOutOpt = findOutputNode(edge, entry.getKey());
-                if (actualOutOpt.isEmpty())
+                Collection<? extends SyntheticNode<?>> actualOuts = findOutputNode(edge, entry.getKey());
+                if (actualOuts.isEmpty())
                     continue;
-                for (var formalIn : entry.getValue()) {
-                    var actualInOpt = findActualIn(edge, formalIn);
-                    if (actualInOpt.isEmpty())
+                for (FormalIn formalIn : entry.getValue()) {
+                    Collection<? extends ActualIn> actualIns = findActualIn(edge, formalIn);
+                    if (actualIns.isEmpty())
                         continue;
-                    if (!sdg.containsEdge(actualInOpt.get(), actualOutOpt.get()))
-                        sdg.addSummaryArc(actualInOpt.get(), actualOutOpt.get());
+                    for (SyntheticNode<?> actualOut : actualOuts)
+                        for (ActualIn actualIn : actualIns)
+                            if (!sdg.containsEdge(actualIn, actualOut))
+                                sdg.addSummaryArc(actualIn, actualOut);
                 }
             }
         }
@@ -96,10 +98,10 @@ public abstract class AbstractSummaryArcAnalyzer<ActualIn extends SyntheticNode<
     /** Find the actual-in that represents the given formal-in in the given call.
      *  There may not be one. In that case, the dependency between formal-in/out should
      *  not result in a summary arc. */
-    protected abstract Optional<? extends ActualIn> findActualIn(CallGraph.Edge<?> edge, FormalIn formalIn);
+    protected abstract Collection<? extends ActualIn> findActualIn(CallGraph.Edge<?> edge, FormalIn formalIn);
 
     /** Find the actual-out, return or exception/normal return node that represents the given
      *  formal-out, output or exception/normal exit node in the given call. There may not be one.
      *  In that case, the dependency between formal-in/out should not result in a summary arc. */
-    protected abstract Optional<? extends SyntheticNode<?>> findOutputNode(CallGraph.Edge<?> edge, FormalOut formalOut);
+    protected abstract Collection<? extends SyntheticNode<?>> findOutputNode(CallGraph.Edge<?> edge, FormalOut formalOut);
 }

@@ -53,7 +53,7 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
     /** Resolve a call to all its possible declarations, by using the call AST nodes stored on the edges. */
     public Stream<CallableDeclaration<?>> getCallTargets(Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
         return edgeSet().stream()
-                .filter(e -> ASTUtils.equalsInDeclaration((Node) e.getCall(), (Node) call))
+                .filter(e -> ASTUtils.equalsWithRange(e.getCall(), call))
                 .map(this::getEdgeTarget)
                 .map(Vertex::getDeclaration)
                 .map(decl -> (CallableDeclaration<?>) decl);
@@ -225,6 +225,18 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
 
             protected void createNormalEdge(CallableDeclaration<?> decl, Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
                 addEdge(declStack.peek(), decl, call);
+            }
+
+            // Other structures
+            @Override
+            public void visit(FieldDeclaration n, Void arg) {
+                if (declStack.isEmpty() && !n.isStatic()) {
+                    for (ConstructorDeclaration cd : classStack.peek().getConstructors()) {
+                        declStack.push(cd);
+                        super.visit(n, arg);
+                        declStack.pop();
+                    }
+                }
             }
         }, null);
     }

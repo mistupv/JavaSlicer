@@ -110,6 +110,16 @@ public class ObjectTree implements Cloneable {
         return childrenMap.computeIfAbsent(rt.describe(), n -> new ObjectTree(rt, this));
     }
 
+    public ObjectTree addType(ResolvedType rt, String prefix) {
+        String members = removeRoot(prefix);
+        Collection<ObjectTree> trees = findObjectTreeOfPolyMember(members);
+        if (trees.size() > 1)
+            throw new IllegalArgumentException("This method accepts only prefixes with all the necessary types");
+        for (ObjectTree tree : trees)
+            return tree.addType(rt);
+        throw new IllegalArgumentException("Could not locate any tree for the given prefix " + prefix);
+    }
+
     /**
      * Insert a field with the given name. This method should only be called on a root object tree.
      * This method may be used to add multiple levels simultaneously, calling this method with

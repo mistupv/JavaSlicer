@@ -197,7 +197,7 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex<?>, ClassG
             for (ClassOrInterfaceDeclaration type : types) {
                 Vertex<ClassOrInterfaceDeclaration> subclassVertex = classDeclarationMap.get(mapKey(type));
                 if (!findAllFieldsOf(subclassVertex).isEmpty()) {
-                    ObjectTree newType = tree.addType(ASTUtils.resolvedTypeDeclarationToResolvedType(type.resolve()));
+                    ObjectTree newType = tree.addType(ASTUtils.resolvedTypeDeclarationToResolvedType(type.resolve()), level);
                     generateObjectTreeFor(subclassVertex, tree, level + '.' + newType.getMemberNode().getLabel(), depth);
                 }
             }

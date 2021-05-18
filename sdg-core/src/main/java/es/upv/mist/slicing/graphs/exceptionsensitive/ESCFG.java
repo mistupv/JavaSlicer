@@ -252,8 +252,10 @@ public class ESCFG extends ACFG {
 
         @Override
         public void visit(ExplicitConstructorInvocationStmt n, Void arg) {
+            stmtStack.push(n);
             connectTo(n);
             visitCallForExceptions(n);
+            stmtStack.pop();
         }
 
         /** Process a call that may throw exceptions. Generates normal and return nodes, and

@@ -98,8 +98,11 @@ public class ExpressionObjectTreeFinder {
     public void handleAssignExpr(AssignExpr assignExpr, VariableAction assignTarget, String targetMember) {
         ClassGraph.getInstance().generateObjectTreeForType(assignExpr.getTarget().calculateResolvedType())
                 .ifPresent(fields -> assignTarget.getObjectTree().addAll(fields));
-        locateExpressionResultTrees(assignExpr.getValue())
-                .forEach(pair -> markTransference(pair, assignTarget, targetMember));
+        List<Pair<VariableAction, String>> list = new LinkedList<>();
+        if (assignExpr.getOperator() != AssignExpr.Operator.ASSIGN)
+            list.addAll(locateExpressionResultTrees(assignExpr.getTarget()));
+        list.addAll(locateExpressionResultTrees(assignExpr.getValue()));
+        list.forEach(pair -> markTransference(pair, assignTarget, targetMember));
     }
 
     /** Prepares the connection between the right-hand side of the assignment and the GraphNode

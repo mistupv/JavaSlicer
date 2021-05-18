@@ -10,7 +10,7 @@ import es.upv.mist.slicing.nodes.io.CallNode;
 import es.upv.mist.slicing.nodes.io.FormalIONode;
 import es.upv.mist.slicing.nodes.io.OutputNode;
 
-import java.util.Optional;
+import java.util.Collection;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -32,21 +32,21 @@ public class SummaryArcAnalyzer extends AbstractSummaryArcAnalyzer<ActualIONode,
     }
 
     @Override
-    protected Optional<ActualIONode> findActualIn(CallGraph.Edge<?> edge, FormalIONode formalIn) {
+    protected Collection<ActualIONode> findActualIn(CallGraph.Edge<?> edge, FormalIONode formalIn) {
         return sdg.vertexSet().stream()
                 .filter(ActualIONode.class::isInstance)
                 .map(ActualIONode.class::cast)
                 .filter(n -> n.getAstNode() == edge.getCall())
                 .filter(n -> n.matchesFormalIO(formalIn))
-                .findAny();
+                .collect(Collectors.toSet());
     }
 
     @Override
-    protected Optional<? extends SyntheticNode<?>> findOutputNode(CallGraph.Edge<?> edge, SyntheticNode<CallableDeclaration<?>> formalOut) {
+    protected Collection<? extends SyntheticNode<?>> findOutputNode(CallGraph.Edge<?> edge, SyntheticNode<CallableDeclaration<?>> formalOut) {
         if (formalOut instanceof FormalIONode)
             return findActualOut(edge, (FormalIONode) formalOut);
         if (formalOut instanceof OutputNode)
-            return Optional.of(findReturnNode(edge));
+            return Set.of(findReturnNode(edge));
         if (formalOut instanceof ExitNode)
             return getReturnNode(edge, (ExitNode) formalOut);
         throw new IllegalArgumentException("invalid type");
@@ -54,13 +54,13 @@ public class SummaryArcAnalyzer extends AbstractSummaryArcAnalyzer<ActualIONode,
 
     /** Find the actual-out node that corresponds to the given formal-out in the given call.
      *  To locate any actual-out, you should use {@link #findOutputNode(CallGraph.Edge, SyntheticNode)}. */
-    protected Optional<ActualIONode> findActualOut(CallGraph.Edge<?> edge, FormalIONode formalOut) {
+    protected Collection<ActualIONode> findActualOut(CallGraph.Edge<?> edge, FormalIONode formalOut) {
         return sdg.vertexSet().stream()
                 .filter(ActualIONode.class::isInstance)
                 .map(ActualIONode.class::cast)
                 .filter(n -> n.getAstNode() == edge.getCall())
                 .filter(n -> n.matchesFormalIO(formalOut))
-                .findAny();
+                .collect(Collectors.toSet());
     }
 
     /** Find the return node of the given call. There is only one per method.
@@ -75,12 +75,12 @@ public class SummaryArcAnalyzer extends AbstractSummaryArcAnalyzer<ActualIONode,
 
     /** Find the exception/normal return node that corresponds to the given exception/normal exit in the given call.
      *  To locate any actual-out, you should use {@link #findOutputNode(CallGraph.Edge, SyntheticNode)}. */
-    protected Optional<ReturnNode> getReturnNode(CallGraph.Edge<?> edge, ExitNode exitNode) {
+    protected Collection<ReturnNode> getReturnNode(CallGraph.Edge<?> edge, ExitNode exitNode) {
         return sdg.vertexSet().stream()
                 .filter(ReturnNode.class::isInstance)
                 .map(ReturnNode.class::cast)
                 .filter(n -> n.getAstNode() == edge.getCall())
                 .filter(exitNode::matchesReturnNode)
-                .findAny();
+                .collect(Collectors.toSet());
     }
 }

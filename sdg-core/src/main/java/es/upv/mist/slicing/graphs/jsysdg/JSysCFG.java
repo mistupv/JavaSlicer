@@ -47,6 +47,10 @@ public class JSysCFG extends ESCFG {
         builder.implicitDeclaration = implicitConstructors.contains(declaration);
         builder.classGraph = classGraph;
         declaration.accept(builder, null);
+        vertexSet().stream()
+                .filter(Predicate.not(GraphNode::isImplicitInstruction))
+                .filter(gn -> builder.methodInsertedInstructions.contains(gn.getAstNode()))
+                .forEach(GraphNode::markAsImplicit);
         // Verify that it has been built
         exitNode = vertexSet().stream().filter(MethodExitNode.class::isInstance).findFirst()
                 .orElseThrow(() -> new IllegalStateException("Built graph has no exit node!"));
@@ -188,6 +192,7 @@ public class JSysCFG extends ESCFG {
 
         @Override
         public void visit(ExplicitConstructorInvocationStmt n, Void arg) {
+            stmtStack.push(n);
             // 1. Connect to the following statements
             connectTo(n);
             // 2. Insert dynamic class code (only for super())
@@ -196,6 +201,7 @@ public class JSysCFG extends ESCFG {
                         .forEach(node -> node.accept(this, arg));
             // 3. Handle exceptions
             super.visitCallForExceptions(n);
+            stmtStack.pop();
         }
 
         @Override
