@@ -393,7 +393,7 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex<?>, ClassG
 
     /** A vertex containing the declaration it represents. It only exists because
      *  JGraphT relies heavily on equals comparison, which may not be correct in declarations. */
-    protected static class Vertex<T extends BodyDeclaration<?>> {
+    public static class Vertex<T extends BodyDeclaration<?>> {
         // First ancestor common class in the JavaParser hierarchy for
         // ClassOrInterfaceDeclaration, FieldDeclaration and CallableDeclaration
         protected final T declaration;
@@ -423,7 +423,7 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex<?>, ClassG
         }
     }
 
-    protected static class ClassArc extends Arc {
+    public static class ClassArc extends Arc {
         /** An arc that connects a class with another one that inherits from it. */
         protected static class Extends extends ClassArc {}
         /** An arc that connects an interface to a class that implements it. */
