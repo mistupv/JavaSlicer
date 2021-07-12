@@ -26,6 +26,8 @@ public class DOTAttributes {
     public Map<String, Attribute> build() {
         Map<String, Attribute> map = new HashMap<>();
         for (var entry : this.map.entrySet()) {
+            if (entry.getValue() == null)
+                continue;
             Optional<String> string = entry.getValue().stream().reduce((a, b) -> a + "," + b);
             string.ifPresent(s -> map.put(entry.getKey(), createAttribute(s)));
         }

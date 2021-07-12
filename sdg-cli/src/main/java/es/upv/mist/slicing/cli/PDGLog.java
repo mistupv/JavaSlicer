@@ -1,10 +1,7 @@
 package es.upv.mist.slicing.cli;
 
 import es.upv.mist.slicing.arcs.Arc;
-import es.upv.mist.slicing.arcs.pdg.ConditionalControlDependencyArc;
-import es.upv.mist.slicing.arcs.pdg.FlowDependencyArc;
-import es.upv.mist.slicing.arcs.pdg.ObjectFlowDependencyArc;
-import es.upv.mist.slicing.arcs.pdg.StructuralArc;
+import es.upv.mist.slicing.arcs.pdg.*;
 import es.upv.mist.slicing.arcs.sdg.InterproceduralArc;
 import es.upv.mist.slicing.graphs.pdg.PDG;
 
@@ -47,11 +44,14 @@ public class PDGLog extends GraphLog<PDG> {
 
     public static DOTAttributes pdgEdgeAttributes(Arc arc) {
         DOTAttributes res = new DOTAttributes();
-        res.set("label", arc.getLabel());
+        if (arc.getLabel() != null)
+            res.set("label", arc.getLabel());
         if (arc.isDataDependencyArc()
                 || arc instanceof FlowDependencyArc
                 || arc instanceof ObjectFlowDependencyArc)
             res.set("color", "red");
+        if (arc instanceof TotalDefinitionDependenceArc)
+            res.set("color", "pink");
         if (arc instanceof StructuralArc)
             res.add("style", "dashed");
         if (arc.isObjectFlow() && !(arc instanceof InterproceduralArc))
