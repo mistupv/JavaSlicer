@@ -19,7 +19,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.Set;
 
 public class PHPSlice {
     protected static final Options OPTIONS = new Options();
@@ -57,14 +56,14 @@ public class PHPSlice {
 
     private final File outputDir;
     private File scFile;
-    private int scId;
+    private int scLine;
     private final CommandLine cliOpts;
 
     public PHPSlice(String... cliArgs) throws ParseException {
         cliOpts = new DefaultParser().parse(OPTIONS, cliArgs);
         if (cliOpts.hasOption('h'))
             throw new ParseException(OPTIONS.toString());
-        setScId(Integer.parseInt(cliOpts.getOptionValue("i")));
+        setScLine(Integer.parseInt(cliOpts.getOptionValue("i")));
         setScFile(cliOpts.getOptionValue("f"));
         outputDir = new File(cliOpts.getOptionValue("o"));
         if (!outputDir.isDirectory())
@@ -78,10 +77,10 @@ public class PHPSlice {
         scFile = file;
     }
 
-    private void setScId(int line) throws ParseException {
+    private void setScLine(int line) throws ParseException {
         if (line < 0)
             throw new ParseException("The line of the slicing criterion must be strictly greater than zero.");
-        scId = line;
+        scLine = line;
     }
 
     public void slice() throws ParseException, IOException {
@@ -108,24 +107,23 @@ public class PHPSlice {
         }
         sdg.build(units);
 
-        SlicingCriterion sc = graph -> Set.of(graph.findNodeBy(n -> n.getId() == (long) 0).orElseThrow());
-        Slice slice = new Slice(Set.of());
-        if (scId != 0) {
-            // Slice the SDG
-            sc = new FileLineSlicingCriterion(scFile, scId);
-            slice = sdg.slice(sc);
+        if (scLine < 1)
+            throw new IllegalArgumentException("Invalid node id");
 
-            // Convert the slice to code and output the result to `outputDir`
-            for (CompilationUnit cu : slice.toAst()) {
-                if (cu.getStorage().isEmpty())
-                    throw new IllegalStateException("A synthetic CompilationUnit was discovered, with no file associated to it.");
-                File javaFile = new File(outputDir, cu.getStorage().get().getFileName());
-                try (PrintWriter pw = new PrintWriter(javaFile)) {
-                    pw.print(new BlockComment(getDisclaimer(cu.getStorage().get())));
-                    pw.print(cu);
-                } catch (FileNotFoundException e) {
-                    System.err.println("Could not write file " + javaFile);
-                }
+        // Slice the SDG
+        SlicingCriterion sc = new FileLineSlicingCriterion(scFile, scLine);
+        Slice slice = sdg.slice(sc);
+
+        // Convert the slice to code and output the result to `outputDir`
+        for (CompilationUnit cu : slice.toAst()) {
+            if (cu.getStorage().isEmpty())
+                throw new IllegalStateException("A synthetic CompilationUnit was discovered, with no file associated to it.");
+            File javaFile = new File(outputDir, cu.getStorage().get().getFileName());
+            try (PrintWriter pw = new PrintWriter(javaFile)) {
+                pw.print(new BlockComment(getDisclaimer(cu.getStorage().get())));
+                pw.print(cu);
+            } catch (FileNotFoundException e) {
+                System.err.println("Could not write file " + javaFile);
             }
         }
 
@@ -144,7 +142,7 @@ public class PHPSlice {
 
     protected String getDisclaimer(CompilationUnit.Storage s) {
         return String.format("\n\tThis file was automatically generated as part of a slice with criterion" +
-                        "\n\tnode id: %d\n\tOriginal file: %s\n", scId, s.getPath());
+                        "\n\tnode id: %d\n\tOriginal file: %s\n", scLine, s.getPath());
     }
 
     public static void main(String... args) {
