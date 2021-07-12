@@ -1,6 +1,6 @@
 package es.upv.mist.slicing.nodes;
 
-import com.github.javaparser.resolution.types.ResolvedType;
+import es.upv.mist.slicing.graphs.ClassGraph;
 import es.upv.mist.slicing.nodes.oo.MemberNode;
 import es.upv.mist.slicing.nodes.oo.PolyMemberNode;
 import es.upv.mist.slicing.utils.Utils;
@@ -49,8 +49,8 @@ public class ObjectTree implements Cloneable {
     }
 
     /** Create a child tree node for the given type, whose node is linked to the given parent. */
-    private ObjectTree(ResolvedType resolvedType, ObjectTree parent) {
-        this(new PolyMemberNode(resolvedType, parent.memberNode));
+    private ObjectTree(ClassGraph.ClassVertex<?> type, ObjectTree parent) {
+        this(new PolyMemberNode(type, parent.memberNode));
     }
 
     /** Create a child tree with the given member node. */
@@ -104,19 +104,19 @@ public class ObjectTree implements Cloneable {
 
     /** Insert a polymorphic node for the given type. The type node will be
      *  generated immediately beneath this tree node. */
-    public ObjectTree addType(ResolvedType rt) {
-        assert !rt.describe().isBlank();
+    public ObjectTree addType(ClassGraph.ClassVertex<?> type) {
+        assert !type.describe().isBlank();
         assert !(memberNode instanceof PolyMemberNode);
-        return childrenMap.computeIfAbsent(rt.describe(), n -> new ObjectTree(rt, this));
+        return childrenMap.computeIfAbsent(type.describe(), n -> new ObjectTree(type, this));
     }
 
-    public ObjectTree addType(ResolvedType rt, String prefix) {
+    public ObjectTree addType(ClassGraph.ClassVertex<?> type, String prefix) {
         String members = removeRoot(prefix);
         Collection<ObjectTree> trees = findObjectTreeOfPolyMember(members);
         if (trees.size() > 1)
             throw new IllegalArgumentException("This method accepts only prefixes with all the necessary types");
         for (ObjectTree tree : trees)
-            return tree.addType(rt);
+            return tree.addType(type);
         throw new IllegalArgumentException("Could not locate any tree for the given prefix " + prefix);
     }
 

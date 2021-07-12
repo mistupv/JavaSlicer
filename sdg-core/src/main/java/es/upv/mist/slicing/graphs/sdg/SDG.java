@@ -5,6 +5,7 @@ import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.expr.LambdaExpr;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import es.upv.mist.slicing.arcs.pdg.ControlDependencyArc;
 import es.upv.mist.slicing.arcs.pdg.DataDependencyArc;
@@ -138,6 +139,7 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
                     CFG cfg = createCFG();
                     buildCFG(n, cfg);
                     cfgMap.put(n, cfg);
+                    super.visit(n, arg);
                 }
 
                 @Override
@@ -145,6 +147,12 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
                     CFG cfg = createCFG();
                     buildCFG(n, cfg);
                     cfgMap.put(n, cfg);
+                    super.visit(n, arg);
+                }
+
+                @Override
+                public void visit(LambdaExpr n, Void arg) {
+                    super.visit(n, arg);
                 }
             }, null);
         }

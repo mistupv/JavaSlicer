@@ -248,6 +248,7 @@ public class ESCFG extends ACFG {
         @Override
         public void visit(ObjectCreationExpr n, Void arg) {
             visitCallForExceptions(n);
+            super.visit(n, arg);
         }
 
         @Override

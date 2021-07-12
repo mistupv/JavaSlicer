@@ -43,6 +43,7 @@ public class InterproceduralUsageFinder extends InterproceduralActionFinder<Usag
                     if (va instanceof Movable && ((Movable) va).getRealNode().equals(actualIn)) {
                         ExpressionObjectTreeFinder finder = new ExpressionObjectTreeFinder(edge.getGraphNode());
                         if (va.getName().equals("-scope-in-")) {
+                            va.setPDGValueConnection("");
                             if (actualIn.getArgument() == null)
                                 finder.locateAndMarkTransferenceToRoot(edge.getCall(), va);
                             else

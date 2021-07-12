@@ -28,11 +28,14 @@ public class ValueConnection implements VariableAction.PDGConnection {
             statementNode = ((VariableAction.Movable) action).getRealNode();
         else
             statementNode = action.getGraphNode();
-        if (action.hasPolyTreeMember(member))
+        if (action.hasPolyTreeMember(member)) {
             for (MemberNode source : action.getObjectTree().getNodesForPoly(member)) {
                 graph.addEdge(source, statementNode, new FlowDependencyArc());
                 applied = true;
             }
-
+        } else if (member.equals(ROOT_NAME) && action instanceof VariableAction.Movable) {
+            graph.addEdge(statementNode, action.getGraphNode(), new FlowDependencyArc());
+            applied = true;
+        }
     }
 }

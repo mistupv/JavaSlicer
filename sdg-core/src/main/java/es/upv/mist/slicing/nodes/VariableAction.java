@@ -1,6 +1,5 @@
 package es.upv.mist.slicing.nodes;
 
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.UnsolvedSymbolException;
@@ -14,7 +13,6 @@ import es.upv.mist.slicing.graphs.Graph;
 import es.upv.mist.slicing.graphs.jsysdg.JSysDG;
 import es.upv.mist.slicing.graphs.jsysdg.JSysPDG;
 import es.upv.mist.slicing.graphs.pdg.PDG;
-import es.upv.mist.slicing.utils.ASTUtils;
 import es.upv.mist.slicing.utils.NodeHashSet;
 
 import java.util.*;
@@ -64,10 +62,10 @@ public abstract class VariableAction {
 
     protected final String name;
     protected final DeclarationType declarationType;
-    protected final Set<ResolvedType> dynamicTypes = new HashSet<>();
+    protected final Set<ClassGraph.ClassVertex<?>> dynamicTypes = new HashSet<>();
     protected final Set<Expression> expressions = new NodeHashSet<>();
 
-    protected ResolvedType staticType;
+    protected ClassGraph.ClassVertex<?> staticType;
     protected GraphNode<?> graphNode;
     protected ObjectTree objectTree;
     protected boolean optional = false;
@@ -159,22 +157,21 @@ public abstract class VariableAction {
     }
 
     public void setStaticType(ResolvedType staticType) {
-        this.staticType = staticType;
-        dynamicTypes.clear();
-        dynamicTypes.add(staticType);
-        if (staticType.isReferenceType() && ClassGraph.getInstance().containsType(staticType.asReferenceType())) {
-            ClassGraph.getInstance().subclassesOf(staticType.asReferenceType()).stream()
-                    .map(ClassOrInterfaceDeclaration::resolve)
-                    .map(ASTUtils::resolvedTypeDeclarationToResolvedType)
-                    .forEach(dynamicTypes::add);
-        }
+        setStaticType(ClassGraph.getInstance().vertexOf(staticType));
     }
 
-    public ResolvedType getStaticType() {
+    public void setStaticType(ClassGraph.ClassVertex<?> staticType) {
+        this.staticType = staticType;
+        dynamicTypes.clear();
+        ClassGraph.getInstance().subclassesStreamOf(staticType)
+                .forEach(dynamicTypes::add);
+    }
+
+    public ClassGraph.ClassVertex<?> getStaticType() {
         return staticType;
     }
 
-    public Set<ResolvedType> getDynamicTypes() {
+    public Set<ClassGraph.ClassVertex<?>> getDynamicTypes() {
         return dynamicTypes;
     }
 
@@ -518,25 +515,25 @@ public abstract class VariableAction {
             return inner.objectTree != null;
         }
 
-        @Override
-        public void setPDGTreeConnectionTo(VariableAction targetAction, String sourcePrefixWithoutRoot, String targetPrefixWithoutRoot) {
-            inner.setPDGTreeConnectionTo(targetAction, sourcePrefixWithoutRoot, targetPrefixWithoutRoot);
-        }
-
-        @Override
-        public void setPDGValueConnection(String member) {
-            inner.setPDGValueConnection(member);
-        }
-
-        @Override
-        public void applyPDGTreeConnections(JSysPDG pdg) {
-            inner.applyPDGTreeConnections(pdg);
-        }
-
-        @Override
-        public void applySDGTreeConnection(JSysDG sdg, VariableAction targetAction) {
-            inner.applySDGTreeConnection(sdg, targetAction);
-        }
+//        @Override
+//        public void setPDGTreeConnectionTo(VariableAction targetAction, String sourcePrefixWithoutRoot, String targetPrefixWithoutRoot) {
+//            inner.setPDGTreeConnectionTo(targetAction, sourcePrefixWithoutRoot, targetPrefixWithoutRoot);
+//        }
+//
+//        @Override
+//        public void setPDGValueConnection(String member) {
+//            inner.setPDGValueConnection(member);
+//        }
+//
+//        @Override
+//        public void applyPDGTreeConnections(JSysPDG pdg) {
+//            inner.applyPDGTreeConnections(pdg);
+//        }
+//
+//        @Override
+//        public void applySDGTreeConnection(JSysDG sdg, VariableAction targetAction) {
+//            inner.applySDGTreeConnection(sdg, targetAction);
+//        }
 
         @Override
         public void addExpression(Expression expression) {
@@ -554,12 +551,12 @@ public abstract class VariableAction {
         }
 
         @Override
-        public ResolvedType getStaticType() {
+        public ClassGraph.ClassVertex<?> getStaticType() {
             return inner.getStaticType();
         }
 
         @Override
-        public Set<ResolvedType> getDynamicTypes() {
+        public Set<ClassGraph.ClassVertex<?>> getDynamicTypes() {
             return inner.getDynamicTypes();
         }
 
@@ -592,6 +589,7 @@ public abstract class VariableAction {
             graphNode.variableActions.remove(this);
             realNode.variableActions.add(inner);
             inner.graphNode = realNode;
+            inner.pdgTreeConnections.addAll(pdgTreeConnections);
         }
 
         /** Relocates a data dependency arc, by creating a new one with matching information and deleting the old one. */

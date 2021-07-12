@@ -6,6 +6,7 @@ import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.BooleanLiteralExpr;
 import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.SimpleName;
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitor;
@@ -340,6 +341,16 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
     // ======================================================================
     // ============================ Declarations ============================
     // ======================================================================
+
+    @Override
+    public void visit(ObjectCreationExpr n, Void arg) {
+//        n.getAnonymousClassBody().ifPresent(l -> l.forEach(v -> v.accept(this, arg)));
+        n.getArguments().forEach(p -> p.accept(this, arg));
+        n.getScope().ifPresent(l -> l.accept(this, arg));
+        n.getType().accept(this, arg);
+        n.getTypeArguments().ifPresent(l -> l.forEach(v -> v.accept(this, arg)));
+        n.getComment().ifPresent(l -> l.accept(this, arg));
+    }
 
     @Override
     public void visit(MethodDeclaration n, Void arg) {

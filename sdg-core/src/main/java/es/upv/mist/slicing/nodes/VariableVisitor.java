@@ -1,7 +1,10 @@
 package es.upv.mist.slicing.nodes;
 
 import com.github.javaparser.ast.Node;
-import com.github.javaparser.ast.body.*;
+import com.github.javaparser.ast.body.CallableDeclaration;
+import com.github.javaparser.ast.body.FieldDeclaration;
+import com.github.javaparser.ast.body.Parameter;
+import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.nodeTypes.NodeWithArguments;
 import com.github.javaparser.ast.stmt.*;
@@ -686,15 +689,15 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
     /** Handle a single level of conversion between object tree without polymorphic nodes
      *  to new object tree with polymorphic nodes.
      *  @see #generatePolyTrees(GraphNode) */
-    protected void polyUnit(ObjectTree oldOT, ObjectTree newOT, Set<ResolvedType> types, ClassGraph classGraph) {
-        boolean skipPolyNodes = types.stream().noneMatch(classGraph::containsType) || !oldOT.hasChildren() || oldOT.hasPoly();
+    protected void polyUnit(ObjectTree oldOT, ObjectTree newOT, Set<ClassGraph.ClassVertex<?>> types, ClassGraph classGraph) {
+        boolean skipPolyNodes = types.stream().noneMatch(classGraph::containsVertex) || !oldOT.hasChildren() || oldOT.hasPoly();
         if (skipPolyNodes) {
             // Copy as-is
             newOT.addAll(oldOT);
         } else {
             // Copy with typing information
-            for (ResolvedType rt : types) {
-                boolean rtInGraph = classGraph.containsType(rt);
+            for (ClassGraph.ClassVertex<?> rt : types) {
+                boolean rtInGraph = classGraph.containsVertex(rt);
                 ObjectTree typeRoot = newOT.addType(rt);
                 // Insert type node and copy members over
                 for (Map.Entry<String,ObjectTree> entry : oldOT.entrySet())
@@ -708,16 +711,14 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
 
     /** Obtain the set of possible dynamic types of the given field within a given type.
      *  Doesn't take into account the CFG, only the class graph. */
-    protected Set<ResolvedType> dynamicTypesOf(ResolvedType rt, String fieldName, ClassGraph classGraph) {
+    protected Set<ClassGraph.ClassVertex<?>> dynamicTypesOf(ClassGraph.ClassVertex<?> rt, String fieldName, ClassGraph classGraph) {
         Optional<FieldDeclaration> field = classGraph.findClassField(rt, fieldName);
         if (field.isEmpty())
             return Collections.emptySet();
         ResolvedType fieldType = field.get().getVariable(0).getType().resolve();
         if (!fieldType.isReferenceType() || !classGraph.containsType(fieldType))
-            return Set.of(fieldType);
-        return classGraph.subclassesOf(fieldType.asReferenceType()).stream()
-                .map(ClassOrInterfaceDeclaration::resolve)
-                .map(ASTUtils::resolvedTypeDeclarationToResolvedType)
+            return Set.of(classGraph.vertexOf(fieldType));
+        return classGraph.subclassesOf(fieldType.asReferenceType())
                 .collect(Collectors.toSet());
     }
 }

@@ -155,7 +155,7 @@ public class ExpressionObjectTreeFinder {
      * @return A list of pairs, containing the variable actions and the member of such
      * actions where the link must be placed.
      */
-    protected List<Pair<VariableAction, String>> locateExpressionResultTrees(Expression expression) {
+    public List<Pair<VariableAction, String>> locateExpressionResultTrees(Expression expression) {
         List<Pair<VariableAction, String>> list = new LinkedList<>();
         expression.accept(new VoidVisitorAdapter<String>() {
             @Override
@@ -289,7 +289,7 @@ public class ExpressionObjectTreeFinder {
         String sourceMember = sourcePair.b;
         if (targetAction.hasObjectTree()) {
             boolean sourceTypesInClassGraph = sourceAction.getDynamicTypes().stream()
-                    .anyMatch(ClassGraph.getInstance()::containsType);
+                    .anyMatch(ClassGraph.getInstance()::containsVertex);
             if (sourceTypesInClassGraph && !sourceAction.hasObjectTree())
                 ObjectTree.copyTargetTreeToSource(sourceAction.getObjectTree(), targetAction.getObjectTree(), sourceMember, targetMember);
             sourceAction.setPDGTreeConnectionTo(targetAction, sourceMember, targetMember);

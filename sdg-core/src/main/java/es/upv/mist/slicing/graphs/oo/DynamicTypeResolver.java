@@ -2,7 +2,6 @@ package es.upv.mist.slicing.graphs.oo;
 
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.CallableDeclaration;
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.expr.CastExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.MethodCallExpr;
@@ -39,13 +38,13 @@ public class DynamicTypeResolver {
 
     /** Obtains the possible dynamic types of the given expression, which is contained within a GraphNode.
      *  Only expressions of a reference type are allowed (e.g. objects, arrays, but not primitives). */
-    public Set<ResolvedType> resolve(Expression expression, GraphNode<?> container) {
+    public Set<ClassGraph.ClassVertex<?>> resolve(Expression expression, GraphNode<?> container) {
         assert expression.calculateResolvedType().isReference(): "The expression must be of reference type (no primitives).";
         return resolveStreamed(expression, container).collect(Collectors.toSet());
     }
 
     /** Directs each kind of expression to the appropriate resolve method. */
-    protected Stream<ResolvedType> resolveStreamed(Expression expression, GraphNode<?> container) {
+    protected Stream<ClassGraph.ClassVertex<?>> resolveStreamed(Expression expression, GraphNode<?> container) {
         if (expression.isMethodCallExpr())
             return resolveMethodCallExpr(expression.asMethodCallExpr());
         if (expression.isNameExpr() || expression.isFieldAccessExpr()) // May be field, local variable or parameter
@@ -59,12 +58,12 @@ public class DynamicTypeResolver {
             return resolveStreamed(expression.asEnclosedExpr().getInner(), container);
         if (expression.isObjectCreationExpr() ||
                 expression.isArrayCreationExpr())
-            return Stream.of(expression.calculateResolvedType());
+            return Stream.of(classGraph.vertexOf(expression.calculateResolvedType()));
         throw new IllegalArgumentException("The given expression is not an object-compatible one.");
     }
 
     /** Checks the possible values of all ReturnStmt of this call's target methods. */
-    protected Stream<ResolvedType> resolveMethodCallExpr(MethodCallExpr methodCallExpr) {
+    protected Stream<ClassGraph.ClassVertex<?>> resolveMethodCallExpr(MethodCallExpr methodCallExpr) {
         assert !methodCallExpr.calculateResolvedType().isVoid();
         return callGraph.getCallTargets(methodCallExpr)
                 .map(cfgMap::get)
@@ -74,7 +73,7 @@ public class DynamicTypeResolver {
     }
 
     /** Searches for the corresponding VariableAction object, then calls {@link #resolveVariableAction(VariableAction)}. */
-    protected Stream<ResolvedType> resolveVariable(Expression expression, GraphNode<?> graphNode) {
+    protected Stream<ClassGraph.ClassVertex<?>> resolveVariable(Expression expression, GraphNode<?> graphNode) {
         // TODO: implement a search like ExpressionObjectTreeFinder.
         return anyTypeOf(expression);
     }
@@ -85,7 +84,7 @@ public class DynamicTypeResolver {
      * uses auxiliary methods to locate the last interprocedural definition.
      * Otherwise, the last expression(s) assigned to it is found and recursively resolved.
      */
-    protected Stream<ResolvedType> resolveVariableAction(VariableAction va) {
+    protected Stream<ClassGraph.ClassVertex<?>> resolveVariableAction(VariableAction va) {
         CFG cfg = cfgMap.get(findCallableDeclarationFromGraphNode(va.getGraphNode()));
         return cfg.findLastDefinitionsFrom(va).stream()
                 .flatMap(def -> {
@@ -107,7 +106,7 @@ public class DynamicTypeResolver {
     }
 
     /** Looks up the expression assigned to all corresponding actual-in nodes and resolves it. */
-    protected Stream<ResolvedType> resolveFormalIn(FormalIONode formalIn) {
+    protected Stream<ClassGraph.ClassVertex<?>> resolveFormalIn(FormalIONode formalIn) {
         assert formalIn.isInput();
         return callGraph.callsTo(findCallableDeclarationFromGraphNode(formalIn))
                 .map(this::findNodeInMapByAST)
@@ -139,19 +138,21 @@ public class DynamicTypeResolver {
     /** Checks if the cast marks a more specific type and returns that one.
      *  Otherwise, it unwraps the cast expression and recursively resolves the type
      *  of the inner expression. */
-    protected Stream<ResolvedType> resolveCast(CastExpr cast, GraphNode<?> container) {
+    protected Stream<ClassGraph.ClassVertex<?>> resolveCast(CastExpr cast, GraphNode<?> container) {
         if (ASTUtils.isDownCast(cast))
-            return Stream.of(cast.getType().resolve());
+            return anyTypeOf(cast.getType().resolve());
         return resolveStreamed(cast.getExpression(), container);
     }
 
     /** Returns all possible types that the given expression can be, by obtaining its static type
      *  and locating all subtypes in the class graph. */
-    protected Stream<ResolvedType> anyTypeOf(Expression expression) {
+    protected Stream<ClassGraph.ClassVertex<?>> anyTypeOf(Expression expression) {
         ResolvedClassDeclaration type = expression.calculateResolvedType().asReferenceType()
                 .getTypeDeclaration().orElseThrow().asClass();
-        return classGraph.subclassesOf(type).stream()
-                .map(ClassOrInterfaceDeclaration::resolve)
-                .map(ASTUtils::resolvedTypeDeclarationToResolvedType);
+        return classGraph.subclassesOf(type);
+    }
+
+    protected Stream<ClassGraph.ClassVertex<?>> anyTypeOf(ResolvedType type) {
+        return classGraph.subclassesOf(type.asReferenceType().getTypeDeclaration().orElseThrow().asClass());
     }
 }

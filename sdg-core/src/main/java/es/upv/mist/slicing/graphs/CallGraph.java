@@ -189,7 +189,7 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
                 }
                 Optional<Expression> scope = call.getScope();
                 // Determine the type of the call's scope
-                Set<ClassOrInterfaceDeclaration> dynamicTypes;
+                Stream<ClassGraph.ClassVertex<?>> dynamicTypes;
                 if (scope.isEmpty()) {
                     // a) No scope: any class the method is in, or any outer class if the class is not static.
                     // Early exit: it is easier to find the methods that override the
@@ -211,7 +211,7 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
                 // To locate them, use the method signature and search for it in the class graph
                 // Connect to each declaration
                 AtomicInteger edgesCreated = new AtomicInteger();
-                dynamicTypes.stream()
+                dynamicTypes
                         .map(t -> classGraph.findMethodByTypeAndSignature(t, decl))
                         .collect(Collectors.toCollection(NodeHashSet::new))
                         .forEach(methodDecl -> {
