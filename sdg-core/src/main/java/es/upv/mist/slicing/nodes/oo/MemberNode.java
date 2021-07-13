@@ -13,7 +13,11 @@ public class MemberNode extends SyntheticNode<Node> {
     protected GraphNode<?> parent;
 
     public MemberNode(String instruction, GraphNode<?> parent) {
-        super(instruction, null, new LinkedList<>());
+        this(instruction, null, parent);
+    }
+
+    public MemberNode(String instruction, Node astNode, GraphNode<?> parent) {
+        super(instruction, astNode, new LinkedList<>());
         this.parent = parent;
     }
 

@@ -1,5 +1,6 @@
 package es.upv.mist.slicing.nodes;
 
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.resolution.types.ResolvedType;
 import es.upv.mist.slicing.nodes.oo.MemberNode;
 import es.upv.mist.slicing.nodes.oo.PolyMemberNode;
@@ -139,6 +140,12 @@ public class ObjectTree implements Cloneable {
         if (fieldName.contains(".") || fieldName.isBlank())
             throw new IllegalArgumentException("field name must not include dots or be blank!");
         return childrenMap.computeIfAbsent(fieldName, f -> new ObjectTree(f, this));
+    }
+
+    public ObjectTree addStaticField(String fieldName, Node node) {
+        if (fieldName.contains(".") || fieldName.isBlank())
+            throw new IllegalArgumentException("field name must not include dots or be blank!");
+        return childrenMap.computeIfAbsent(fieldName, f -> new ObjectTree(new MemberNode(fieldName, node, memberNode)));
     }
 
     /** Similar to {@link #addField(String)}, but may be called at any level

@@ -47,6 +47,11 @@ public class GraphNodeContentVisitor<A> extends VoidVisitorAdapter<A> {
     }
 
     @Override
+    public void visit(ClassOrInterfaceDeclaration n, A arg) {
+        // A node representing a class or interface declaration has no relevant elements to be visited.
+    }
+
+    @Override
     public void visit(ConstructorDeclaration n, A arg) {
         // A node representing a constructor declaration has no relevant elements to be visited.
     }
@@ -68,12 +73,12 @@ public class GraphNodeContentVisitor<A> extends VoidVisitorAdapter<A> {
 
     @Override
     public void visit(EnumConstantDeclaration n, A arg) {
-        throw new UnsupportedOperationException();
+        n.getArguments().accept(this, arg);
     }
 
     @Override
     public void visit(EnumDeclaration n, A arg) {
-        throw new UnsupportedOperationException();
+        // This node should not contain other elements
     }
 
     @Override

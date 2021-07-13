@@ -42,6 +42,20 @@ public class SlicePruneVisitor extends ModifierVisitor<NodeHashSet<Node>> {
         return keep || containsDeclarations ? v : null;
     }
 
+    // ============= Enum visitors =============
+
+    @Override
+    public Visitable visit(EnumDeclaration n, NodeHashSet<Node> arg) {
+        boolean keep = arg.contains(n);
+        Visitable v = super.visit(n, arg);
+        return keep ? v : null;
+    }
+
+    @Override
+    public Visitable visit(EnumConstantDeclaration n, NodeHashSet<Node> arg) {
+        return arg.contains(n) ? n : null;
+    }
+
     // ========== Class body visitors ==========
 
     @Override

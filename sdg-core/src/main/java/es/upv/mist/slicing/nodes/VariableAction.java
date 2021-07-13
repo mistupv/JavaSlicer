@@ -30,7 +30,8 @@ public abstract class VariableAction {
         STATIC_FIELD,
         PARAMETER,
         LOCAL_VARIABLE,
-        SYNTHETIC;
+        SYNTHETIC,
+        TYPE;
 
         public static DeclarationType valueOf(ResolvedValueDeclaration resolved) {
             if (resolved.isType())

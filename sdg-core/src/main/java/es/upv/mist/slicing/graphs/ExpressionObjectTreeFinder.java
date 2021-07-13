@@ -205,7 +205,13 @@ public class ExpressionObjectTreeFinder {
             public void visit(FieldAccessExpr n, String arg) {
                 if (!arg.isEmpty())
                     arg = "." + arg;
-                n.getScope().accept(this, n.getNameAsString() + arg);
+                if (n.resolve().isEnumConstant()) {
+                    var vaOpt = locateVariableAction(n.getScope(), va -> va.getName().equals(n.getScope().toString()));
+                    if (vaOpt.isEmpty()) throw new IllegalStateException("Could not find USE(" + n.getScope().toString() + ")");
+                    list.add(new Pair<>(vaOpt.get(), n.getNameAsString() + arg));
+                } else {
+                    n.getScope().accept(this, n.getNameAsString() + arg);
+                }
             }
 
             @Override
