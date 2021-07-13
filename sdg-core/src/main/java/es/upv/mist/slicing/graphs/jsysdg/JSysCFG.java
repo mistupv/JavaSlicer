@@ -5,6 +5,7 @@ import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
+import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.ThisExpr;
 import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
@@ -197,7 +198,7 @@ public class JSysCFG extends ESCFG {
             connectTo(n);
             // 2. Insert dynamic class code (only for super())
             if (!n.isThis())
-                ASTUtils.getClassInit(ASTUtils.getClassNode(rootNode.getAstNode()), false)
+                ASTUtils.getTypeInit(n.findAncestor(TypeDeclaration.class).orElseThrow(), false)
                         .forEach(node -> node.accept(this, arg));
             // 3. Handle exceptions
             super.visitCallForExceptions(n);
@@ -213,7 +214,7 @@ public class JSysCFG extends ESCFG {
         @Override
         public void visit(ConstructorDeclaration n, Void arg) {
             // Insert call to super() if it is implicit.
-            if (!ASTUtils.constructorHasExplicitConstructorInvocation(n)){
+            if (ASTUtils.shouldInsertExplicitConstructorInvocation(n)) {
                 var superCall = new ExplicitConstructorInvocationStmt(null, null, false, null, new NodeList<>());
                 methodInsertedInstructions.add(superCall);
                 n.getBody().addStatement(0, superCall);
@@ -234,6 +235,22 @@ public class JSysCFG extends ESCFG {
                 vertexSet().stream()
                         .filter(MethodExitNode.class::isInstance)
                         .forEach(GraphNode::markAsImplicit);
+            }
+        }
+
+        @Override
+        protected void buildEnter(CallableDeclaration<?> callableDeclaration) {
+            super.buildEnter(callableDeclaration);
+            // enums have no super(), so the implicitly inserted instructions
+            // must be placed after the root node
+            if (callableDeclaration.isConstructorDeclaration()) {
+                ConstructorDeclaration cd = callableDeclaration.asConstructorDeclaration();
+                TypeDeclaration<?> type = cd.findAncestor(TypeDeclaration.class).orElseThrow();
+                if (!ASTUtils.shouldInsertExplicitConstructorInvocation(cd) &&
+                        type.isEnumDeclaration() &&
+                        ASTUtils.shouldInsertDynamicInitInEnum(cd)) {
+                    ASTUtils.getTypeInit(type, false).forEach(n -> n.accept(this, null));
+                }
             }
         }
 

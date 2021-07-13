@@ -52,9 +52,8 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex<?>, ClassG
 
     /** Locates the vertex that represents a given class or interface declaration.
      *  If the vertex is not contained in the graph, {@code null} will be returned. */
-    @SuppressWarnings("unchecked")
-    protected Vertex<ClassOrInterfaceDeclaration> findClassVertex(ClassOrInterfaceDeclaration declaration) {
-        return (Vertex<ClassOrInterfaceDeclaration>) classDeclarationMap.get(mapKey(declaration));
+    protected Vertex<? extends TypeDeclaration<?>> findClassVertex(TypeDeclaration<?> declaration) {
+        return classDeclarationMap.get(mapKey(declaration));
     }
 
     /** Whether this graph contains the given type as a vertex. */
@@ -64,7 +63,7 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex<?>, ClassG
 
     /** Set of method declarations that override the given argument. */
     public Set<MethodDeclaration> overriddenSetOf(MethodDeclaration method) {
-        return subclassesStreamOf(findClassVertex(method.findAncestor(ClassOrInterfaceDeclaration.class).orElseThrow()))
+        return subclassesStreamOf(findClassVertex(method.findAncestor(TypeDeclaration.class).orElseThrow()))
                 .flatMap(vertex -> outgoingEdgesOf(vertex).stream()
                         .filter(ClassArc.Member.class::isInstance)
                         .map(ClassGraph.this::getEdgeTarget)
@@ -95,50 +94,51 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex<?>, ClassG
     }
 
     /** Returns all child classes of the given class, including itself. */
-    public Set<ClassOrInterfaceDeclaration> subclassesOf(ClassOrInterfaceDeclaration clazz) {
+    public Set<? extends TypeDeclaration<?>> subclassesOf(TypeDeclaration<?> clazz) {
         return subclassesOf(findClassVertex(clazz));
     }
 
     /** Returns all child classes of the given class, including itself. */
-    public Set<ClassOrInterfaceDeclaration> subclassesOf(ResolvedClassDeclaration clazz) {
+    public Set<? extends TypeDeclaration<?>> subclassesOf(ResolvedClassDeclaration clazz) {
         return subclassesOf(classDeclarationMap.get(mapKey(clazz)));
     }
 
-    public Set<ClassOrInterfaceDeclaration> subclassesOf(ResolvedReferenceType type) {
+    public Set<? extends TypeDeclaration<?>> subclassesOf(ResolvedReferenceType type) {
         return subclassesOf(classDeclarationMap.get(mapKey(type)));
     }
 
-    /** @see #subclassesOf(ClassOrInterfaceDeclaration) */
-    @SuppressWarnings("unchecked")
-    protected Set<ClassOrInterfaceDeclaration> subclassesOf(Vertex<? extends TypeDeclaration<?>> v) {
+    /** @see #subclassesOf(TypeDeclaration) */
+    protected Set<? extends TypeDeclaration<?>> subclassesOf(Vertex<? extends TypeDeclaration<?>> v) {
         if (v.getDeclaration() instanceof EnumDeclaration)
-            return Collections.emptySet();
-        return subclassesStreamOf((Vertex<ClassOrInterfaceDeclaration>) v)
+            return Set.of(v.getDeclaration());
+        return subclassesStreamOf(v)
                 .map(Vertex::getDeclaration)
                 .map(ClassOrInterfaceDeclaration.class::cast)
                 .collect(Collectors.toSet());
     }
 
     @SuppressWarnings("unchecked")
-    protected Stream<Vertex<ClassOrInterfaceDeclaration>> subclassesStreamOf(Vertex<ClassOrInterfaceDeclaration> classVertex) {
+    protected Stream<Vertex<? extends TypeDeclaration<?>>> subclassesStreamOf(Vertex<? extends TypeDeclaration<?>> classVertex) {
         return Stream.concat(Stream.of(classVertex), outgoingEdgesOf(classVertex).stream()
                 .filter(ClassArc.Extends.class::isInstance)
                 .map(this::getEdgeTarget)
-                .map(v -> (Vertex<ClassOrInterfaceDeclaration>) v)
+                .map(v -> (Vertex<? extends TypeDeclaration<?>>) v)
                 .flatMap(this::subclassesStreamOf));
     }
 
     // TODO: this method ignores default method implementations in interfaces, as can be overridden.
     /** Looks up a method in the graph, going up the class inheritance tree to locate a
      *  matching method. If no match can be found, throws an {@link IllegalArgumentException}. */
-    public MethodDeclaration findMethodByTypeAndSignature(ClassOrInterfaceDeclaration type, CallableDeclaration<?> declaration) {
+    public MethodDeclaration findMethodByTypeAndSignature(TypeDeclaration<?> type, CallableDeclaration<?> declaration) {
         Vertex<CallableDeclaration<?>> v = methodDeclarationMap.get(mapKey(declaration, type));
         if (v != null && v.declaration.isMethodDeclaration())
             return v.declaration.asMethodDeclaration();
-        Optional<ClassOrInterfaceDeclaration> parentType = parentOf(type);
-        if (parentType.isEmpty())
-            throw new IllegalArgumentException("Cannot find the given declaration: " + declaration);
-        return findMethodByTypeAndSignature(parentType.get(), declaration);
+        if (type.isClassOrInterfaceDeclaration()) {
+            Optional<ClassOrInterfaceDeclaration> parentType = parentOf(type.asClassOrInterfaceDeclaration());
+            if (parentType.isPresent())
+                return findMethodByTypeAndSignature(parentType.get(), declaration);
+        }
+        throw new IllegalArgumentException("Cannot find the given declaration: " + declaration);
     }
 
     /** Find the parent class or interface of a given class. */
@@ -164,7 +164,7 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex<?>, ClassG
             else
                 return Optional.empty();
         } else if (callableDeclaration.isConstructorDeclaration()) {
-            return Optional.of(generateObjectTreeFor(ASTUtils.getClassNode(callableDeclaration)));
+            return Optional.of(generateObjectTreeFor(callableDeclaration.findAncestor(TypeDeclaration.class).orElseThrow()));
         } else {
             throw new IllegalArgumentException("Invalid callable declaration type");
         }
@@ -179,7 +179,7 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex<?>, ClassG
         return Optional.empty();
     }
 
-    public ObjectTree generateObjectTreeFor(ClassOrInterfaceDeclaration declaration) {
+    public ObjectTree generateObjectTreeFor(TypeDeclaration<?> declaration) {
         return generateObjectTreeFor(classDeclarationMap.get(mapKey(declaration)));
     }
 
@@ -196,11 +196,11 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex<?>, ClassG
     protected ObjectTree generatePolyObjectTreeFor(Vertex<? extends TypeDeclaration<?>> classVertex, ObjectTree tree, String level, int depth) {
         if (depth >= StaticConfig.K_LIMIT)
             return tree;
-        Set<ClassOrInterfaceDeclaration> types = subclassesOf(classVertex);
+        Set<? extends TypeDeclaration<?>> types = subclassesOf(classVertex);
         if (types.isEmpty()) {
             generateObjectTreeFor(classVertex, tree, level, depth);
         } else {
-            for (ClassOrInterfaceDeclaration type : types) {
+            for (TypeDeclaration<?> type : types) {
                 Vertex<? extends TypeDeclaration<?>> subclassVertex = classDeclarationMap.get(mapKey(type));
                 if (!findAllFieldsOf(subclassVertex).isEmpty()) {
                     ObjectTree newType = tree.addType(ASTUtils.resolvedTypeDeclarationToResolvedType(type.resolve()), level);
@@ -355,41 +355,48 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex<?>, ClassG
      * member/extends/implements relationships in the given list of compilation units. */
     protected void buildEdges(NodeList<CompilationUnit> arg) {
         arg.accept(new VoidVisitorAdapter<Void>() {
-            private final Deque<ClassOrInterfaceDeclaration> classStack = new LinkedList<>();
+            private final Deque<TypeDeclaration<?>> typeStack = new LinkedList<>();
 
             @Override
             public void visit(ClassOrInterfaceDeclaration n, Void arg) {
-                classStack.push(n);
+                typeStack.push(n);
                 var v = classDeclarationMap.get(mapKey(n));
                 addClassEdges(v);
                 super.visit(n, arg);
-                classStack.pop();
+                typeStack.pop();
+            }
+
+            @Override
+            public void visit(EnumDeclaration n, Void arg) {
+                typeStack.push(n);
+                super.visit(n, arg);
+                typeStack.pop();
             }
 
             @Override
             public void visit(FieldDeclaration n, Void arg) {
-                ClassOrInterfaceDeclaration clazz = classStack.peek();
-                assert clazz != null;
-                var c = classDeclarationMap.get(mapKey(clazz));
-                Vertex<FieldDeclaration> v = fieldDeclarationMap.get(mapKey(n, clazz));
+                assert !typeStack.isEmpty();
+                TypeDeclaration<?> type = typeStack.peek();
+                var c = classDeclarationMap.get(mapKey(type));
+                Vertex<FieldDeclaration> v = fieldDeclarationMap.get(mapKey(n, type));
                 addEdge(c, v, new ClassArc.Member());
             }
 
             @Override
             public void visit(MethodDeclaration n, Void arg) {
-                ClassOrInterfaceDeclaration clazz = classStack.peek();
-                assert clazz != null;
-                var c = classDeclarationMap.get(mapKey(clazz));
-                Vertex<CallableDeclaration<?>> v = methodDeclarationMap.get(mapKey(n, clazz));
+                assert !typeStack.isEmpty();
+                TypeDeclaration<?> type = typeStack.peek();
+                var c = classDeclarationMap.get(mapKey(type));
+                Vertex<CallableDeclaration<?>> v = methodDeclarationMap.get(mapKey(n, type));
                 addEdge(c, v, new ClassArc.Member());
             }
 
             @Override
             public void visit(ConstructorDeclaration n, Void arg) {
-                ClassOrInterfaceDeclaration clazz = classStack.peek();
-                assert clazz != null;
-                var c = classDeclarationMap.get(mapKey(clazz));
-                Vertex<CallableDeclaration<?>> v = methodDeclarationMap.get(mapKey(n, clazz));
+                assert !typeStack.isEmpty();
+                TypeDeclaration<?> type = typeStack.peek();
+                var c = classDeclarationMap.get(mapKey(type));
+                Vertex<CallableDeclaration<?>> v = methodDeclarationMap.get(mapKey(n, type));
                 addEdge(c, v, new ClassArc.Member());
             }
         }, null);

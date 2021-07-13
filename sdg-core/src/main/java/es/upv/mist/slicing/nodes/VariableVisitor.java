@@ -716,7 +716,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
         if (!fieldType.isReferenceType() || !classGraph.containsType(fieldType))
             return Set.of(fieldType);
         return classGraph.subclassesOf(fieldType.asReferenceType()).stream()
-                .map(ClassOrInterfaceDeclaration::resolve)
+                .map(TypeDeclaration::resolve)
                 .map(ASTUtils::resolvedTypeDeclarationToResolvedType)
                 .collect(Collectors.toSet());
     }

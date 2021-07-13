@@ -59,6 +59,13 @@ public class JSysDG extends ESSDG {
                         newlyInsertedConstructors.add(n.addConstructor(Modifier.Keyword.PUBLIC));
                     return super.visit(n, arg);
                 }
+
+                @Override
+                public Visitable visit(EnumDeclaration n, Object arg) {
+                    if (n.getConstructors().isEmpty())
+                        newlyInsertedConstructors.add(n.addConstructor());
+                    return super.visit(n, arg);
+                }
             }, null);
         }
 

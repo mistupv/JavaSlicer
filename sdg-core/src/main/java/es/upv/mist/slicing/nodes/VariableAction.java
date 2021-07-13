@@ -1,6 +1,6 @@
 package es.upv.mist.slicing.nodes;
 
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.UnsolvedSymbolException;
@@ -165,7 +165,7 @@ public abstract class VariableAction {
         dynamicTypes.add(staticType);
         if (staticType.isReferenceType() && ClassGraph.getInstance().containsType(staticType.asReferenceType())) {
             ClassGraph.getInstance().subclassesOf(staticType.asReferenceType()).stream()
-                    .map(ClassOrInterfaceDeclaration::resolve)
+                    .map(TypeDeclaration::resolve)
                     .map(ASTUtils::resolvedTypeDeclarationToResolvedType)
                     .forEach(dynamicTypes::add);
         }

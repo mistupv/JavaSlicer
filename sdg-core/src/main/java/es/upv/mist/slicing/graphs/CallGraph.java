@@ -133,14 +133,21 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
     /** Find the calls to methods and constructors (edges) in the given list of compilation units. */
     protected void buildEdges(NodeList<CompilationUnit> arg) {
         arg.accept(new VoidVisitorAdapter<Void>() {
-            private final Deque<ClassOrInterfaceDeclaration> classStack = new LinkedList<>();
+            private final Deque<TypeDeclaration<?>> typeStack = new LinkedList<>();
             private final Deque<CallableDeclaration<?>> declStack = new LinkedList<>();
 
             @Override
             public void visit(ClassOrInterfaceDeclaration n, Void arg) {
-                classStack.push(n);
+                typeStack.push(n);
                 super.visit(n, arg);
-                classStack.pop();
+                typeStack.pop();
+            }
+
+            @Override
+            public void visit(EnumDeclaration n, Void arg) {
+                typeStack.push(n);
+                super.visit(n, arg);
+                typeStack.pop();
             }
 
             // ============ Method declarations ===========
@@ -189,7 +196,7 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
                 }
                 Optional<Expression> scope = call.getScope();
                 // Determine the type of the call's scope
-                Set<ClassOrInterfaceDeclaration> dynamicTypes;
+                Set<? extends TypeDeclaration<?>> dynamicTypes;
                 if (scope.isEmpty()) {
                     // a) No scope: any class the method is in, or any outer class if the class is not static.
                     // Early exit: it is easier to find the methods that override the
@@ -199,7 +206,7 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
                     return;
                 } else if (scope.get().isThisExpr() && scope.get().asThisExpr().getTypeName().isEmpty()) {
                     // b) just 'this', the current class and any subclass
-                    dynamicTypes = classGraph.subclassesOf(classStack.peek());
+                    dynamicTypes = classGraph.subclassesOf(typeStack.peek());
                 } else if (scope.get().isThisExpr()) {
                     // c) 'ClassName.this', the given class and any subclass
                     dynamicTypes = classGraph.subclassesOf(scope.get().asThisExpr().resolve().asClass());
@@ -229,7 +236,7 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
             @Override
             public void visit(FieldDeclaration n, Void arg) {
                 if (declStack.isEmpty() && !n.isStatic()) {
-                    for (ConstructorDeclaration cd : classStack.peek().getConstructors()) {
+                    for (ConstructorDeclaration cd : typeStack.peek().getConstructors()) {
                         declStack.push(cd);
                         super.visit(n, arg);
                         declStack.pop();
