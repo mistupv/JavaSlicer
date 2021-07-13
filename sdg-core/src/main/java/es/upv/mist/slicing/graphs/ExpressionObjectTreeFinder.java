@@ -296,11 +296,20 @@ public class ExpressionObjectTreeFinder {
         if (targetAction.hasObjectTree()) {
             boolean sourceTypesInClassGraph = sourceAction.getDynamicTypes().stream()
                     .anyMatch(ClassGraph.getInstance()::containsType);
-            if (sourceTypesInClassGraph && !sourceAction.hasObjectTree())
+            if (sourceTypesInClassGraph && !hasObjectTreeAt(sourceAction, sourceMember))
                 ObjectTree.copyTargetTreeToSource(sourceAction.getObjectTree(), targetAction.getObjectTree(), sourceMember, targetMember);
             sourceAction.setPDGTreeConnectionTo(targetAction, sourceMember, targetMember);
         } else {
             sourceAction.setPDGValueConnection(sourceMember);
         }
+    }
+
+    protected boolean hasObjectTreeAt(VariableAction action, String prefix) {
+        if (!action.hasObjectTree())
+            return false;
+        ObjectTree ot = action.getObjectTree();
+        if (!prefix.isEmpty())
+            prefix = "." + prefix;
+        return ot.hasChildrenPoly(ObjectTree.ROOT_NAME + prefix);
     }
 }

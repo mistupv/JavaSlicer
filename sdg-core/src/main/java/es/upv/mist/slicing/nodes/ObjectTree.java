@@ -78,17 +78,32 @@ public class ObjectTree implements Cloneable {
         String member = removeRoot(memberWithRoot);
         if (member.isEmpty())
             return hasChildren();
-        return hasChildrenInternal(member);
+        return hasChildrenInternal(member, false);
     }
 
-    protected boolean hasChildrenInternal(String members) {
+    /** Same as {@link #hasChildren(String)}, but considering the optional presence of polymorphic nodes. */
+    public boolean hasChildrenPoly(String memberWithRoot) {
+        String member = removeRoot(memberWithRoot);
+        if (member.isEmpty())
+            return hasChildren();
+        return hasChildrenInternal(member, true);
+    }
+
+    protected boolean hasChildrenInternal(String members, boolean polymorphic) {
         if (members.contains(".")) {
             int firstDot = members.indexOf('.');
             String first = members.substring(0, firstDot);
             String rest = members.substring(firstDot + 1);
-            childrenMap.computeIfAbsent(first, f -> new ObjectTree(f, this));
-            return childrenMap.get(first).hasChildrenInternal(rest);
+            if (polymorphic && !childrenMap.containsKey(first) && !childrenMap.isEmpty())
+                return childrenMap.values().stream()
+                        .filter(ot -> ot.getMemberNode() instanceof PolyMemberNode)
+                        .anyMatch(ot -> ot.hasChildrenInternal(members, true));
+            return childrenMap.containsKey(first) && childrenMap.get(first).hasChildrenInternal(rest, polymorphic);
         } else {
+            if (polymorphic && !childrenMap.containsKey(members) && !childrenMap.isEmpty())
+                return childrenMap.values().stream()
+                        .filter(ot -> ot.getMemberNode() instanceof PolyMemberNode)
+                        .anyMatch(ot -> ot.hasChildrenInternal(members, true));
             return childrenMap.get(members).hasChildren();
         }
     }
