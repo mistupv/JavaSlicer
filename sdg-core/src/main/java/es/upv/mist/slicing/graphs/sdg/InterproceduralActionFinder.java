@@ -39,7 +39,7 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
     /** Entry-point to the class. Performs the analysis and then saves the results to the CFG nodes. */
     public void save() {
         if (!built) analyze();
-        graph.vertexSet().forEach(this::saveDeclaration);
+        graph.vertexSet().forEach(this::saveDeclarationFormalNodes);
     }
 
     /** Obtains the StoredAction object with information on which actions have been stored. */
@@ -47,21 +47,31 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
         return actionStoredMap.get(vertex).get(action);
     }
 
-    /** Save the current set of actions associated to the given declaration. It will avoid saving
-     *  duplicates by default, so this method may be called multiple times safely. */
-    protected void saveDeclaration(CallGraph.Vertex vertex) {
+    /** Save the current set of actions associated with the given declaration. This method will
+     *  only generate actual-in and actual-out nodes. It is idempotent, and won't generate duplicates. */
+    protected void saveDeclarationActualNodes(CallGraph.Vertex vertex) {
         var actions = vertexDataMap.get(vertex);
         // Update stored action map
         actionStoredMap.computeIfAbsent(vertex, v -> new HashMap<>());
         for (A a : actions)
             actionStoredMap.get(vertex).computeIfAbsent(a, __ -> new StoredAction());
-        // FORMAL: per declaration (1)
-        for (A a : actions)
-            getStored(vertex, a).storeFormal(() -> sandBoxedHandler(vertex, a, this::handleFormalAction));
         // ACTUAL: per call (n)
         for (CallGraph.Edge<?> edge : graph.incomingEdgesOf(vertex))
             actions.stream().sorted(new ParameterFieldSorter(edge)).forEach(a ->
-                    getStored(vertex, a).storeActual(edge, e -> sandBoxedHandler(e, a, this::handleActualAction)));
+                    getStored(vertex, a).storeActual(edge, a, e -> sandBoxedHandler(e, a, this::handleActualAction)));
+    }
+
+    /** Save the current set of actions associated with the given declaration. This method will
+     *  only generate formal-in and formal-out nodes. It is idempotent, and won't generate duplicates. */
+    protected void saveDeclarationFormalNodes(CallGraph.Vertex vertex) {
+        var actions = vertexDataMap.get(vertex);
+        // Update stored action map
+        actionStoredMap.computeIfAbsent(vertex, __ -> new HashMap<>());
+        for (A a : actions)
+            actionStoredMap.get(vertex).computeIfAbsent(a, __ -> new StoredAction());
+        // 1 formal per declaration and action
+        for (A a : actions)
+            getStored(vertex, a).storeFormal(a, () -> sandBoxedHandler(vertex, a, this::handleFormalAction));
     }
 
     /** A sandbox to avoid resolution errors when a variable is included that is a class name
@@ -100,10 +110,8 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
 
     @Override
     protected Set<A> compute(CallGraph.Vertex vertex, Set<CallGraph.Vertex> predecessors) {
-        saveDeclaration(vertex);
-        Set<A> newValue = new HashSet<>(vertexDataMap.get(vertex));
-        newValue.addAll(initialValue(vertex));
-        return newValue;
+        saveDeclarationActualNodes(vertex);
+        return initialValue(vertex);
     }
 
     @Override
@@ -135,6 +143,21 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
     /** Given a stream of VariableAction objects, map it to the finders' type and
      *  filter unwanted items (only if the filter is specific to that type). */
     protected abstract Stream<A> mapAndFilterActionStream(Stream<VariableAction> stream, CFG cfg);
+
+    @Override
+    protected boolean dataMatch(Set<A> oldData, Set<A> newData) {
+        if (oldData == newData)
+            return true;
+        if (oldData.size() != newData.size())
+            return false;
+        HashMap<String, A> map = new HashMap<>();
+        for (A a : oldData)
+            map.put(a.getName(), a);
+        for (A b : newData)
+            if (!VariableAction.objectTreeMatches(map.get(b.getName()), b))
+                return false;
+        return true;
+    }
 
     // ===========================================================
     // ========================= SUBCLASSES ======================
@@ -168,27 +191,28 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
      *  have been saved to the graph or not. */
     protected static class StoredAction {
         /** Whether the action has been saved as actual node for each call. */
-        private final Map<CallGraph.Edge<?>, Boolean> actualStoredMap = new HashMap<>();
+        private final Map<CallGraph.Edge<?>, VariableAction> actualStoredMap = new HashMap<>();
 
         /** Whether the action has been saved as formal node. */
-        protected boolean formalStored = false;
+        protected VariableAction formalStored = null;
 
         private StoredAction() {}
 
         /** If this action has not yet been saved as formal node, use the argument to do so, then mark it as stored. */
-        private void storeFormal(Runnable save) {
-            if (!formalStored) {
+        private void storeFormal(VariableAction action, Runnable save) {
+            if (formalStored == null || !VariableAction.objectTreeMatches(action, formalStored)) {
                 save.run();
-                formalStored = true;
+                formalStored = action;
             }
         }
 
         /** If this action has not yet been saved as actual node for the given edge,
          * use the consumer to do so, then mark it as stored. */
-        private void storeActual(CallGraph.Edge<?> edge, Consumer<CallGraph.Edge<?>> save) {
-            if (!actualStoredMap.getOrDefault(edge, false)) {
+        private void storeActual(CallGraph.Edge<?> edge, VariableAction action, Consumer<CallGraph.Edge<?>> save) {
+            VariableAction storedAction = actualStoredMap.get(edge);
+            if (storedAction == null || !VariableAction.objectTreeMatches(storedAction, action)) {
                 save.accept(edge);
-                actualStoredMap.put(edge, true);
+                actualStoredMap.put(edge, action);
             }
         }
     }

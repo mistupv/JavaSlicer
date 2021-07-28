@@ -239,6 +239,20 @@ public abstract class VariableAction {
         connection.applySDG(sdg);
     }
 
+    public static boolean objectTreeMatches(VariableAction a, VariableAction b) {
+        if (a == b)
+            return true;
+        if (a == null || b == null)
+            return false;
+        boolean aHasTree = a.hasObjectTree() && a.getObjectTree().hasChildren();
+        boolean bHasTree = b.hasObjectTree() && b.getObjectTree().hasChildren();
+        if (aHasTree != bHasTree)
+            return false;
+        if (!aHasTree)
+            return true;
+        return a.getObjectTree().equals(b.getObjectTree());
+    }
+
     // ======================================================
     // =================== ROOT ACTIONS =====================
     // ======================================================
@@ -247,7 +261,7 @@ public abstract class VariableAction {
         assert !isRootAction();
         if (this instanceof Movable) {
             Movable movable = (Movable) this;
-            return new Movable(movable.inner.getRootAction(), movable.getRealNode());
+        return new Movable(movable.inner.getRootAction(), movable.getRealNode());
         }
         VariableAction action;
         if (this instanceof Usage)

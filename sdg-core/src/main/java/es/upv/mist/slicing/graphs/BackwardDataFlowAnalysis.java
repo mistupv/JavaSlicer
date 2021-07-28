@@ -37,7 +37,7 @@ public abstract class BackwardDataFlowAnalysis<V, E, D> {
                 Set<V> mayAffectVertex = graph.outgoingEdgesOf(vertex).stream()
                         .map(graph::getEdgeTarget).collect(Collectors.toCollection(ASTUtils::newIdentityHashSet));
                 D newValue = compute(vertex, mayAffectVertex);
-                if (!Objects.equals(vertexDataMap.get(vertex), newValue)) {
+                if (!dataMatch(vertexDataMap.get(vertex), newValue)) {
                     vertexDataMap.put(vertex, newValue);
                     graph.incomingEdgesOf(vertex).stream().map(graph::getEdgeSource).forEach(newWorkList::add);
                 }
@@ -45,6 +45,11 @@ public abstract class BackwardDataFlowAnalysis<V, E, D> {
             workList = newWorkList;
         }
         built = true;
+    }
+
+    /** Checks whether the computed value has changed or not. */
+    protected boolean dataMatch(D oldData, D newData) {
+        return Objects.equals(oldData, newData);
     }
 
     /** Compute a new value for a given vertex, given a set of nodes that might affect its value. */

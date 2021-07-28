@@ -444,7 +444,7 @@ public class ObjectTree implements Cloneable {
         if (o == null || getClass() != o.getClass()) return false;
         ObjectTree tree = (ObjectTree) o;
         return Objects.equals(getMemberName(), tree.getMemberName()) &&
-                childrenMap.values().equals(tree.childrenMap.values());
+                childrenMap.equals(tree.childrenMap);
     }
 
     @Override
