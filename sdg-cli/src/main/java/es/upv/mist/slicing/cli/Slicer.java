@@ -1,11 +1,17 @@
 package es.upv.mist.slicing.cli;
 
-import com.github.javaparser.StaticJavaParser;
+import com.github.javaparser.JavaParser;
+import com.github.javaparser.ParseResult;
+import com.github.javaparser.ParserConfiguration;
+import com.github.javaparser.Problem;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.comments.BlockComment;
 import com.github.javaparser.ast.nodeTypes.NodeWithName;
+import com.github.javaparser.symbolsolver.JavaSymbolSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 import es.upv.mist.slicing.graphs.augmented.ASDG;
 import es.upv.mist.slicing.graphs.augmented.PSDG;
 import es.upv.mist.slicing.graphs.exceptionsensitive.ESSDG;
@@ -15,15 +21,12 @@ import es.upv.mist.slicing.slicing.FileLineSlicingCriterion;
 import es.upv.mist.slicing.slicing.Slice;
 import es.upv.mist.slicing.slicing.SlicingCriterion;
 import es.upv.mist.slicing.utils.NodeHashSet;
-import es.upv.mist.slicing.utils.StaticTypeSolver;
 import org.apache.commons.cli.*;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -172,24 +175,28 @@ public class Slicer {
 
     public void slice() throws ParseException {
         // Configure JavaParser
-        StaticTypeSolver.addTypeSolverJRE();
+        ParserConfiguration parserConfig = new ParserConfiguration();
+        parserConfig.setAttributeComments(false);
+        CombinedTypeSolver cts = new CombinedTypeSolver();
+        cts.add(new ReflectionTypeSolver(true));
         for (File directory : dirIncludeSet)
-            StaticTypeSolver.addTypeSolver(new JavaParserTypeSolver(directory));
-        StaticJavaParser.getConfiguration().setAttributeComments(false);
+            if (directory.isDirectory())
+                cts.add(new JavaParserTypeSolver(directory));
+        parserConfig.setSymbolResolver(new JavaSymbolSolver(cts));
+        JavaParser parser = new JavaParser(parserConfig);
 
         // Build the SDG
         Set<CompilationUnit> units = new NodeHashSet<>();
-        try {
-            for (File file : dirIncludeSet) {
-                if (file.isDirectory())
-                    for (File f : (Iterable<File>) findAllJavaFiles(file)::iterator)
-                        units.add(StaticJavaParser.parse(f));
-                else
-                    units.add(StaticJavaParser.parse(file));
-            }
-            units.add(StaticJavaParser.parse(scFile));
-        } catch (FileNotFoundException e) {
-            throw new ParseException(e.getMessage());
+        List<Problem> problems = new LinkedList<>();
+        boolean scFileFound = false;
+        for (File file : (Iterable<File>) findAllJavaFiles(dirIncludeSet)::iterator)
+            scFileFound |= parse(parser, file, units, problems);
+        if (!scFileFound)
+            parse(parser, scFile, units, problems);
+        if (!problems.isEmpty()) {
+            for (Problem p : problems)
+                System.out.println(" * " + p.getVerboseMessage());
+            throw new ParseException("Some problems were found while parsing files or folders");
         }
 
         SDG sdg;
@@ -225,6 +232,29 @@ public class Slicer {
         }
     }
 
+    private boolean parse(JavaParser parser, File file, Set<CompilationUnit> units, List<Problem> problems) {
+        try {
+            ParseResult<CompilationUnit> result = parser.parse(file);
+            if (result.isSuccessful())
+                result.ifSuccessful(units::add);
+            else
+                problems.addAll(result.getProblems());
+        } catch (FileNotFoundException e) {
+            problems.add(new Problem(e.getLocalizedMessage(), null, e));
+        }
+        return Objects.equals(file.getAbsoluteFile(), scFile.getAbsoluteFile());
+    }
+
+    protected Stream<File> findAllJavaFiles(Collection<File> files) {
+        Stream.Builder<File> builder = Stream.builder();
+        for (File file : files)
+            if (file.isDirectory())
+                findAllJavaFiles(file, builder);
+            else
+                builder.accept(file);
+        return builder.build();
+    }
+
     protected Stream<File> findAllJavaFiles(File directory) {
         Stream.Builder<File> builder = Stream.builder();
         findAllJavaFiles(directory, builder);
@@ -239,7 +269,7 @@ public class Slicer {
             if (f.isDirectory())
                 findAllJavaFiles(f, builder);
             else if (f.getName().endsWith(".java"))
-                builder.add(f);
+                builder.accept(f);
         }
     }
 
