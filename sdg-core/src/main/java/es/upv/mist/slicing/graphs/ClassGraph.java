@@ -3,6 +3,7 @@ package es.upv.mist.slicing.graphs;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.*;
+import com.github.javaparser.ast.type.TypeParameter;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.github.javaparser.resolution.UnsolvedSymbolException;
 import com.github.javaparser.resolution.declarations.ResolvedClassDeclaration;
@@ -232,10 +233,14 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex<?>, ClassG
                         continue;
                     Vertex<? extends TypeDeclaration<?>> v = null;
                     if (var.getType().isClassOrInterfaceType()) {
-                        try {
-                            v = classDeclarationMap.get(mapKey(var.getType().asClassOrInterfaceType().resolve()));
-                        } catch (UnsolvedSymbolException ignored) {
-                        }
+                        boolean isTypeParameter = false;
+                        for (TypeParameter typeParameter : type.asClassOrInterfaceDeclaration().getTypeParameters())
+                            if (typeParameter.getNameAsString().equals(var.getType().asClassOrInterfaceType().getNameAsString()))
+                                isTypeParameter = true;
+                        if (!isTypeParameter)
+                            try {
+                                v = classDeclarationMap.get(mapKey(var.getType().asClassOrInterfaceType().resolve()));
+                            } catch (UnsolvedSymbolException ignored) {}
                     }
                     fieldMap.put(var.getNameAsString(), v);
                 }
