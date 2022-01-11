@@ -21,6 +21,7 @@ import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.nodes.VariableAction;
 import es.upv.mist.slicing.nodes.io.MethodExitNode;
 import es.upv.mist.slicing.utils.ASTUtils;
+import es.upv.mist.slicing.utils.Logger;
 import es.upv.mist.slicing.utils.NodeHashSet;
 import es.upv.mist.slicing.utils.NodeNotFoundException;
 
@@ -65,7 +66,7 @@ public class JSysCFG extends ESCFG {
 
     /** Given a usage of an object member, find the last definitions of that member.
      *  This method returns a list of variable actions, where the caller can find the member. */
-    public List<VariableAction> findLastDefinitionOfObjectMember(VariableAction usage, String member) {
+    public List<VariableAction> findLastDefinitionOfObjectMember(VariableAction usage, String[] member) {
         return findLastVarActionsFrom(usage, def -> def.isDefinition() && def.hasTreeMember(member));
     }
 
@@ -111,7 +112,7 @@ public class JSysCFG extends ESCFG {
 
     /** Given an action that defines a member, locates the previous total definition that gave
      *  it value. */
-    public List<VariableAction> findLastTotalDefinitionOf(VariableAction action, String member) {
+    public List<VariableAction> findLastTotalDefinitionOf(VariableAction action, String[] member) {
         return findLastVarActionsFrom(action, def ->
                 (def.isDeclaration() && def.hasTreeMember(member))
                 || (def.isDefinition() && def.asDefinition().isTotallyDefinedMember(member)));
@@ -120,7 +121,7 @@ public class JSysCFG extends ESCFG {
     /** Given a definition of a given member, locate all definitions of the same object until a definition
      *  containing the given member is found (not including that last one). If the member is found in the
      *  given definition, it will return a list with only the given definition. */
-    public List<VariableAction> findNextObjectDefinitionsFor(VariableAction definition, String member) {
+    public List<VariableAction> findNextObjectDefinitionsFor(VariableAction definition, String[] member) {
         if (!this.containsVertex(definition.getGraphNode()))
             throw new NodeNotFoundException(definition.getGraphNode(), this);
         if (definition.hasTreeMember(member))
@@ -135,7 +136,7 @@ public class JSysCFG extends ESCFG {
      *  the given argument. This search stops after finding a matching action in each branch. */
     protected boolean findNextVarActionsFor(Set<GraphNode<?>> visited, List<VariableAction> result,
                                             GraphNode<?> currentNode, VariableAction var,
-                                            Predicate<VariableAction> filter, String memberName) {
+                                            Predicate<VariableAction> filter, String[] memberName) {
         // Base case
         if (visited.contains(currentNode))
             return true;
@@ -181,6 +182,7 @@ public class JSysCFG extends ESCFG {
 
         @Override
         protected <T extends Node> GraphNode<T> connectTo(T n, String text) {
+            Logger.log("Connecting new node: " + text);
             GraphNode<T> dest;
             dest = new GraphNode<>(text, n);
             if (methodInsertedInstructions.contains(n) ||

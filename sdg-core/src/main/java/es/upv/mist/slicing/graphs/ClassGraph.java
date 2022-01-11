@@ -3,6 +3,7 @@ package es.upv.mist.slicing.graphs;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.*;
+import com.github.javaparser.ast.nodeTypes.NodeWithName;
 import com.github.javaparser.ast.type.TypeParameter;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.github.javaparser.resolution.UnsolvedSymbolException;
@@ -18,6 +19,8 @@ import org.jgrapht.graph.DirectedPseudograph;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static es.upv.mist.slicing.nodes.ObjectTree.ROOT_NODE;
 
 public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex<?>, ClassGraph.ClassArc> implements Buildable<NodeList<CompilationUnit>> {
     private static ClassGraph instance = null;
@@ -191,10 +194,10 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex<?>, ClassG
     protected ObjectTree generateObjectTreeFor(Vertex<? extends TypeDeclaration<?>> classVertex) {
         if (classVertex == null)
             return new ObjectTree();
-        return generatePolyObjectTreeFor(classVertex, new ObjectTree(), ObjectTree.ROOT_NAME, 0);
+        return generatePolyObjectTreeFor(classVertex, new ObjectTree(), ROOT_NODE, 0);
     }
 
-    protected ObjectTree generatePolyObjectTreeFor(Vertex<? extends TypeDeclaration<?>> classVertex, ObjectTree tree, String level, int depth) {
+    protected ObjectTree generatePolyObjectTreeFor(Vertex<? extends TypeDeclaration<?>> classVertex, ObjectTree tree, String[] level, int depth) {
         if (depth >= StaticConfig.K_LIMIT)
             return tree;
         Set<? extends TypeDeclaration<?>> types = subclassesOf(classVertex);
@@ -205,19 +208,25 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex<?>, ClassG
                 Vertex<? extends TypeDeclaration<?>> subclassVertex = classDeclarationMap.get(mapKey(type));
                 if (!findAllFieldsOf(subclassVertex).isEmpty()) {
                     ObjectTree newType = tree.addType(ASTUtils.resolvedTypeDeclarationToResolvedType(type.resolve()), level);
-                    generateObjectTreeFor(subclassVertex, tree, level + '.' + newType.getMemberNode().getLabel(), depth + 1);
+                    String[] newLevel = new String[level.length + 1];
+                    System.arraycopy(level, 0, newLevel, 0, level.length);
+                    newLevel[level.length] = newType.getMemberNode().getLabel();
+                    generateObjectTreeFor(subclassVertex, tree, newLevel, depth + 1);
                 }
             }
         }
         return tree;
     }
 
-    protected void generateObjectTreeFor(Vertex<? extends TypeDeclaration<?>> classVertex, ObjectTree tree, String level, int depth) {
+    protected void generateObjectTreeFor(Vertex<? extends TypeDeclaration<?>> classVertex, ObjectTree tree, String[] level, int depth) {
         Map<String, Vertex<? extends TypeDeclaration<?>>> classFields = findAllFieldsOf(classVertex);
         for (var entry : classFields.entrySet()) {
-            tree.addField(level + '.' + entry.getKey());
+            String[] newLevel = new String[level.length + 1];
+            System.arraycopy(level, 0, newLevel, 0, level.length);
+            newLevel[level.length] = entry.getKey();
+            tree.addField(newLevel);
             if (entry.getValue() != null)
-                generatePolyObjectTreeFor(entry.getValue(), tree, level + '.' + entry.getKey(), depth);
+                generatePolyObjectTreeFor(entry.getValue(), tree, newLevel, depth);
         }
     }
 
@@ -441,7 +450,9 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex<?>, ClassG
 
         @Override
         public int hashCode() {
-            return Objects.hash(declaration, declaration.getRange());
+            if (declaration instanceof NodeWithName<?>)
+                return Objects.hash(((NodeWithName<?>) declaration).getNameAsString(), declaration.getRange());
+            return Objects.hash(String.valueOf(declaration), declaration.getRange());
         }
 
         @Override

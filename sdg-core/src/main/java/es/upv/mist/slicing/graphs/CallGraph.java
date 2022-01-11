@@ -271,7 +271,7 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
 
         @Override
         public int hashCode() {
-            return Objects.hash(declaration, declaration.getRange());
+            return Objects.hash(declaration.getSignature(), declaration.getRange());
         }
 
         @Override

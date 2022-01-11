@@ -27,4 +27,24 @@ public class Utils {
                 return element;
         throw new NoSuchElementException("Could not locate " + object + " in set.");
     }
+
+    public static String arrayJoin(String[] array, String separator) {
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < array.length; i++) {
+            if (i > 0) builder.append(separator);
+            builder.append(array[i]);
+        }
+        return builder.toString();
+    }
+
+    public static <E> boolean arrayPrefix(E[] array, E[] prefix) {
+        if (prefix.length == 0)
+            return true;
+        if (array.length < prefix.length)
+            return false;
+        for (int i = 0; i < prefix.length; i++)
+            if (!Objects.equals(array[i], prefix[i]))
+                return false;
+        return true;
+    }
 }

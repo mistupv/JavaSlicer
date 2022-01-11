@@ -21,6 +21,10 @@ import es.upv.mist.slicing.slicing.JSysDGSlicingAlgorithm;
 import es.upv.mist.slicing.slicing.SlicingAlgorithm;
 import es.upv.mist.slicing.utils.NodeHashSet;
 
+import java.util.NoSuchElementException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 public class JSysDG extends ESSDG {
     @Override
     protected SlicingAlgorithm createSlicingAlgorithm() {
@@ -71,6 +75,13 @@ public class JSysDG extends ESSDG {
 
         @Override
         protected void buildCFG(CallableDeclaration<?> declaration, CFG cfg) {
+            String origin;
+            try {
+                origin = " from " + declaration.findCompilationUnit().get().getStorage().get().getFileName() + ".";
+            } catch (NoSuchElementException ignore) {
+                origin = " (location unknown, may be synthetic).";
+            }
+            Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).log(Level.INFO, "Building CFG for method " + declaration.getSignature() + origin);
             ((JSysCFG) cfg).build(declaration, newlyInsertedConstructors, ClassGraph.getInstance());
         }
 

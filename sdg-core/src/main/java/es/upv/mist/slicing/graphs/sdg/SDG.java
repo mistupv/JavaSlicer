@@ -3,6 +3,7 @@ package es.upv.mist.slicing.graphs.sdg;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.CallableDeclaration;
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
@@ -27,6 +28,8 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * The <b>System Dependence Graph</b> represents the statements of a program in
@@ -121,13 +124,21 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
         public void build(NodeList<CompilationUnit> nodeList) {
             // See creation strategy at http://kaz2.dsic.upv.es:3000/Fzg46cQvT1GzHQG9hFnP1g#Using-data-flow-in-the-SDG
             // This ordering cannot be altered, as each step requires elements from the previous one.
+            Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).log(Level.INFO, "Creating class graph");
             createClassGraph(nodeList); // 0
+            Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).log(Level.INFO, "Building CFGs");
             buildCFGs(nodeList);        // 1
+            Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).log(Level.INFO, "Creating call graph");
             createCallGraph(nodeList);  // 2
+            Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).log(Level.INFO, "Performing dataflow analysis");
             dataFlowAnalysis();         // 3
+            Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).log(Level.INFO, "Building PDGs and copying nodes to SDG");
             buildAndCopyPDGs();         // 4
+            Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).log(Level.INFO, "Connecting call sites to method declarations");
             connectCalls();             // 5
+            Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).log(Level.INFO, "Computing summary arcs");
             createSummaryArcs();        // 6
+            Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).log(Level.INFO, "SDG completed!");
         }
 
         /** Build a CFG per declaration found in the list of compilation units. */
@@ -135,6 +146,10 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
             nodeList.accept(new VoidVisitorAdapter<Void>() {
                 @Override
                 public void visit(MethodDeclaration n, Void arg) {
+                    boolean isInInterface = n.findAncestor(ClassOrInterfaceDeclaration.class)
+                            .map(ClassOrInterfaceDeclaration::isInterface).orElse(false);
+                    if (n.isAbstract() || isInInterface)
+                        return; // Allow abstract methods
                     CFG cfg = createCFG();
                     buildCFG(n, cfg);
                     cfgMap.put(n, cfg);
@@ -142,6 +157,10 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
 
                 @Override
                 public void visit(ConstructorDeclaration n, Void arg) {
+                    boolean isInInterface = n.findAncestor(ClassOrInterfaceDeclaration.class)
+                            .map(ClassOrInterfaceDeclaration::isInterface).orElse(false);
+                    if (n.isAbstract() || isInInterface)
+                        return; // Allow abstract methods
                     CFG cfg = createCFG();
                     buildCFG(n, cfg);
                     cfgMap.put(n, cfg);
@@ -151,6 +170,13 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
 
         /** Given a single empty CFG and a declaration, build the CFG. */
         protected void buildCFG(CallableDeclaration<?> declaration, CFG cfg) {
+            String origin;
+            try {
+                origin = " from " + declaration.findCompilationUnit().get().getStorage().get().getFileName() + ".";
+            } catch (NoSuchElementException ignore) {
+                origin = " (location unknown, may be synthetic).";
+            }
+            Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).log(Level.INFO, "Building CFG for method " + declaration.getSignature() + origin);
             cfg.build(declaration);
         }
 

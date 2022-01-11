@@ -1,17 +1,12 @@
 package es.upv.mist.slicing.cli;
 
-import com.github.javaparser.JavaParser;
-import com.github.javaparser.ParseResult;
-import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.Problem;
+import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.comments.BlockComment;
 import com.github.javaparser.ast.nodeTypes.NodeWithName;
-import com.github.javaparser.symbolsolver.JavaSymbolSolver;
-import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
-import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 import es.upv.mist.slicing.graphs.augmented.ASDG;
 import es.upv.mist.slicing.graphs.augmented.PSDG;
 import es.upv.mist.slicing.graphs.exceptionsensitive.ESSDG;
@@ -21,12 +16,15 @@ import es.upv.mist.slicing.slicing.FileLineSlicingCriterion;
 import es.upv.mist.slicing.slicing.Slice;
 import es.upv.mist.slicing.slicing.SlicingCriterion;
 import es.upv.mist.slicing.utils.NodeHashSet;
+import es.upv.mist.slicing.utils.StaticTypeSolver;
 import org.apache.commons.cli.*;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -175,24 +173,21 @@ public class Slicer {
 
     public void slice() throws ParseException {
         // Configure JavaParser
-        ParserConfiguration parserConfig = new ParserConfiguration();
-        parserConfig.setAttributeComments(false);
-        CombinedTypeSolver cts = new CombinedTypeSolver();
-        cts.add(new ReflectionTypeSolver(true));
+        Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).log(Level.INFO, "Configuring JavaParser");
+        StaticTypeSolver.addTypeSolverJRE();
         for (File directory : dirIncludeSet)
-            if (directory.isDirectory())
-                cts.add(new JavaParserTypeSolver(directory));
-        parserConfig.setSymbolResolver(new JavaSymbolSolver(cts));
-        JavaParser parser = new JavaParser(parserConfig);
+            StaticTypeSolver.addTypeSolver(new JavaParserTypeSolver(directory));
+        StaticJavaParser.getConfiguration().setAttributeComments(false);
 
         // Build the SDG
+        Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).log(Level.INFO, "Parsing files");
         Set<CompilationUnit> units = new NodeHashSet<>();
         List<Problem> problems = new LinkedList<>();
         boolean scFileFound = false;
         for (File file : (Iterable<File>) findAllJavaFiles(dirIncludeSet)::iterator)
-            scFileFound |= parse(parser, file, units, problems);
+            scFileFound |= parse(file, units, problems);
         if (!scFileFound)
-            parse(parser, scFile, units, problems);
+            parse(scFile, units, problems);
         if (!problems.isEmpty()) {
             for (Problem p : problems)
                 System.out.println(" * " + p.getVerboseMessage());
@@ -209,16 +204,20 @@ public class Slicer {
             default:
                 throw new IllegalArgumentException("Unknown type of graph. Available graphs are SDG, ASDG, PSDG, ESSDG");
         }
+        Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).log(Level.INFO, "Building the SDG");
         sdg.build(new NodeList<>(units));
 
         // Slice the SDG
+        Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).log(Level.INFO, "Searching for criterion and slicing");
         SlicingCriterion sc = new FileLineSlicingCriterion(scFile, scLine, scVar);
         Slice slice = sdg.slice(sc);
 
         // Convert the slice to code and output the result to `outputDir`
+        Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).log(Level.INFO, "Printing slice to files");
         for (CompilationUnit cu : slice.toAst()) {
             if (cu.getStorage().isEmpty())
                 throw new IllegalStateException("A synthetic CompilationUnit was discovered, with no file associated to it.");
+            Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).log(Level.INFO, "Printing slice for " + cu.getStorage().get().getFileName());
             String packagePath = cu.getPackageDeclaration().map(NodeWithName::getNameAsString).orElse("").replace(".", "/");
             File packageDir = new File(outputDir, packagePath);
             packageDir.mkdirs();
@@ -232,13 +231,9 @@ public class Slicer {
         }
     }
 
-    private boolean parse(JavaParser parser, File file, Set<CompilationUnit> units, List<Problem> problems) {
+    private boolean parse(File file, Set<CompilationUnit> units, List<Problem> problems) {
         try {
-            ParseResult<CompilationUnit> result = parser.parse(file);
-            if (result.isSuccessful())
-                result.ifSuccessful(units::add);
-            else
-                problems.addAll(result.getProblems());
+            units.add(StaticJavaParser.parse(file));
         } catch (FileNotFoundException e) {
             problems.add(new Problem(e.getLocalizedMessage(), null, e));
         }

@@ -16,6 +16,7 @@ import es.upv.mist.slicing.graphs.jsysdg.JSysPDG;
 import es.upv.mist.slicing.graphs.pdg.PDG;
 import es.upv.mist.slicing.utils.ASTUtils;
 import es.upv.mist.slicing.utils.NodeHashSet;
+import es.upv.mist.slicing.utils.Utils;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -208,10 +209,26 @@ public abstract class VariableAction {
         return getObjectTree().hasMember(member);
     }
 
+    public boolean hasTreeMember(String[] member) {
+        if (member.length == 0)
+            return hasObjectTree();
+        if (!hasObjectTree())
+            return false;
+        return getObjectTree().hasMember(member);
+    }
+
     /** Whether there is an object tree and it contains the given member.
      *  The search will skip polymorphic nodes if they haven't been specified in the argument. */
     public boolean hasPolyTreeMember(String member) {
         if (member.isEmpty())
+            return hasObjectTree();
+        if (!hasObjectTree())
+            return false;
+        return getObjectTree().hasPolyMember(member);
+    }
+
+    public boolean hasPolyTreeMember(String[] member) {
+        if (member.length == 0)
             return hasObjectTree();
         if (!hasObjectTree())
             return false;
@@ -434,7 +451,7 @@ public abstract class VariableAction {
         /** The value to which the variable has been defined. */
         protected final Expression expression;
         /** The members of the object tree that are total definitions. */
-        protected String totallyDefinedMember;
+        protected String[] totallyDefinedMember;
 
         public Definition(DeclarationType declarationType, String name, GraphNode<?> graphNode) {
             this(declarationType, name, graphNode, (Expression) null);
@@ -454,18 +471,18 @@ public abstract class VariableAction {
             this.expression = expression;
         }
 
-        public void setTotallyDefinedMember(String totallyDefinedMember) {
+        public void setTotallyDefinedMember(String[] totallyDefinedMember) {
             this.totallyDefinedMember = Objects.requireNonNull(totallyDefinedMember);
         }
 
-        public boolean isTotallyDefinedMember(String member) {
+        public boolean isTotallyDefinedMember(String[] member) {
             if (totallyDefinedMember == null)
                 return false;
-            if (totallyDefinedMember.equals(member))
+            if (Arrays.equals(totallyDefinedMember, member))
                 return true;
-            if (member.startsWith(totallyDefinedMember)
-                    || ObjectTree.removeRoot(member).startsWith(ObjectTree.removeRoot(totallyDefinedMember)))
-                return ObjectTree.removeRoot(member).isEmpty() || hasTreeMember(member);
+            if (Utils.arrayPrefix(totallyDefinedMember, member)
+                    || Utils.arrayPrefix(ObjectTree.removeRoot(member), ObjectTree.removeRoot(totallyDefinedMember)))
+                return ObjectTree.removeRoot(member).length == 0 || hasTreeMember(member);
             return false;
         }
 
