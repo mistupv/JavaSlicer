@@ -4,6 +4,7 @@ import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.github.javaparser.resolution.Resolvable;
+import com.github.javaparser.resolution.UnsolvedSymbolException;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
 import com.github.javaparser.utils.Pair;
@@ -11,6 +12,7 @@ import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.nodes.ObjectTree;
 import es.upv.mist.slicing.nodes.VariableAction;
 import es.upv.mist.slicing.utils.ASTUtils;
+import es.upv.mist.slicing.utils.Logger;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -176,26 +178,34 @@ public class ExpressionObjectTreeFinder {
 
             @Override
             public void visit(NameExpr n, String arg) {
-                ResolvedValueDeclaration resolved = n.resolve();
-                if (resolved.isType())
-                    return;
-                if (resolved.isField() && !resolved.asField().isStatic()) {
-                    String newArg = n.getNameAsString() + (!arg.isEmpty() ? "." : "") + arg;
-                    var optVa = locateVariableAction(n, va -> va.getName().matches("^.*this$"));
-                    if (optVa.isEmpty())
-                        throw new IllegalStateException("Could not find USE action for var " + newArg);
-                    list.add(new Pair<>(optVa.get(), newArg));
-                } else {
-                    var optVa = locateVariableAction(n, va -> va.getName().equals(n.getNameAsString()));
-                    if (optVa.isEmpty())
-                        throw new IllegalStateException("Cannot find USE action for var " + n);
-                    list.add(new Pair<>(optVa.get(), arg));
+                try {
+                    ResolvedValueDeclaration resolved = n.resolve();
+                    if (resolved.isType())
+                        return;
+                    if (resolved.isField() && !resolved.asField().isStatic()) {
+                        String newArg = n.getNameAsString() + (!arg.isEmpty() ? "." : "") + arg;
+                        var va = locateVariableActionThis(n)
+                                .orElseThrow(() -> new IllegalStateException("Could not find USE action for var " + newArg));
+                        list.add(new Pair<>(va, newArg));
+                    } else {
+                        var va = locateVariableAction(n)
+                                .orElseThrow(() -> new IllegalStateException("Cannot find USE action for var " + n));
+                        list.add(new Pair<>(va, arg));
+                    }
+                } catch (UnsolvedSymbolException e) {
+                    Logger.log("Unable to resolve " + n + " in " + graphNode.toString() + ". Assuming that it's a reference type");
+                    if (!n.calculateResolvedType().isReferenceType()) {
+                        throw e; // It's a type?!
+                    }
+                    var va = locateVariableAction(n)
+                            .orElseThrow(() -> new IllegalStateException("Cannot find USE action for var " + n));
+                    list.add(new Pair<>(va, arg));
                 }
             }
 
             @Override
             public void visit(ThisExpr n, String arg) {
-                var vaOpt = locateVariableAction(n, va -> va.getName().matches("^.*this$"));
+                var vaOpt = locateVariableActionThis(n);
                 if (vaOpt.isEmpty())
                     throw new IllegalStateException("Could not find USE(this)");
                 list.add(new Pair<>(vaOpt.get(), arg));
@@ -205,11 +215,30 @@ public class ExpressionObjectTreeFinder {
             public void visit(FieldAccessExpr n, String arg) {
                 if (!arg.isEmpty())
                     arg = "." + arg;
-                if (n.resolve().isEnumConstant()) {
-                    var vaOpt = locateVariableAction(n.getScope(), va -> va.getName().equals(n.getScope().toString()));
-                    if (vaOpt.isEmpty()) throw new IllegalStateException("Could not find USE(" + n.getScope().toString() + ")");
-                    list.add(new Pair<>(vaOpt.get(), n.getNameAsString() + arg));
+                ResolvedValueDeclaration resolved;
+                try {
+                    resolved = n.resolve();
+                } catch (UnsolvedSymbolException e) {
+                    Optional<VariableAction> optVa = locateVariableAction(n.getScope());
+                    if (optVa.isPresent())
+                        list.add(new Pair<>(optVa.get(), n.getNameAsString() + arg));
+                    else if (n.getScope().isFieldAccessExpr())
+                        n.getScope().accept(this, n.getNameAsString() + arg);
+                    else
+                        throw e;
+                    return;
+                }
+                if (resolved.isEnumConstant() || (resolved.isField() && resolved.asField().isStatic())) {
+                    // For static fields and enum constants, we can't resolve the base type, so we skip that
+                    var optVa = locateVariableAction(n.getScope());
+                    if (optVa.isPresent())
+                        list.add(new Pair<>(optVa.get(), n.getNameAsString() + arg));
+                    else if (n.getScope().isFieldAccessExpr())
+                        n.getScope().accept(this, n.getNameAsString() + arg);
+                    else
+                        throw new IllegalStateException("Could not find USE(" + n.getScope().toString() + ")");
                 } else {
+                    // Resolve the scope and accumulate the argument.
                     n.getScope().accept(this, n.getNameAsString() + arg);
                 }
             }
@@ -224,7 +253,7 @@ public class ExpressionObjectTreeFinder {
                 visitCall(n, arg);
             }
 
-            protected void visitCall(Resolvable<? extends ResolvedMethodLikeDeclaration> call, String arg) {
+            private void visitCall(Resolvable<? extends ResolvedMethodLikeDeclaration> call, String arg) {
                 if (ASTUtils.shouldVisitArgumentsForMethodCalls(call))
                     return;
                 VariableAction lastUseOut = null;
@@ -277,12 +306,22 @@ public class ExpressionObjectTreeFinder {
             @Override
             public void visit(PatternExpr n, String arg) {}
 
-            protected Optional<VariableAction> locateVariableAction(Expression expression, Predicate<VariableAction> predicate) {
+            private Optional<VariableAction> locateVariableAction(Expression expression, Predicate<VariableAction> predicate) {
                 return graphNode.getVariableActions().stream()
                         .filter(VariableAction::isUsage)
                         .filter(predicate)
                         .filter(va -> va.matches(expression))
                         .findAny();
+            }
+
+            /** Locates a variable action that has the given expression with the given expression's text as name. */
+            private Optional<VariableAction> locateVariableAction(Expression expression) {
+                return locateVariableAction(expression, va -> va.getName().equals(expression.toString()));
+            }
+
+            /** Locates a variable action with the given expression and whose name matches this, Class.this, Class.Class.this... */
+            private Optional<VariableAction> locateVariableActionThis(Expression expression) {
+                return locateVariableAction(expression, va -> va.getName().matches("^.*this$"));
             }
         }, "");
         return list;

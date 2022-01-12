@@ -22,8 +22,6 @@ import es.upv.mist.slicing.slicing.SlicingAlgorithm;
 import es.upv.mist.slicing.utils.NodeHashSet;
 
 import java.util.NoSuchElementException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class JSysDG extends ESSDG {
     @Override
@@ -81,7 +79,6 @@ public class JSysDG extends ESSDG {
             } catch (NoSuchElementException ignore) {
                 origin = " (location unknown, may be synthetic).";
             }
-            Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).log(Level.INFO, "Building CFG for method " + declaration.getSignature() + origin);
             ((JSysCFG) cfg).build(declaration, newlyInsertedConstructors, ClassGraph.getInstance());
         }
 

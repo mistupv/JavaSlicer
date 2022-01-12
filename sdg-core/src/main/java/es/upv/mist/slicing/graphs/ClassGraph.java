@@ -1,9 +1,12 @@
 package es.upv.mist.slicing.graphs;
 
+import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.nodeTypes.NodeWithName;
+import com.github.javaparser.ast.nodeTypes.NodeWithSimpleName;
 import com.github.javaparser.ast.type.TypeParameter;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.github.javaparser.resolution.UnsolvedSymbolException;
@@ -161,6 +164,11 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex<?>, ClassG
             MethodDeclaration method = callableDeclaration.asMethodDeclaration();
             if (method.getType().isClassOrInterfaceType())
                 try {
+                    // TODO: improve. Sometimes, the cu doesn't have the symbol solver. We readd that here.
+                    method.getType().findCompilationUnit().ifPresentOrElse(cu -> {
+                        if (!cu.containsData(Node.SYMBOL_RESOLVER_KEY))
+                            cu.setData(Node.SYMBOL_RESOLVER_KEY, StaticJavaParser.getConfiguration().getSymbolResolver().orElseThrow(() -> new IllegalStateException("Symbol resolution not configured: to configure consider setting a SymbolResolver in the ParserConfiguration")));
+                    }, () -> { throw new IllegalStateException("The node is not inserted in a CompilationUnit"); });
                     return Optional.of(generateObjectTreeFor(method.getType().asClassOrInterfaceType().resolve()));
                 } catch (UnsolvedSymbolException e) {
                     return Optional.empty();
@@ -451,12 +459,18 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex<?>, ClassG
         @Override
         public int hashCode() {
             if (declaration instanceof NodeWithName<?>)
-                return Objects.hash(((NodeWithName<?>) declaration).getNameAsString(), declaration.getRange());
-            return Objects.hash(String.valueOf(declaration), declaration.getRange());
+                return Objects.hash(((NodeWithName<?>) declaration).getNameAsString());
+            if (declaration instanceof NodeWithSimpleName<?>)
+                return Objects.hash(((NodeWithSimpleName<?>) declaration).getNameAsString());
+            if (declaration instanceof FieldDeclaration)
+                return Objects.hash(String.valueOf(declaration));
+            throw new IllegalStateException("Invalid vertex in graph");
         }
 
         @Override
         public boolean equals(Object obj) {
+            if (obj == this)
+                return true;
             return obj instanceof CallGraph.Vertex && ASTUtils.equalsWithRangeInCU(((CallGraph.Vertex) obj).declaration, declaration);
         }
 

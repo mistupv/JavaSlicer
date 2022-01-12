@@ -176,7 +176,6 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
             } catch (NoSuchElementException ignore) {
                 origin = " (location unknown, may be synthetic).";
             }
-            Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).log(Level.INFO, "Building CFG for method " + declaration.getSignature() + origin);
             cfg.build(declaration);
         }
 

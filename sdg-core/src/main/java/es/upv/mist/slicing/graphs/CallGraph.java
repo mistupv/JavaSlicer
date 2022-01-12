@@ -7,6 +7,7 @@ import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
+import com.github.javaparser.ast.nodeTypes.NodeWithSimpleName;
 import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.github.javaparser.resolution.Resolvable;
@@ -89,8 +90,7 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
     /** Locate the vertex that represents in this graph the given declaration. */
     protected Vertex findVertexByDeclaration(CallableDeclaration<?> declaration) {
         return vertexSet().stream()
-                .filter(v -> v.declaration == declaration ||
-                        ASTUtils.equalsWithRange(v.declaration, declaration))
+                .filter(v -> v.matches(declaration))
                 .findFirst().orElseThrow();
     }
 
@@ -271,17 +271,27 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
 
         @Override
         public int hashCode() {
-            return Objects.hash(declaration.getSignature(), declaration.getRange());
+            return Objects.hash(declaration.getSignature());
         }
 
         @Override
         public boolean equals(Object obj) {
-            return obj instanceof Vertex && ASTUtils.equalsWithRangeInCU(((Vertex) obj).declaration, declaration);
+            return obj instanceof Vertex && ((Vertex) obj).matches(declaration);
         }
 
         @Override
         public String toString() {
             return declaration.toString();
+        }
+
+        public boolean matches(CallableDeclaration<?> declaration) {
+            if (this.declaration == declaration)
+                return true;
+            if (!this.declaration.getSignature().toString().equals(declaration.getSignature().toString()))
+                return false;
+            var t1 = this.declaration.findAncestor(NodeWithSimpleName.class).orElse(null);
+            var t2 = declaration.findAncestor(NodeWithSimpleName.class).orElse(null);
+            return t1 != null && t2 != null && t1.getNameAsString().equals(t2.getNameAsString());
         }
     }
 

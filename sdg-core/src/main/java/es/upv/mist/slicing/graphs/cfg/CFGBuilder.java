@@ -15,7 +15,6 @@ import es.upv.mist.slicing.nodes.VariableAction;
 import es.upv.mist.slicing.nodes.io.MethodExitNode;
 import es.upv.mist.slicing.nodes.io.OutputNode;
 import es.upv.mist.slicing.utils.ASTUtils;
-import es.upv.mist.slicing.utils.Logger;
 
 import java.util.*;
 
@@ -81,7 +80,6 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
      * @see #connectTo(GraphNode)
      */
     protected <T extends Node> GraphNode<T> connectTo(T n, String text) {
-        Logger.log("Connecting new node: " + text);
         GraphNode<T> dest = graph.addVertex(text, n);
         connectTo(dest);
         return dest;

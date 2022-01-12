@@ -344,21 +344,31 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
             @Override
             public void visit(FieldAccessExpr fieldAccessExpr, Void arg) {
                 Expression scope = fieldAccessExpr.getScope();
+                ArrayList<String> tail = new ArrayList<>();
+                tail.add(fieldAccessExpr.getNameAsString());
                 boolean traverse = true;
                 while (traverse) {
-                    if (scope.isFieldAccessExpr())
+                    if (scope.isFieldAccessExpr()) {
+                        tail.add(scope.asFieldAccessExpr().getNameAsString());
                         scope = scope.asFieldAccessExpr().getScope();
-                    else if (scope.isEnclosedExpr())
+                    } else if (scope.isEnclosedExpr())
                         scope = scope.asEnclosedExpr().getInner();
                     else if (scope.isCastExpr())
                         scope = scope.asCastExpr().getExpression();
                     else
                         traverse = false;
                 }
-                if (!scope.isNameExpr() && !scope.isThisExpr())
+                String[] realName, root;
+                if (scope.isMethodCallExpr() || scope.isObjectCreationExpr()) {
+                    tail.add(VARIABLE_NAME_OUTPUT);
+                    realName = tail.toArray(new String[0]);
+                    root = new String[]{VARIABLE_NAME_OUTPUT};
+                } else if (scope.isNameExpr() || scope.isThisExpr()) {
+                    realName = getRealName(fieldAccessExpr);
+                    root = ObjectTree.removeFields(realName);
+                } else {
                     throw new IllegalStateException("only valid assignments are this[.<field>]+ =, and <var>[.<field>]+");
-                String[] realName = getRealName(fieldAccessExpr);
-                String[] root = ObjectTree.removeFields(realName);
+                }
                 definitionStack.push(n.getValue());
                 VariableAction va;
                 if (root.length == 1 && root[0].equals(scope.toString()))

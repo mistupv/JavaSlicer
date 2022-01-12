@@ -21,7 +21,6 @@ import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.nodes.VariableAction;
 import es.upv.mist.slicing.nodes.io.MethodExitNode;
 import es.upv.mist.slicing.utils.ASTUtils;
-import es.upv.mist.slicing.utils.Logger;
 import es.upv.mist.slicing.utils.NodeHashSet;
 import es.upv.mist.slicing.utils.NodeNotFoundException;
 
@@ -182,7 +181,6 @@ public class JSysCFG extends ESCFG {
 
         @Override
         protected <T extends Node> GraphNode<T> connectTo(T n, String text) {
-            Logger.log("Connecting new node: " + text);
             GraphNode<T> dest;
             dest = new GraphNode<>(text, n);
             if (methodInsertedInstructions.contains(n) ||

@@ -1,6 +1,6 @@
 module sdg.core {
   requires com.github.javaparser.core;
-  requires com.github.javaparser.symbolsolver.core;
+  requires com.github.javaparser.symbolsolver;
   requires org.jgrapht.core;
   requires java.logging;
 

@@ -7,6 +7,7 @@ import com.github.javaparser.resolution.UnsolvedSymbolException;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
 import com.github.javaparser.resolution.types.ResolvedType;
+import com.github.javaparser.symbolsolver.javaparsermodel.declarations.JavaParserEnumConstantDeclaration;
 import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.arcs.pdg.DataDependencyArc;
 import es.upv.mist.slicing.graphs.ClassGraph;
@@ -38,6 +39,8 @@ public abstract class VariableAction {
             if (resolved.isType())
                 return STATIC_FIELD;
             if (resolved.isField() && resolved.asField().isStatic())
+                return STATIC_FIELD;
+            if (resolved instanceof JavaParserEnumConstantDeclaration)
                 return STATIC_FIELD;
             if (resolved.isField())
                 return FIELD;

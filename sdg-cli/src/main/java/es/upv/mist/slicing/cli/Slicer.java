@@ -173,11 +173,11 @@ public class Slicer {
 
     public void slice() throws ParseException {
         // Configure JavaParser
+        StaticJavaParser.getConfiguration().setAttributeComments(false);
         Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).log(Level.INFO, "Configuring JavaParser");
         StaticTypeSolver.addTypeSolverJRE();
         for (File directory : dirIncludeSet)
             StaticTypeSolver.addTypeSolver(new JavaParserTypeSolver(directory));
-        StaticJavaParser.getConfiguration().setAttributeComments(false);
 
         // Build the SDG
         Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).log(Level.INFO, "Parsing files");
