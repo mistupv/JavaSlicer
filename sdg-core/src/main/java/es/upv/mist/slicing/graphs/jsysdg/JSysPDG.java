@@ -18,6 +18,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 import static es.upv.mist.slicing.nodes.ObjectTree.ROOT_NAME;
+import static es.upv.mist.slicing.nodes.ObjectTree.ROOT_NODE;
 
 public class JSysPDG extends ESPDG {
     public JSysPDG() {
@@ -43,8 +44,8 @@ public class JSysPDG extends ESPDG {
     }
 
     // definicion de miembro --object-flow--> definicion de raiz
-    protected void addObjectFlowDependencyArc(VariableAction nextDefinitionRoot, String memberDefined, VariableAction definition) {
-        MemberNode defMember = definition.getObjectTree().getNodeFor(memberDefined);
+    protected void addObjectFlowDependencyArc(VariableAction nextDefinitionRoot, String[] memberDefined, VariableAction definition) {
+        MemberNode defMember = definition.getObjectTree().getNodeFor(true, memberDefined);
         addEdge(defMember, graphNodeOf(nextDefinitionRoot), new ObjectFlowDependencyArc());
     }
 
@@ -59,23 +60,23 @@ public class JSysPDG extends ESPDG {
     }
 
     // definicion de miembro --flow--> uso de miembro
-    protected void addFlowDependencyArc(VariableAction definition, VariableAction usage, String objMember) {
-        GraphNode<?> defMember = definition.getObjectTree().getNodeFor(objMember);
-        GraphNode<?> useMember = usage.getObjectTree().getNodeFor(objMember);
+    protected void addFlowDependencyArc(VariableAction definition, VariableAction usage, String[] objMember) {
+        GraphNode<?> defMember = definition.getObjectTree().getNodeFor(true, objMember);
+        GraphNode<?> useMember = usage.getObjectTree().getNodeFor(true, objMember);
         addEdge(defMember, useMember, new FlowDependencyArc(objMember));
     }
 
-    protected void addValueDependencyArc(VariableAction usage, String member, GraphNode<?> statement) {
-        addEdge(usage.getObjectTree().getNodeFor(member), statement, new FlowDependencyArc(member));
+    protected void addValueDependencyArc(VariableAction usage, GraphNode<?> statement) {
+        addEdge(usage.getObjectTree().getMemberNode(), statement, new FlowDependencyArc(ROOT_NAME));
     }
 
-    protected void addTotalDefinitionDependencyArc(VariableAction totalDefinition, VariableAction target, String member) {
-        if (member.equals(ROOT_NAME))
+    protected void addTotalDefinitionDependencyArc(VariableAction totalDefinition, VariableAction target, String[] member) {
+        if (member.length == 1 && member[0].equals(ROOT_NAME))
             addEdge(graphNodeOf(totalDefinition), graphNodeOf(target), new TotalDefinitionDependenceArc());
         else
-            addEdge(totalDefinition.getObjectTree().getNodeFor(member),
-                    target.getObjectTree().getNodeFor(member),
-                    new TotalDefinitionDependenceArc());
+            for (MemberNode from : totalDefinition.getObjectTree().getNodesForPoly(member))
+                for (MemberNode to : target.getObjectTree().getNodesForPoly(member))
+                    addEdge(from, to, new TotalDefinitionDependenceArc());
     }
 
     protected GraphNode<?> graphNodeOf(VariableAction action) {
@@ -122,10 +123,10 @@ public class JSysPDG extends ESPDG {
          *  non-synthetic definitions. Connects each member to its previous total definition. */
         private void buildTotalDefinitionDependence(JSysCFG jSysCFG, VariableAction varAct) {
             if (!varAct.isPrimitive() && (varAct.isUsage() || (varAct.isDefinition() && !varAct.isSynthetic()))) {
-                jSysCFG.findLastTotalDefinitionOf(varAct, ROOT_NAME).forEach(totalDef -> addTotalDefinitionDependencyArc(totalDef, varAct, ROOT_NAME));
+                jSysCFG.findLastTotalDefinitionOf(varAct, ROOT_NODE).forEach(totalDef -> addTotalDefinitionDependencyArc(totalDef, varAct, ROOT_NODE));
                 if (!varAct.hasObjectTree())
                     return;
-                for (String member : varAct.getObjectTree().nameIterable())
+                for (String[] member : varAct.getObjectTree().nameAsArrayIterable())
                     jSysCFG.findLastTotalDefinitionOf(varAct, member).forEach(totalDef -> addTotalDefinitionDependencyArc(totalDef, varAct, member));
             }
         }
@@ -139,7 +140,7 @@ public class JSysPDG extends ESPDG {
                 jSysCFG.findLastDefinitionOfObjectRoot(varAct).forEach(def -> addObjectFlowDependencyArc(def, varAct));
                 if (!varAct.hasObjectTree())
                     return;
-                for (String member : varAct.getObjectTree().nameIterable())
+                for (String[] member : varAct.getObjectTree().nameAsArrayIterable())
                     jSysCFG.findLastDefinitionOfObjectMember(varAct, member).forEach(def -> addFlowDependencyArc(def, varAct, member));
             }
         }
@@ -152,7 +153,7 @@ public class JSysPDG extends ESPDG {
             // Object flow definition --> definition
             if (varAct.isPrimitive() || !varAct.hasObjectTree())
                 return;
-            for (String member : varAct.getObjectTree().nameIterable())
+            for (String[] member : varAct.getObjectTree().nameAsArrayIterable())
                 jSysCFG.findNextObjectDefinitionsFor(varAct, member).forEach(def -> addObjectFlowDependencyArc(varAct, member, def));
         }
 
@@ -248,7 +249,7 @@ public class JSysPDG extends ESPDG {
                     if (action.isDefinition()
                             && action.hasObjectTree()
                             && action.getName().equals(ESCFG.ACTIVE_EXCEPTION_VARIABLE))
-                        addValueDependencyArc(action, ROOT_NAME, node);
+                        addValueDependencyArc(action, node);
         }
     }
 }

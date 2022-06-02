@@ -2,7 +2,7 @@ package es.upv.mist.slicing.graphs.oo;
 
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.CallableDeclaration;
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.expr.CastExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.MethodCallExpr;
@@ -67,6 +67,7 @@ public class DynamicTypeResolver {
     protected Stream<ResolvedType> resolveMethodCallExpr(MethodCallExpr methodCallExpr) {
         assert !methodCallExpr.calculateResolvedType().isVoid();
         return callGraph.getCallTargets(methodCallExpr)
+                .filter(ASTUtils::hasBody) // abstract or interface methods must be skipped
                 .map(cfgMap::get)
                 .flatMap(cfg -> cfg.vertexSet().stream())
                 .filter(node -> node.getAstNode() instanceof ReturnStmt)
@@ -151,7 +152,7 @@ public class DynamicTypeResolver {
         ResolvedClassDeclaration type = expression.calculateResolvedType().asReferenceType()
                 .getTypeDeclaration().orElseThrow().asClass();
         return classGraph.subclassesOf(type).stream()
-                .map(ClassOrInterfaceDeclaration::resolve)
+                .map(TypeDeclaration::resolve)
                 .map(ASTUtils::resolvedTypeDeclarationToResolvedType);
     }
 }

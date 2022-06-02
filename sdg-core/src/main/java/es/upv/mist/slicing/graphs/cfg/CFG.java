@@ -98,14 +98,11 @@ public class CFG extends GraphWithRootNode<CallableDeclaration<?>> {
             stream = stream.takeWhile(va -> va != var);
         List<VariableAction> list = stream.filter(var::matches).filter(filter).collect(Collectors.toList());
         if (!list.isEmpty()) {
-            boolean found = false;
-            for (int i = list.size() - 1; i >= 0 && !found; i--) {
+            for (int i = list.size() - 1; i >= 0; i--) {
                 result.add(list.get(i));
                 if (!list.get(i).isOptional())
-                    found = true;
+                    return true;
             }
-            if (found)
-                return true;
         }
 
         // Not found: traverse backwards!

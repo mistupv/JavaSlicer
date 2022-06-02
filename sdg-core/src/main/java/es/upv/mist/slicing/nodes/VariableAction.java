@@ -1,12 +1,13 @@
 package es.upv.mist.slicing.nodes;
 
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.resolution.Resolvable;
 import com.github.javaparser.resolution.UnsolvedSymbolException;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
 import com.github.javaparser.resolution.types.ResolvedType;
+import com.github.javaparser.symbolsolver.javaparsermodel.declarations.JavaParserEnumConstantDeclaration;
 import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.arcs.pdg.DataDependencyArc;
 import es.upv.mist.slicing.graphs.ClassGraph;
@@ -16,6 +17,7 @@ import es.upv.mist.slicing.graphs.jsysdg.JSysPDG;
 import es.upv.mist.slicing.graphs.pdg.PDG;
 import es.upv.mist.slicing.utils.ASTUtils;
 import es.upv.mist.slicing.utils.NodeHashSet;
+import es.upv.mist.slicing.utils.Utils;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -30,12 +32,15 @@ public abstract class VariableAction {
         STATIC_FIELD,
         PARAMETER,
         LOCAL_VARIABLE,
-        SYNTHETIC;
+        SYNTHETIC,
+        TYPE;
 
         public static DeclarationType valueOf(ResolvedValueDeclaration resolved) {
             if (resolved.isType())
                 return STATIC_FIELD;
             if (resolved.isField() && resolved.asField().isStatic())
+                return STATIC_FIELD;
+            if (resolved instanceof JavaParserEnumConstantDeclaration)
                 return STATIC_FIELD;
             if (resolved.isField())
                 return FIELD;
@@ -164,7 +169,7 @@ public abstract class VariableAction {
         dynamicTypes.add(staticType);
         if (staticType.isReferenceType() && ClassGraph.getInstance().containsType(staticType.asReferenceType())) {
             ClassGraph.getInstance().subclassesOf(staticType.asReferenceType()).stream()
-                    .map(ClassOrInterfaceDeclaration::resolve)
+                    .map(TypeDeclaration::resolve)
                     .map(ASTUtils::resolvedTypeDeclarationToResolvedType)
                     .forEach(dynamicTypes::add);
         }
@@ -207,10 +212,26 @@ public abstract class VariableAction {
         return getObjectTree().hasMember(member);
     }
 
+    public boolean hasTreeMember(String[] member) {
+        if (member.length == 0)
+            return hasObjectTree();
+        if (!hasObjectTree())
+            return false;
+        return getObjectTree().hasMember(member);
+    }
+
     /** Whether there is an object tree and it contains the given member.
      *  The search will skip polymorphic nodes if they haven't been specified in the argument. */
     public boolean hasPolyTreeMember(String member) {
         if (member.isEmpty())
+            return hasObjectTree();
+        if (!hasObjectTree())
+            return false;
+        return getObjectTree().hasPolyMember(member);
+    }
+
+    public boolean hasPolyTreeMember(String[] member) {
+        if (member.length == 0)
             return hasObjectTree();
         if (!hasObjectTree())
             return false;
@@ -238,6 +259,20 @@ public abstract class VariableAction {
         connection.applySDG(sdg);
     }
 
+    public static boolean objectTreeMatches(VariableAction a, VariableAction b) {
+        if (a == b)
+            return true;
+        if (a == null || b == null)
+            return false;
+        boolean aHasTree = a.hasObjectTree() && a.getObjectTree().hasChildren();
+        boolean bHasTree = b.hasObjectTree() && b.getObjectTree().hasChildren();
+        if (aHasTree != bHasTree)
+            return false;
+        if (!aHasTree)
+            return true;
+        return a.getObjectTree().equals(b.getObjectTree());
+    }
+
     // ======================================================
     // =================== ROOT ACTIONS =====================
     // ======================================================
@@ -246,7 +281,7 @@ public abstract class VariableAction {
         assert !isRootAction();
         if (this instanceof Movable) {
             Movable movable = (Movable) this;
-            return new Movable(movable.inner.getRootAction(), movable.getRealNode());
+        return new Movable(movable.inner.getRootAction(), movable.getRealNode());
         }
         VariableAction action;
         if (this instanceof Usage)
@@ -419,7 +454,7 @@ public abstract class VariableAction {
         /** The value to which the variable has been defined. */
         protected final Expression expression;
         /** The members of the object tree that are total definitions. */
-        protected String totallyDefinedMember;
+        protected String[] totallyDefinedMember;
 
         public Definition(DeclarationType declarationType, String name, GraphNode<?> graphNode) {
             this(declarationType, name, graphNode, (Expression) null);
@@ -439,18 +474,18 @@ public abstract class VariableAction {
             this.expression = expression;
         }
 
-        public void setTotallyDefinedMember(String totallyDefinedMember) {
+        public void setTotallyDefinedMember(String[] totallyDefinedMember) {
             this.totallyDefinedMember = Objects.requireNonNull(totallyDefinedMember);
         }
 
-        public boolean isTotallyDefinedMember(String member) {
+        public boolean isTotallyDefinedMember(String[] member) {
             if (totallyDefinedMember == null)
                 return false;
-            if (totallyDefinedMember.equals(member))
+            if (Arrays.equals(totallyDefinedMember, member))
                 return true;
-            if (member.startsWith(totallyDefinedMember)
-                    || ObjectTree.removeRoot(member).startsWith(ObjectTree.removeRoot(totallyDefinedMember)))
-                return ObjectTree.removeRoot(member).isEmpty() || hasTreeMember(member);
+            if (Utils.arrayPrefix(totallyDefinedMember, member)
+                    || Utils.arrayPrefix(ObjectTree.removeRoot(member), ObjectTree.removeRoot(totallyDefinedMember)))
+                return ObjectTree.removeRoot(member).length == 0 || hasTreeMember(member);
             return false;
         }
 

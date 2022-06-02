@@ -51,9 +51,13 @@ public class JSysCallConnector extends ExceptionSensitiveCallConnector {
 
     /** Whether the given formal node represents an object with an object tree. */
     protected boolean formalIsObject(FormalIONode formalNode) {
-        return formalNode.getVariableName().equals("this")
-                || !formalNode.getAstNode().getParameterByName(formalNode.getVariableName())
-                .orElseThrow().getType().isPrimitiveType();
+        if (formalNode.getVariableName().equals("-output-")) {
+            return ASTUtils.declarationReturnIsObject(formalNode.getAstNode());
+        } else {
+            return formalNode.getVariableName().equals("this")
+                    || !formalNode.getAstNode().getParameterByName(formalNode.getVariableName())
+                    .orElseThrow().getType().isPrimitiveType();
+        }
     }
 
     /** Connects the object tree from the last variable action in the source node to

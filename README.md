@@ -13,7 +13,7 @@ Warning: all method calls must resolve to a method declaration. If your Java pro
 
 JavaSDGSlicer manages its dependencies through maven, so you need to have the JDK (&ge;11) and Maven installed, then run 
 ```
-mvn package
+mvn package -Dmaven.test.skip
 ```
 
 A fat jar containing all the project's dependencies can be then located at `./sdg-cli/target/sdg-cli-{version}-jar-with-dependencies.jar`.
@@ -57,7 +57,7 @@ java -jar sdg-cli.jar --help
 Our slicer requires the input Java program to be compilable, so all libraries must be provided using the `-i` flag. For the cases where the source code is not available, you may include the required libraries in the Java classpath by using the following call:
 
 ```
-java -cp sdg-cli.jar:your-libraries.jar es.upv.slicing.cli.Slicer -c Example.java#11:sum
+java -cp your-libraries.jar -jar sdg-cli.jar -c Example.java#11:sum
 ```
 
 This approach produces lower quality slices, as the contents of the library calls are unknown.
@@ -77,6 +77,4 @@ If the graph is of interest, it can be outputted in `dot` or PDF format via `SDG
 
 ## Missing Java features
 
-* Object-oriented features: abstract classes, interfaces, class, method and field inheritance, anonymous classes, lambdas.
 * Parallel features: threads, shared memory, synchronized methods, etc.
-* Exception handling: `finally`, try with resources.

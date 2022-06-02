@@ -39,5 +39,7 @@
     <modules>
         <module>sdg-core</module>
         <module>sdg-cli</module>
+        <module>javaparser-symbol-solver-core</module>
+        <module>sdg-bench</module>
     </modules>
 </project>

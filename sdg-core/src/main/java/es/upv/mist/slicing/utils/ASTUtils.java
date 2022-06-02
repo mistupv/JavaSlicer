@@ -97,12 +97,21 @@ public class ASTUtils {
         throw new IllegalArgumentException("Call wasn't of a compatible type!");
     }
 
+    public static boolean hasBody(CallableDeclaration<?> callableDeclaration) {
+        if (callableDeclaration instanceof MethodDeclaration)
+            return ((MethodDeclaration) callableDeclaration).getBody().isPresent()
+                    && !((MethodDeclaration) callableDeclaration).getBody().get().isEmptyStmt();
+        if (callableDeclaration instanceof ConstructorDeclaration)
+            return !((ConstructorDeclaration) callableDeclaration).getBody().isEmptyStmt();
+        throw new IllegalStateException("Invalid type of callable declaration");
+    }
+
     public static BlockStmt getCallableBody(CallableDeclaration<?> callableDeclaration) {
         if (callableDeclaration instanceof MethodDeclaration)
             return ((MethodDeclaration) callableDeclaration).getBody().orElseThrow(() -> new IllegalStateException("Graph creation is not allowed for abstract or native methods!"));
         if (callableDeclaration instanceof ConstructorDeclaration)
             return ((ConstructorDeclaration) callableDeclaration).getBody();
-        throw new IllegalStateException("The method must have a body!");
+        throw new IllegalStateException("Invalid type of callable declaration!");
     }
 
     /** Compute the resolved type that is returned from a given method call. */
@@ -142,9 +151,18 @@ public class ASTUtils {
         return shouldVisitArgumentsForMethodCalls(call) || graphNode == null;
     }
 
-    public static boolean constructorHasExplicitConstructorInvocation(ConstructorDeclaration declaration) {
-        final NodeList<Statement> statements = declaration.getBody().getStatements();
-        return !statements.isEmpty() && statements.get(0) instanceof ExplicitConstructorInvocationStmt;
+    public static boolean shouldInsertExplicitConstructorInvocation(ConstructorDeclaration declaration) {
+        NodeList<Statement> statements = declaration.getBody().getStatements();
+        if (declaration.findAncestor(TypeDeclaration.class).orElseThrow().isEnumDeclaration())
+            return false;
+        return statements.isEmpty() || !statements.get(0).isExplicitConstructorInvocationStmt();
+    }
+
+    public static boolean shouldInsertDynamicInitInEnum(ConstructorDeclaration declaration) {
+        NodeList<Statement> statements = declaration.getBody().getStatements();
+        return statements.isEmpty() ||
+                !statements.get(0).isExplicitConstructorInvocationStmt() ||
+                !statements.get(0).asExplicitConstructorInvocationStmt().isThis();
     }
 
     /**
@@ -197,14 +215,6 @@ public class ASTUtils {
         throw new IllegalArgumentException("This operation is only valid for reference type cast operations.");
     }
 
-    /** Given an AST node, visit the parent until finding a ClassOrInterfaceDeclaration */
-    public static ClassOrInterfaceDeclaration getClassNode(Node n){
-        Node upperNode = n;
-        while (!(upperNode instanceof ClassOrInterfaceDeclaration))
-            upperNode = upperNode.getParentNode().orElseThrow();
-        return (ClassOrInterfaceDeclaration) upperNode;
-    }
-
     /** Generates the default initializer, given a field. In Java, reference types
      *  default to null, booleans to false and all other primitives to 0. */
     public static Expression initializerForField(FieldDeclaration field) {
@@ -221,22 +231,19 @@ public class ASTUtils {
         throw new IllegalArgumentException("Invalid typing for a field");
     }
 
-    /** Returns a List with FieldDeclarations and InitializerDeclarations static/dynamic items of the given class */
-    public static List<BodyDeclaration<?>> getClassInit(ClassOrInterfaceDeclaration clazz, boolean isStatic) {
-        List<BodyDeclaration<?>> classInit = new LinkedList<>();
-        for (BodyDeclaration<?> member : clazz.getMembers()) {
-            if (member.isFieldDeclaration() &&
-                    member.asFieldDeclaration().isStatic() == isStatic)
-                classInit.add(member);
-            if (member.isInitializerDeclaration() &&
-                    member.asInitializerDeclaration().isStatic() == isStatic)
-                classInit.add(member);
+    /** Returns a list with field declaration and initializers, which initialize statically or dynamically the type. */
+    public static List<BodyDeclaration<?>> getTypeInit(TypeDeclaration<?> type, boolean isStatic) {
+        List<BodyDeclaration<?>> typeInit = new LinkedList<>();
+        for (BodyDeclaration<?> member : type.getMembers()) {
+            if (member.isFieldDeclaration() && member.asFieldDeclaration().isStatic() == isStatic)
+                typeInit.add(member);
+            if (member.isInitializerDeclaration() && member.asInitializerDeclaration().isStatic() == isStatic)
+                typeInit.add(member);
         }
-        return classInit;
+        return typeInit;
     }
 
     public static ResolvedType resolvedTypeOfCurrentClass(Node n) {
-        return ASTUtils.resolvedTypeDeclarationToResolvedType(
-                n.findAncestor(ClassOrInterfaceDeclaration.class).orElseThrow().resolve());
+        return resolvedTypeDeclarationToResolvedType(n.findAncestor(TypeDeclaration.class).orElseThrow().resolve());
     }
 }

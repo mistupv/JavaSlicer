@@ -3,6 +3,7 @@ package es.upv.mist.slicing.graphs.sdg;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.CallableDeclaration;
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
@@ -135,16 +136,26 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
             nodeList.accept(new VoidVisitorAdapter<Void>() {
                 @Override
                 public void visit(MethodDeclaration n, Void arg) {
+                    boolean isInInterface = n.findAncestor(ClassOrInterfaceDeclaration.class)
+                            .map(ClassOrInterfaceDeclaration::isInterface).orElse(false);
+                    if (n.isAbstract() || isInInterface)
+                        return; // Allow abstract methods
                     CFG cfg = createCFG();
                     buildCFG(n, cfg);
                     cfgMap.put(n, cfg);
+                    super.visit(n, arg);
                 }
 
                 @Override
                 public void visit(ConstructorDeclaration n, Void arg) {
+                    boolean isInInterface = n.findAncestor(ClassOrInterfaceDeclaration.class)
+                            .map(ClassOrInterfaceDeclaration::isInterface).orElse(false);
+                    if (n.isAbstract() || isInInterface)
+                        return; // Allow abstract methods
                     CFG cfg = createCFG();
                     buildCFG(n, cfg);
                     cfgMap.put(n, cfg);
+                    super.visit(n, arg);
                 }
             }, null);
         }

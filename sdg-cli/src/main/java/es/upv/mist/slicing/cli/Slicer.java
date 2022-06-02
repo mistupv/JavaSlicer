@@ -1,5 +1,6 @@
 package es.upv.mist.slicing.cli;
 
+import com.github.javaparser.Problem;
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.NodeList;
@@ -21,9 +22,9 @@ import org.apache.commons.cli.*;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -172,24 +173,25 @@ public class Slicer {
 
     public void slice() throws ParseException {
         // Configure JavaParser
+        StaticJavaParser.getConfiguration().setAttributeComments(false);
+        Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).log(Level.INFO, "Configuring JavaParser");
         StaticTypeSolver.addTypeSolverJRE();
         for (File directory : dirIncludeSet)
             StaticTypeSolver.addTypeSolver(new JavaParserTypeSolver(directory));
-        StaticJavaParser.getConfiguration().setAttributeComments(false);
 
         // Build the SDG
+        Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).log(Level.INFO, "Parsing files");
         Set<CompilationUnit> units = new NodeHashSet<>();
-        try {
-            for (File file : dirIncludeSet) {
-                if (file.isDirectory())
-                    for (File f : (Iterable<File>) findAllJavaFiles(file)::iterator)
-                        units.add(StaticJavaParser.parse(f));
-                else
-                    units.add(StaticJavaParser.parse(file));
-            }
-            units.add(StaticJavaParser.parse(scFile));
-        } catch (FileNotFoundException e) {
-            throw new ParseException(e.getMessage());
+        List<Problem> problems = new LinkedList<>();
+        boolean scFileFound = false;
+        for (File file : (Iterable<File>) findAllJavaFiles(dirIncludeSet)::iterator)
+            scFileFound |= parse(file, units, problems);
+        if (!scFileFound)
+            parse(scFile, units, problems);
+        if (!problems.isEmpty()) {
+            for (Problem p : problems)
+                System.out.println(" * " + p.getVerboseMessage());
+            throw new ParseException("Some problems were found while parsing files or folders");
         }
 
         SDG sdg;
@@ -202,16 +204,20 @@ public class Slicer {
             default:
                 throw new IllegalArgumentException("Unknown type of graph. Available graphs are SDG, ASDG, PSDG, ESSDG");
         }
+        Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).log(Level.INFO, "Building the SDG");
         sdg.build(new NodeList<>(units));
 
         // Slice the SDG
+        Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).log(Level.INFO, "Searching for criterion and slicing");
         SlicingCriterion sc = new FileLineSlicingCriterion(scFile, scLine, scVar);
         Slice slice = sdg.slice(sc);
 
         // Convert the slice to code and output the result to `outputDir`
+        Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).log(Level.INFO, "Printing slice to files");
         for (CompilationUnit cu : slice.toAst()) {
             if (cu.getStorage().isEmpty())
                 throw new IllegalStateException("A synthetic CompilationUnit was discovered, with no file associated to it.");
+            Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).log(Level.INFO, "Printing slice for " + cu.getStorage().get().getFileName());
             String packagePath = cu.getPackageDeclaration().map(NodeWithName::getNameAsString).orElse("").replace(".", "/");
             File packageDir = new File(outputDir, packagePath);
             packageDir.mkdirs();
@@ -223,6 +229,25 @@ public class Slicer {
                 System.err.println("Could not write file " + javaFile);
             }
         }
+    }
+
+    private boolean parse(File file, Set<CompilationUnit> units, List<Problem> problems) {
+        try {
+            units.add(StaticJavaParser.parse(file));
+        } catch (FileNotFoundException e) {
+            problems.add(new Problem(e.getLocalizedMessage(), null, e));
+        }
+        return Objects.equals(file.getAbsoluteFile(), scFile.getAbsoluteFile());
+    }
+
+    protected Stream<File> findAllJavaFiles(Collection<File> files) {
+        Stream.Builder<File> builder = Stream.builder();
+        for (File file : files)
+            if (file.isDirectory())
+                findAllJavaFiles(file, builder);
+            else
+                builder.accept(file);
+        return builder.build();
     }
 
     protected Stream<File> findAllJavaFiles(File directory) {
@@ -239,7 +264,7 @@ public class Slicer {
             if (f.isDirectory())
                 findAllJavaFiles(f, builder);
             else if (f.getName().endsWith(".java"))
-                builder.add(f);
+                builder.accept(f);
         }
     }
 

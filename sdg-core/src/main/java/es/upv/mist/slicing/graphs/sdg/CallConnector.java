@@ -11,6 +11,7 @@ import es.upv.mist.slicing.nodes.io.ActualIONode;
 import es.upv.mist.slicing.nodes.io.CallNode;
 import es.upv.mist.slicing.nodes.io.FormalIONode;
 import es.upv.mist.slicing.nodes.io.OutputNode;
+import es.upv.mist.slicing.utils.ASTUtils;
 
 /** Adds interprocedural arcs between the 'PDG components' of an SDG.
  * Arcs generated include {@link ParameterInOutArc parameter input/output} and
@@ -35,6 +36,7 @@ public class CallConnector {
     protected void connectCall(CallNode callNode, CallGraph callGraph) {
         var callExpr = (Resolvable<? extends ResolvedMethodLikeDeclaration>) callNode.getAstNode();
         callGraph.getCallTargets(callExpr)
+                .filter(ASTUtils::hasBody) // Added so that all nodes received correspond to a valid CFG root *without body there is no CFG*
                 .map(sdg::findNodeByASTNode)
                 .map(opt -> opt.orElseThrow(IllegalArgumentException::new))
                 .forEach(node -> connectCall(callNode, node));

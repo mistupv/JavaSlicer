@@ -29,27 +29,25 @@ public class InterproceduralUsageFinder extends InterproceduralActionFinder<Usag
     }
 
     @Override
-    public void save() {
-        super.save();
-        markTransferenceToRoot();
+    protected void saveDeclarationActualNodes(CallGraph.Vertex vertex) {
+        super.saveDeclarationActualNodes(vertex);
+        graph.incomingEdgesOf(vertex).forEach(this::markTransferenceToRoot);
     }
 
     /** For every variable action -scope-in- or -arg-in- in the graph,
      *  runs {@link ExpressionObjectTreeFinder#locateAndMarkTransferenceToRoot(Expression, VariableAction)}. */
-    protected void markTransferenceToRoot() {
-        for (CallGraph.Edge<?> edge : graph.edgeSet()) {
-            for (ActualIONode actualIn : locateActualInNode(edge)) {
-                for (VariableAction va : edge.getGraphNode().getVariableActions()) {
-                    if (va instanceof Movable && ((Movable) va).getRealNode().equals(actualIn)) {
-                        ExpressionObjectTreeFinder finder = new ExpressionObjectTreeFinder(edge.getGraphNode());
-                        if (va.getName().equals("-scope-in-")) {
-                            if (actualIn.getArgument() == null)
-                                finder.locateAndMarkTransferenceToRoot(edge.getCall(), va);
-                            else
-                                finder.locateAndMarkTransferenceToRoot(actualIn.getArgument(), va);
-                        } else if (va.getName().equals("-arg-in-")) {
+    protected void markTransferenceToRoot(CallGraph.Edge<?> edge) {
+        for (ActualIONode actualIn : locateActualInNode(edge)) {
+            for (VariableAction va : edge.getGraphNode().getVariableActions()) {
+                if (va instanceof Movable && ((Movable) va).getRealNode().equals(actualIn)) {
+                    ExpressionObjectTreeFinder finder = new ExpressionObjectTreeFinder(edge.getGraphNode());
+                    if (va.getName().equals("-scope-in-")) {
+                        if (actualIn.getArgument() == null)
+                            finder.locateAndMarkTransferenceToRoot(edge.getCall(), va);
+                        else
                             finder.locateAndMarkTransferenceToRoot(actualIn.getArgument(), va);
-                        }
+                    } else if (va.getName().equals("-arg-in-")) {
+                        finder.locateAndMarkTransferenceToRoot(actualIn.getArgument(), va);
                     }
                 }
             }

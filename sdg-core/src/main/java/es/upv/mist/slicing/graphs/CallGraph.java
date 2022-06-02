@@ -7,6 +7,7 @@ import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
+import com.github.javaparser.ast.nodeTypes.NodeWithSimpleName;
 import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.github.javaparser.resolution.Resolvable;
@@ -89,8 +90,7 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
     /** Locate the vertex that represents in this graph the given declaration. */
     protected Vertex findVertexByDeclaration(CallableDeclaration<?> declaration) {
         return vertexSet().stream()
-                .filter(v -> v.declaration == declaration ||
-                        ASTUtils.equalsWithRange(v.declaration, declaration))
+                .filter(v -> v.matches(declaration))
                 .findFirst().orElseThrow();
     }
 
@@ -130,17 +130,28 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
         return addEdge(findVertexByDeclaration(source), findVertexByDeclaration(target), edge);
     }
 
+    protected boolean addEdge(TypeDeclaration<?> source, CallableDeclaration<?> target, Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
+        return false; // TODO: handle static blocks
+    }
+
     /** Find the calls to methods and constructors (edges) in the given list of compilation units. */
     protected void buildEdges(NodeList<CompilationUnit> arg) {
         arg.accept(new VoidVisitorAdapter<Void>() {
-            private final Deque<ClassOrInterfaceDeclaration> classStack = new LinkedList<>();
+            private final Deque<TypeDeclaration<?>> typeStack = new LinkedList<>();
             private final Deque<CallableDeclaration<?>> declStack = new LinkedList<>();
 
             @Override
             public void visit(ClassOrInterfaceDeclaration n, Void arg) {
-                classStack.push(n);
+                typeStack.push(n);
                 super.visit(n, arg);
-                classStack.pop();
+                typeStack.pop();
+            }
+
+            @Override
+            public void visit(EnumDeclaration n, Void arg) {
+                typeStack.push(n);
+                super.visit(n, arg);
+                typeStack.pop();
             }
 
             // ============ Method declarations ===========
@@ -189,7 +200,7 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
                 }
                 Optional<Expression> scope = call.getScope();
                 // Determine the type of the call's scope
-                Set<ClassOrInterfaceDeclaration> dynamicTypes;
+                Set<? extends TypeDeclaration<?>> dynamicTypes;
                 if (scope.isEmpty()) {
                     // a) No scope: any class the method is in, or any outer class if the class is not static.
                     // Early exit: it is easier to find the methods that override the
@@ -199,7 +210,7 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
                     return;
                 } else if (scope.get().isThisExpr() && scope.get().asThisExpr().getTypeName().isEmpty()) {
                     // b) just 'this', the current class and any subclass
-                    dynamicTypes = classGraph.subclassesOf(classStack.peek());
+                    dynamicTypes = classGraph.subclassesOf(typeStack.peek());
                 } else if (scope.get().isThisExpr()) {
                     // c) 'ClassName.this', the given class and any subclass
                     dynamicTypes = classGraph.subclassesOf(scope.get().asThisExpr().resolve().asClass());
@@ -222,14 +233,19 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
             }
 
             protected void createNormalEdge(CallableDeclaration<?> decl, Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
-                addEdge(declStack.peek(), decl, call);
+                if (declStack.isEmpty() && typeStack.isEmpty())
+                    throw new IllegalStateException("Trying to link call with empty declaration stack! " + decl.getDeclarationAsString() + " : " + call.toString());
+                if (declStack.isEmpty())
+                    addEdge(typeStack.peek(), decl, call);
+                else
+                    addEdge(declStack.peek(), decl, call);
             }
 
             // Other structures
             @Override
             public void visit(FieldDeclaration n, Void arg) {
                 if (declStack.isEmpty() && !n.isStatic()) {
-                    for (ConstructorDeclaration cd : classStack.peek().getConstructors()) {
+                    for (ConstructorDeclaration cd : typeStack.peek().getConstructors()) {
                         declStack.push(cd);
                         super.visit(n, arg);
                         declStack.pop();
@@ -244,7 +260,7 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
         for (GraphNode<?> node : cfgMap.get(declaration).vertexSet())
             if (node.containsCall(n))
                 return node;
-        throw new NodeNotFoundException("call " + n + " could not be located!");
+        throw new NodeNotFoundException("call " + n + " could not be located! cfg was " + cfgMap.get(declaration).rootNode.getLongLabel() + " and declaration was " + declaration.getDeclarationAsString());
     }
 
     /** A vertex containing the declaration it represents. It only exists because
@@ -264,17 +280,27 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
 
         @Override
         public int hashCode() {
-            return Objects.hash(declaration, declaration.getRange());
+            return Objects.hash(declaration.getSignature());
         }
 
         @Override
         public boolean equals(Object obj) {
-            return obj instanceof Vertex && ASTUtils.equalsWithRangeInCU(((Vertex) obj).declaration, declaration);
+            return obj instanceof Vertex && ((Vertex) obj).matches(declaration);
         }
 
         @Override
         public String toString() {
             return declaration.toString();
+        }
+
+        public boolean matches(CallableDeclaration<?> declaration) {
+            if (this.declaration == declaration)
+                return true;
+            if (!this.declaration.getSignature().toString().equals(declaration.getSignature().toString()))
+                return false;
+            var t1 = this.declaration.findAncestor(NodeWithSimpleName.class).orElse(null);
+            var t2 = declaration.findAncestor(NodeWithSimpleName.class).orElse(null);
+            return t1 != null && t2 != null && t1.getNameAsString().equals(t2.getNameAsString());
         }
     }
 
@@ -285,6 +311,7 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
 
         public Edge(T call, GraphNode<?> graphNode) {
             assert call instanceof MethodCallExpr || call instanceof ObjectCreationExpr || call instanceof ExplicitConstructorInvocationStmt;
+            assert graphNode.containsCall(call);
             this.call = call;
             this.graphNode = graphNode;
         }

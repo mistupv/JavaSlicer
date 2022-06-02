@@ -242,17 +242,23 @@ public class ESCFG extends ACFG {
 
         @Override
         public void visit(MethodCallExpr n, Void arg) {
+            n.getArguments().accept(this, arg);
+            n.getScope().ifPresent(s -> s.accept(this, arg));
             visitCallForExceptions(n);
         }
 
         @Override
         public void visit(ObjectCreationExpr n, Void arg) {
+            n.getArguments().accept(this, arg);
+            n.getScope().ifPresent(s -> s.accept(this, arg));
             visitCallForExceptions(n);
         }
 
         @Override
         public void visit(ExplicitConstructorInvocationStmt n, Void arg) {
             stmtStack.push(n);
+            n.getExpression().ifPresent(e -> e.accept(this, arg));
+            n.getArguments().accept(this, arg);
             connectTo(n);
             visitCallForExceptions(n);
             stmtStack.pop();
@@ -375,7 +381,14 @@ public class ESCFG extends ACFG {
         @Override
         public void visit(ReturnStmt returnStmt, Void arg) {
             stmtStack.push(returnStmt);
-            super.visit(returnStmt, arg);
+            GraphNode<ReturnStmt> node = connectTo(returnStmt);
+            // This change is for exception/normal exits, in which only the normal
+            // exit constitutes a valid return, and thus the type of returnList must change.
+            returnStmt.getExpression().ifPresent(e -> e.accept(this, arg));
+            returnList.addAll(hangingNodes);
+            // end of change w.r.t. ACFG
+            clearHanging();
+            nonExecHangingNodes.add(node);
             stmtStack.pop();
         }
 

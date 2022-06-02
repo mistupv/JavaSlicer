@@ -1,5 +1,6 @@
 package es.upv.mist.slicing.nodes;
 
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.resolution.types.ResolvedType;
 import es.upv.mist.slicing.nodes.oo.MemberNode;
 import es.upv.mist.slicing.nodes.oo.PolyMemberNode;
@@ -10,6 +11,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static es.upv.mist.slicing.utils.Utils.arrayJoin;
 
 /**
  * A tree data structure that mimics the tree found in an object's fields.
@@ -24,6 +27,8 @@ import java.util.stream.Stream;
 public class ObjectTree implements Cloneable {
     /** The default name of a tree's root. */
     public static final String ROOT_NAME = "-root-";
+    /** The representation of the root node in member form. */
+    public static final String[] ROOT_NODE = new String[] { ROOT_NAME };
 
     /** Regex pattern to split the root from the fields of a field access expression. */
     private static final Pattern FIELD_SPLIT = Pattern.compile("^(?<root>(([_0-9A-Za-z]+\\.)*this)|(?<dash>(-?))([_0-9A-Za-z]+\\k<dash>)+)(\\.(?<fields>.+))?$");
@@ -77,17 +82,32 @@ public class ObjectTree implements Cloneable {
         String member = removeRoot(memberWithRoot);
         if (member.isEmpty())
             return hasChildren();
-        return hasChildrenInternal(member);
+        return hasChildrenInternal(member, false);
     }
 
-    protected boolean hasChildrenInternal(String members) {
+    /** Same as {@link #hasChildren(String)}, but considering the optional presence of polymorphic nodes. */
+    public boolean hasChildrenPoly(String memberWithRoot) {
+        String member = removeRoot(memberWithRoot);
+        if (member.isEmpty())
+            return hasChildren();
+        return hasChildrenInternal(member, true);
+    }
+
+    protected boolean hasChildrenInternal(String members, boolean polymorphic) {
         if (members.contains(".")) {
             int firstDot = members.indexOf('.');
             String first = members.substring(0, firstDot);
             String rest = members.substring(firstDot + 1);
-            childrenMap.computeIfAbsent(first, f -> new ObjectTree(f, this));
-            return childrenMap.get(first).hasChildrenInternal(rest);
+            if (polymorphic && !childrenMap.containsKey(first) && !childrenMap.isEmpty())
+                return childrenMap.values().stream()
+                        .filter(ot -> ot.getMemberNode() instanceof PolyMemberNode)
+                        .anyMatch(ot -> ot.hasChildrenInternal(members, true));
+            return childrenMap.containsKey(first) && childrenMap.get(first).hasChildrenInternal(rest, polymorphic);
         } else {
+            if (polymorphic && !childrenMap.containsKey(members) && !childrenMap.isEmpty())
+                return childrenMap.values().stream()
+                        .filter(ot -> ot.getMemberNode() instanceof PolyMemberNode)
+                        .anyMatch(ot -> ot.hasChildrenInternal(members, true));
             return childrenMap.get(members).hasChildren();
         }
     }
@@ -110,14 +130,14 @@ public class ObjectTree implements Cloneable {
         return childrenMap.computeIfAbsent(rt.describe(), n -> new ObjectTree(rt, this));
     }
 
-    public ObjectTree addType(ResolvedType rt, String prefix) {
-        String members = removeRoot(prefix);
+    public ObjectTree addType(ResolvedType rt, String[] prefix) {
+        String[] members = removeRoot(prefix);
         Collection<ObjectTree> trees = findObjectTreeOfPolyMember(members);
         if (trees.size() > 1)
             throw new IllegalArgumentException("This method accepts only prefixes with all the necessary types");
         for (ObjectTree tree : trees)
             return tree.addType(rt);
-        throw new IllegalArgumentException("Could not locate any tree for the given prefix " + prefix);
+        throw new IllegalArgumentException("Could not locate any tree for the given prefix " + arrayJoin(prefix, "."));
     }
 
     /**
@@ -133,12 +153,23 @@ public class ObjectTree implements Cloneable {
         return addNonRootField(members);
     }
 
+    public ObjectTree addField(String[] fieldName) {
+        String[] members = removeRoot(fieldName);
+        return addNonRootField(members, 0);
+    }
+
     /** Insert a field in the current level of object tree. The field should be a variable name,
      *  and not contain dots or be blank. */
     public ObjectTree addImmediateField(String fieldName) {
         if (fieldName.contains(".") || fieldName.isBlank())
             throw new IllegalArgumentException("field name must not include dots or be blank!");
         return childrenMap.computeIfAbsent(fieldName, f -> new ObjectTree(f, this));
+    }
+
+    public ObjectTree addStaticField(String fieldName, Node node) {
+        if (fieldName.contains(".") || fieldName.isBlank())
+            throw new IllegalArgumentException("field name must not include dots or be blank!");
+        return childrenMap.computeIfAbsent(fieldName, f -> new ObjectTree(new MemberNode(fieldName, node, memberNode)));
     }
 
     /** Similar to {@link #addField(String)}, but may be called at any level
@@ -153,6 +184,15 @@ public class ObjectTree implements Cloneable {
         } else {
             return childrenMap.computeIfAbsent(members, f -> new ObjectTree(f, this));
         }
+    }
+
+    private ObjectTree addNonRootField(String[] members, int index) {
+        assert index < members.length;
+        ObjectTree tree = childrenMap.computeIfAbsent(members[index], f -> new ObjectTree(f, this));
+        if (members.length - 1 == index)
+            return tree;
+        else
+            return tree.addNonRootField(members, index + 1);
     }
 
     /** Copies the structure of another object tree into this object tree.
@@ -209,23 +249,61 @@ public class ObjectTree implements Cloneable {
                 first = member;
                 rest = "";
             }
-            result = result.stream().flatMap(res -> {
+            Collection<ObjectTree> newResult = new LinkedList<>();
+            for (ObjectTree res : result) {
+                if (!res.childrenMap.containsKey(first)) {
+                    for (String key : res.childrenMap.keySet()) {
+                        if (member.startsWith(key)) {
+                            first = member.substring(0, key.length());
+                            try {
+                                rest = member.substring(key.length() + 1);
+                            } catch (StringIndexOutOfBoundsException e) {
+                                rest = "";
+                            }
+                            break;
+                        }
+                    }
+                }
                 ObjectTree ot = res.childrenMap.get(first);
                 if (ot == null && res.childrenMap.size() > 0) {
-                    Collection<ObjectTree> collection = new LinkedList<>();
-                    for (ObjectTree child : childrenMap.values()) {
+                    for (ObjectTree child : res.childrenMap.values()) {
                         if (!(child.getMemberNode() instanceof PolyMemberNode) || !child.childrenMap.containsKey(first))
                             throw new IllegalArgumentException("Could not locate member in object tree");
-                        collection.add(child.childrenMap.get(first));
+                        newResult.add(child.childrenMap.get(first));
                     }
-                    return collection.stream();
+                    break;
                 } else if (ot == null) {
                     throw new IllegalArgumentException("Could not locate member in object tree");
                 } else {
-                    return Stream.of(ot);
+                    newResult.add(ot);
                 }
-            }).collect(Collectors.toList());
+            }
+            result = newResult;
             member = rest;
+        }
+        return result;
+    }
+
+    Collection<ObjectTree> findObjectTreeOfPolyMember(String[] member) {
+        Collection<ObjectTree> result = List.of(this);
+        for (String field : member) {
+            Collection<ObjectTree> newResult = new LinkedList<>();
+            for (ObjectTree res : result) {
+                ObjectTree ot = res.childrenMap.get(field);
+                if (ot == null && res.childrenMap.size() > 0) {
+                    for (ObjectTree child : res.childrenMap.values()) {
+                        if (!(child.getMemberNode() instanceof PolyMemberNode) || !child.childrenMap.containsKey(field))
+                            throw new IllegalArgumentException("Could not locate member in object tree");
+                        newResult.add(child.childrenMap.get(field));
+                    }
+                    break;
+                } else if (ot == null) {
+                    throw new IllegalArgumentException("Could not locate member in object tree");
+                } else {
+                    newResult.add(ot);
+                }
+            }
+            result = newResult;
         }
         return result;
     }
@@ -236,11 +314,21 @@ public class ObjectTree implements Cloneable {
         return hasNonRootMember(field, false);
     }
 
+    public boolean hasMember(String[] member) {
+        if (member.length < 2)
+            return true;
+        return hasMemberIndexed(member, 1, false);
+    }
+
     /** Whether this object tree contains the given member. The argument may omit typing
      *  information (i.e., 'a.x' will find 'a.A.x', where A is a polymorphic node). */
     public boolean hasPolyMember(String member) {
         String field = removeRoot(member);
         return hasNonRootMember(field, true);
+    }
+
+    public boolean hasPolyMember(String[] member) {
+        return hasMemberIndexed(member, 1, true);
     }
 
     /** Similar to hasMember, but valid at any level of the tree and the argument should not contain
@@ -265,10 +353,29 @@ public class ObjectTree implements Cloneable {
         }
     }
 
+    private boolean hasMemberIndexed(String[] member, int index, boolean polymorphic) {
+        String first = member[index];
+        if (polymorphic && !childrenMap.containsKey(first) && !childrenMap.isEmpty())
+            return childrenMap.values().stream()
+                    .filter(ot -> ot.getMemberNode() instanceof PolyMemberNode)
+                    .anyMatch(ot -> ot.hasMemberIndexed(member, index, polymorphic));
+        if (index + 1 < member.length)
+            return childrenMap.containsKey(first) && childrenMap.get(first).hasMemberIndexed(member, index + 1, polymorphic);
+        else return childrenMap.containsKey(first);
+    }
+
+    public MemberNode getRootNode() {
+        return memberNode;
+    }
+
     /** Obtain the member node that corresponds to the given field name (with root). */
     public MemberNode getNodeFor(String member) {
         String field = removeRoot(member);
         return getNodeForNonRoot(field);
+    }
+
+    public MemberNode getNodeFor(boolean withRoot, String... members) {
+        return getNodeForIndex(members, withRoot ? 1 : 0);
     }
 
     /** Similar to getNodeFor, but valid at any level of the tree, and the argument must be the field only.
@@ -288,12 +395,28 @@ public class ObjectTree implements Cloneable {
         }
     }
 
+    MemberNode getNodeForIndex(String[] members, int index) {
+        if (members.length <= index)
+            return memberNode;
+        assert childrenMap.containsKey(members[index]);
+        if (members.length == index + 1)
+            return childrenMap.get(members[index]).memberNode;
+        else
+            return childrenMap.get(members[index]).getNodeForIndex(members, index + 1);
+    }
+
     /** Similar to {@link #getNodeFor(String)}, but if the argument does not contain
      *  types, it will obtain all member nodes that represent a given field (in multiple
      *  types). For example, the argument 'a.x' may produce 'a.A.x' and 'a.B.x'; whereas
      *  the argument 'a.A.x' will only produce one node. */
     public Collection<MemberNode> getNodesForPoly(String memberWithRoot) {
         return findObjectTreeOfPolyMember(removeRoot(memberWithRoot)).stream()
+                .map(ObjectTree::getMemberNode)
+                .collect(Collectors.toList());
+    }
+
+    public Collection<MemberNode> getNodesForPoly(String[] membersWithRoot) {
+        return findObjectTreeOfPolyMember(removeRoot(membersWithRoot)).stream()
                 .map(ObjectTree::getMemberNode)
                 .collect(Collectors.toList());
     }
@@ -326,6 +449,35 @@ public class ObjectTree implements Cloneable {
                     builder.insert(0, node.getLabel());
                 }
                 return builder.toString();
+            }
+        };
+    }
+
+    public Iterable<String[]> nameAsArrayIterable() {
+        return () -> new Iterator<>() {
+            final Iterator<ObjectTree> it = treeIterator();
+
+            @Override
+            public boolean hasNext() {
+                return it.hasNext();
+            }
+
+            @Override
+            public String[] next() {
+                ObjectTree element = it.next();
+                List<String> builder = new ArrayList<>();
+                MemberNode node = element.memberNode;
+                if (node == null)
+                    return new String[] {ROOT_NAME};
+                else if (node instanceof PolyMemberNode)
+                    return next();
+                else
+                    builder.add(node.getLabel());
+                while (node.getParent() instanceof MemberNode) {
+                    node = (MemberNode) node.getParent();
+                    builder.add(0, node.getLabel());
+                }
+                return builder.toArray(new String[0]);
             }
         };
     }
@@ -403,6 +555,19 @@ public class ObjectTree implements Cloneable {
         throw new IllegalArgumentException("Field should be of the form <obj>.<field>, <Type>.this.<field>, where <obj> may not contain dots.");
     }
 
+    public static String[] removeRoot(String[] field) {
+        int newStart = 1;
+        for (int i = 0; i < field.length; i++) {
+            if (field[i].equals("this")) {
+                newStart = i + 1;
+                break;
+            }
+        }
+        String[] res = new String[field.length - newStart];
+        System.arraycopy(field, newStart, res, 0, res.length);
+        return res;
+    }
+
     /**
      * Utility method to remove the fields a string, retaining just the root. The root element or root of
      * the object tree should be either "-root-", a valid variable name or an optionally type-prefixed
@@ -416,13 +581,27 @@ public class ObjectTree implements Cloneable {
         throw new IllegalArgumentException("Field should be of the form <obj>.<field>, <Type>.this.<field>, where <obj> may not contain dots.");
     }
 
+    public static String[] removeFields(String[] fields) {
+        Pattern.compile("^(?<root>(([_0-9A-Za-z]+\\.)*this)|(?<dash>(-?))([_0-9A-Za-z]+\\k<dash>)+)(\\.(?<fields>.+))?$");
+        int length = 1;
+        for (int i = 0; i < fields.length; i++) {
+            if (fields[i].equals("this")) {
+                length = i + 1;
+                break;
+            }
+        }
+        String[] res = new String[length];
+        System.arraycopy(fields, 0, res, 0, length);
+        return res;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         ObjectTree tree = (ObjectTree) o;
         return Objects.equals(getMemberName(), tree.getMemberName()) &&
-                childrenMap.values().equals(tree.childrenMap.values());
+                childrenMap.equals(tree.childrenMap);
     }
 
     @Override
