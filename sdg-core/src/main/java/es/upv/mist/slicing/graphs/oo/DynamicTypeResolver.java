@@ -67,6 +67,7 @@ public class DynamicTypeResolver {
     protected Stream<ResolvedType> resolveMethodCallExpr(MethodCallExpr methodCallExpr) {
         assert !methodCallExpr.calculateResolvedType().isVoid();
         return callGraph.getCallTargets(methodCallExpr)
+                .filter(ASTUtils::hasBody) // abstract or interface methods must be skipped
                 .map(cfgMap::get)
                 .flatMap(cfg -> cfg.vertexSet().stream())
                 .filter(node -> node.getAstNode() instanceof ReturnStmt)

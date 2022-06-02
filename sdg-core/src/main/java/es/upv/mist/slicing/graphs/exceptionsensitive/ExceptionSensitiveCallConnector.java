@@ -12,6 +12,7 @@ import es.upv.mist.slicing.graphs.sdg.CallConnector;
 import es.upv.mist.slicing.nodes.SyntheticNode;
 import es.upv.mist.slicing.nodes.exceptionsensitive.*;
 import es.upv.mist.slicing.nodes.io.CallNode;
+import es.upv.mist.slicing.utils.ASTUtils;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -55,11 +56,11 @@ public class ExceptionSensitiveCallConnector extends CallConnector {
     protected void connectNormalNodes(Set<SyntheticNode<?>> synthNodes, Resolvable<? extends ResolvedMethodLikeDeclaration> call, CallableDeclaration<?> decl) {
         ReturnNode normalReturn = (ReturnNode) synthNodes.stream()
                 .filter(NormalReturnNode.class::isInstance)
-                .filter(n -> n.getAstNode() == call)
+                .filter(n -> n.getAstNode() == call || ASTUtils.equalsWithRange(n.getAstNode(), call))
                 .findAny().orElseThrow();
         ExitNode normalExit = (ExitNode) synthNodes.stream()
                 .filter(NormalExitNode.class::isInstance)
-                .filter(n -> n.getAstNode() == decl)
+                .filter(n -> n.getAstNode() == decl || ASTUtils.equalsWithRange(n.getAstNode(), decl))
                 .findAny().orElseThrow();
         ((ESSDG) sdg).addReturnArc(normalExit, normalReturn);
     }

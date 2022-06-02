@@ -116,6 +116,12 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
 
     @Override
     protected Set<A> initialValue(CallGraph.Vertex vertex) {
+        // Skip abstract vertices
+
+        if (vertex.getDeclaration().isAbstract() ||
+                (vertex.getDeclaration().isMethodDeclaration() &&
+                        vertex.getDeclaration().asMethodDeclaration().getBody().isEmpty()))
+            return new HashSet<>();
         CFG cfg = cfgMap.get(vertex.getDeclaration());
         assert cfg != null;
         Stream<VariableAction> actionStream =  cfg.vertexSet().stream()
@@ -125,7 +131,9 @@ public abstract class InterproceduralActionFinder<A extends VariableAction> exte
                 // We never analyze synthetic variables (all intraprocedural)
                 .filter(Predicate.not(VariableAction::isSynthetic))
                 // We skip over non-root variables (for each 'x.a' action we'll find 'x' later)
-                .filter(VariableAction::isRootAction);
+                .filter(VariableAction::isRootAction)
+                // We skip local variables, as those can't be interprocedural
+                .filter(Predicate.not(VariableAction::isLocalVariable));
         Stream<A> filteredStream = mapAndFilterActionStream(actionStream, cfg);
         Set<A> set = new HashSet<>();
         for (Iterator<A> it = filteredStream.iterator(); it.hasNext(); ) {

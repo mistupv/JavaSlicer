@@ -125,8 +125,10 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
 
     /** Whether this node contains the given call AST node. */
     public boolean containsCall(Resolvable<? extends ResolvedMethodLikeDeclaration> call) {
-        return methodCalls.contains(call) || methodCalls.stream()
-                .anyMatch(callInMethod -> callInMethod == call || ASTUtils.equalsWithRangeInCU((Node) callInMethod, (Node) call));
+        for (Resolvable<? extends ResolvedMethodLikeDeclaration> c : methodCalls)
+            if (c == call || ASTUtils.equalsWithRange((Node) c, (Node) call))
+                return true;
+        return false;
     }
 
     /** Append or prepend the given set of actions to the actions of the given call. */

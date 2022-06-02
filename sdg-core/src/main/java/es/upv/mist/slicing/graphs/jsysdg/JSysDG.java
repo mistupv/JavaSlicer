@@ -21,8 +21,6 @@ import es.upv.mist.slicing.slicing.JSysDGSlicingAlgorithm;
 import es.upv.mist.slicing.slicing.SlicingAlgorithm;
 import es.upv.mist.slicing.utils.NodeHashSet;
 
-import java.util.NoSuchElementException;
-
 public class JSysDG extends ESSDG {
     @Override
     protected SlicingAlgorithm createSlicingAlgorithm() {
@@ -57,7 +55,7 @@ public class JSysDG extends ESSDG {
             nodeList.accept(new ModifierVisitor<>() {
                 @Override
                 public Visitable visit(ClassOrInterfaceDeclaration n, Object arg) {
-                    if (n.getConstructors().isEmpty())
+                    if (!n.isInterface() && n.getConstructors().isEmpty())
                         newlyInsertedConstructors.add(n.addConstructor(Modifier.Keyword.PUBLIC));
                     return super.visit(n, arg);
                 }
@@ -73,12 +71,6 @@ public class JSysDG extends ESSDG {
 
         @Override
         protected void buildCFG(CallableDeclaration<?> declaration, CFG cfg) {
-            String origin;
-            try {
-                origin = " from " + declaration.findCompilationUnit().get().getStorage().get().getFileName() + ".";
-            } catch (NoSuchElementException ignore) {
-                origin = " (location unknown, may be synthetic).";
-            }
             ((JSysCFG) cfg).build(declaration, newlyInsertedConstructors, ClassGraph.getInstance());
         }
 

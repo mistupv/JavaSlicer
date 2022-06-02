@@ -97,12 +97,21 @@ public class ASTUtils {
         throw new IllegalArgumentException("Call wasn't of a compatible type!");
     }
 
+    public static boolean hasBody(CallableDeclaration<?> callableDeclaration) {
+        if (callableDeclaration instanceof MethodDeclaration)
+            return ((MethodDeclaration) callableDeclaration).getBody().isPresent()
+                    && !((MethodDeclaration) callableDeclaration).getBody().get().isEmptyStmt();
+        if (callableDeclaration instanceof ConstructorDeclaration)
+            return !((ConstructorDeclaration) callableDeclaration).getBody().isEmptyStmt();
+        throw new IllegalStateException("Invalid type of callable declaration");
+    }
+
     public static BlockStmt getCallableBody(CallableDeclaration<?> callableDeclaration) {
         if (callableDeclaration instanceof MethodDeclaration)
             return ((MethodDeclaration) callableDeclaration).getBody().orElseThrow(() -> new IllegalStateException("Graph creation is not allowed for abstract or native methods!"));
         if (callableDeclaration instanceof ConstructorDeclaration)
             return ((ConstructorDeclaration) callableDeclaration).getBody();
-        throw new IllegalStateException("The method must have a body!");
+        throw new IllegalStateException("Invalid type of callable declaration!");
     }
 
     /** Compute the resolved type that is returned from a given method call. */

@@ -74,9 +74,9 @@ public class JSysPDG extends ESPDG {
         if (member.length == 1 && member[0].equals(ROOT_NAME))
             addEdge(graphNodeOf(totalDefinition), graphNodeOf(target), new TotalDefinitionDependenceArc());
         else
-            addEdge(totalDefinition.getObjectTree().getNodeFor(true, member),
-                    target.getObjectTree().getNodeFor(true, member),
-                    new TotalDefinitionDependenceArc());
+            for (MemberNode from : totalDefinition.getObjectTree().getNodesForPoly(member))
+                for (MemberNode to : target.getObjectTree().getNodesForPoly(member))
+                    addEdge(from, to, new TotalDefinitionDependenceArc());
     }
 
     protected GraphNode<?> graphNodeOf(VariableAction action) {

@@ -6,6 +6,7 @@ import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.BooleanLiteralExpr;
 import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.SimpleName;
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitor;
@@ -53,7 +54,8 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
     /** Lists of labelled continue statements, mapped according to their label. */
     protected final Map<SimpleName, List<GraphNode<ContinueStmt>>> continueMap = new HashMap<>();
     /** Return statements that should be connected to the final node, if it is created at the end of the */
-    protected final List<GraphNode<ReturnStmt>> returnList = new LinkedList<>();
+    // TODO: Type changed due to exception handling
+    protected final List<GraphNode<?>> returnList = new LinkedList<>();
     /** Stack of lists of hanging cases on switch statements */
     protected final Deque<List<GraphNode<SwitchEntry>>> switchEntriesStack = new LinkedList<>();
 
@@ -335,6 +337,13 @@ public class CFGBuilder extends VoidVisitorAdapter<Void> {
     @Override
     public void visit(ExplicitConstructorInvocationStmt n, Void arg) {
         connectTo(n);
+    }
+
+    @Override
+    public void visit(ObjectCreationExpr n, Void arg) {
+        // Skip anonymous classes
+        if (n.getAnonymousClassBody().isEmpty())
+            super.visit(n, arg);
     }
 
     // ======================================================================

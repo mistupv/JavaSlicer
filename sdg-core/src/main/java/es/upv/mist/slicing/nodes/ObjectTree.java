@@ -249,22 +249,36 @@ public class ObjectTree implements Cloneable {
                 first = member;
                 rest = "";
             }
-            result = result.stream().flatMap(res -> {
+            Collection<ObjectTree> newResult = new LinkedList<>();
+            for (ObjectTree res : result) {
+                if (!res.childrenMap.containsKey(first)) {
+                    for (String key : res.childrenMap.keySet()) {
+                        if (member.startsWith(key)) {
+                            first = member.substring(0, key.length());
+                            try {
+                                rest = member.substring(key.length() + 1);
+                            } catch (StringIndexOutOfBoundsException e) {
+                                rest = "";
+                            }
+                            break;
+                        }
+                    }
+                }
                 ObjectTree ot = res.childrenMap.get(first);
                 if (ot == null && res.childrenMap.size() > 0) {
-                    Collection<ObjectTree> collection = new LinkedList<>();
-                    for (ObjectTree child : childrenMap.values()) {
+                    for (ObjectTree child : res.childrenMap.values()) {
                         if (!(child.getMemberNode() instanceof PolyMemberNode) || !child.childrenMap.containsKey(first))
                             throw new IllegalArgumentException("Could not locate member in object tree");
-                        collection.add(child.childrenMap.get(first));
+                        newResult.add(child.childrenMap.get(first));
                     }
-                    return collection.stream();
+                    break;
                 } else if (ot == null) {
                     throw new IllegalArgumentException("Could not locate member in object tree");
                 } else {
-                    return Stream.of(ot);
+                    newResult.add(ot);
                 }
-            }).collect(Collectors.toList());
+            }
+            result = newResult;
             member = rest;
         }
         return result;
@@ -273,22 +287,23 @@ public class ObjectTree implements Cloneable {
     Collection<ObjectTree> findObjectTreeOfPolyMember(String[] member) {
         Collection<ObjectTree> result = List.of(this);
         for (String field : member) {
-            result = result.stream().flatMap(res -> {
+            Collection<ObjectTree> newResult = new LinkedList<>();
+            for (ObjectTree res : result) {
                 ObjectTree ot = res.childrenMap.get(field);
                 if (ot == null && res.childrenMap.size() > 0) {
-                    Collection<ObjectTree> collection = new LinkedList<>();
-                    for (ObjectTree child : childrenMap.values()) {
+                    for (ObjectTree child : res.childrenMap.values()) {
                         if (!(child.getMemberNode() instanceof PolyMemberNode) || !child.childrenMap.containsKey(field))
                             throw new IllegalArgumentException("Could not locate member in object tree");
-                        collection.add(child.childrenMap.get(field));
+                        newResult.add(child.childrenMap.get(field));
                     }
-                    return collection.stream();
+                    break;
                 } else if (ot == null) {
                     throw new IllegalArgumentException("Could not locate member in object tree");
                 } else {
-                    return Stream.of(ot);
+                    newResult.add(ot);
                 }
-            }).collect(Collectors.toList());
+            }
+            result = newResult;
         }
         return result;
     }
@@ -396,6 +411,12 @@ public class ObjectTree implements Cloneable {
      *  the argument 'a.A.x' will only produce one node. */
     public Collection<MemberNode> getNodesForPoly(String memberWithRoot) {
         return findObjectTreeOfPolyMember(removeRoot(memberWithRoot)).stream()
+                .map(ObjectTree::getMemberNode)
+                .collect(Collectors.toList());
+    }
+
+    public Collection<MemberNode> getNodesForPoly(String[] membersWithRoot) {
+        return findObjectTreeOfPolyMember(removeRoot(membersWithRoot)).stream()
                 .map(ObjectTree::getMemberNode)
                 .collect(Collectors.toList());
     }

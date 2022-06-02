@@ -21,7 +21,6 @@ import es.upv.mist.slicing.nodes.VariableAction.DeclarationType;
 import es.upv.mist.slicing.nodes.io.ActualIONode;
 import es.upv.mist.slicing.nodes.io.CallNode;
 import es.upv.mist.slicing.utils.ASTUtils;
-import es.upv.mist.slicing.utils.Logger;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -360,6 +359,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
                 }
                 String[] realName, root;
                 if (scope.isMethodCallExpr() || scope.isObjectCreationExpr()) {
+                    scope.accept(VariableVisitor.this, action);
                     tail.add(VARIABLE_NAME_OUTPUT);
                     realName = tail.toArray(new String[0]);
                     root = new String[]{VARIABLE_NAME_OUTPUT};
@@ -621,9 +621,7 @@ public class VariableVisitor extends GraphNodeContentVisitor<VariableVisitor.Act
             try {
                 String prefix = getNamePrefix(n.asNameExpr());
                 return prefix == null ? new String[] { n.toString() } : new String[] { prefix, n.toString() };
-            } catch (UnsolvedSymbolException e) {
-                Logger.log("Unable to resolve symbol " + e.getName());
-            }
+            } catch (UnsolvedSymbolException ignored) {}
         } else if (n.isSuperExpr() || n.isThisExpr()) {
             return new String[] { "this" };
         } else if (n.isFieldAccessExpr()) { // this.a.b
