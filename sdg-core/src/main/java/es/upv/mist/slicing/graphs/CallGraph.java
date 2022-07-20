@@ -214,8 +214,11 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
                 } else if (scope.get().isThisExpr()) {
                     // c) 'ClassName.this', the given class and any subclass
                     dynamicTypes = classGraph.subclassesOf(scope.get().asThisExpr().resolve().asClass());
+                } else if (scope.get().isSuperExpr()) {
+                    // d) 'super': start with the parent type and get the first implementation
+                    dynamicTypes = Set.of(classGraph.parentOf(typeStack.peek()).orElseThrow());
                 } else {
-                    // d) others: compute possible dynamic types of the expression (TODO)
+                    // e) others: compute possible dynamic types of the expression (TODO)
                     dynamicTypes = classGraph.subclassesOf(scope.get().calculateResolvedType().asReferenceType());
                 }
                 // Locate the corresponding methods for each possible dynamic type, they must be available to all

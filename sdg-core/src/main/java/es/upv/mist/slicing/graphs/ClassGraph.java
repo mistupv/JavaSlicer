@@ -159,6 +159,16 @@ public class ClassGraph extends DirectedPseudograph<ClassGraph.Vertex<?>, ClassG
                 .findFirst();
     }
 
+    public Optional<? extends TypeDeclaration<?>> parentOf(TypeDeclaration<?> declaration) {
+        return incomingEdgesOf(findClassVertex(declaration)).stream()
+                .filter(ClassArc.Extends.class::isInstance)
+                .map(this::getEdgeSource)
+                .map(Vertex::getDeclaration)
+                .filter(BodyDeclaration::isTypeDeclaration)
+                .map(bd -> (TypeDeclaration<?>) bd)
+                .findFirst();
+    }
+
     public Optional<ObjectTree> generateObjectTreeForReturnOf(CallableDeclaration<?> callableDeclaration) {
         if (callableDeclaration.isMethodDeclaration()) {
             MethodDeclaration method = callableDeclaration.asMethodDeclaration();
