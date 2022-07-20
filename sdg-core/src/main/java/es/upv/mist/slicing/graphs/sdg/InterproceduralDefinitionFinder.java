@@ -3,6 +3,8 @@ package es.upv.mist.slicing.graphs.sdg;
 import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
+import com.github.javaparser.ast.expr.SuperExpr;
+import com.github.javaparser.ast.expr.ThisExpr;
 import es.upv.mist.slicing.graphs.CallGraph;
 import es.upv.mist.slicing.graphs.cfg.CFG;
 import es.upv.mist.slicing.nodes.GraphNode;
@@ -55,7 +57,7 @@ public class InterproceduralDefinitionFinder extends InterproceduralActionFinder
                 ActualIONode actualOut = locateActualOutNode(edge, def.getName())
                         .orElseGet(() -> ActualIONode.createActualOut(edge.getCall(), def.getName(), null));
                 Optional<Expression> scope = ASTUtils.getResolvableScope(edge.getCall());
-                if (scope.isPresent()) {
+                if (scope.isPresent() && !(scope.get() instanceof SuperExpr) && !(scope.get() instanceof ThisExpr)) {
                     extractOutputVariablesAsMovables(scope.get(), movables, graphNode, actualOut, def);
                 } else {
                     assert def.hasObjectTree();
