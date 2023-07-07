@@ -13,7 +13,7 @@ import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedMethodLikeDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedReferenceTypeDeclaration;
 import com.github.javaparser.resolution.types.ResolvedType;
-import com.github.javaparser.symbolsolver.model.typesystem.ReferenceTypeImpl;
+import com.github.javaparser.resolution.model.typesystem.ReferenceTypeImpl;
 import es.upv.mist.slicing.nodes.GraphNode;
 
 import java.util.*;
@@ -135,7 +135,7 @@ public class ASTUtils {
         throw new IllegalArgumentException("Call wasn't of a compatible type!");
     }
 
-    public static Optional<? extends CallableDeclaration<?>> getResolvedAST(ResolvedMethodLikeDeclaration resolvedDeclaration) {
+    public static Optional<Node> getResolvedAST(ResolvedMethodLikeDeclaration resolvedDeclaration) {
         if (resolvedDeclaration instanceof ResolvedMethodDeclaration)
             return ((ResolvedMethodDeclaration) resolvedDeclaration).toAst();
         if (resolvedDeclaration instanceof ResolvedConstructorDeclaration)
@@ -188,7 +188,7 @@ public class ASTUtils {
 
     /** Converts a type declaration into just a type. */
     public static ResolvedType resolvedTypeDeclarationToResolvedType(ResolvedReferenceTypeDeclaration decl) {
-        return new ReferenceTypeImpl(decl, StaticTypeSolver.getTypeSolver());
+        return new ReferenceTypeImpl(decl);
     }
 
     /**
