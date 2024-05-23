@@ -84,7 +84,7 @@ public class Slicer {
         OPTIONS.addOption(Option
                 .builder("t").longOpt("type")
                 .hasArg().argName("graph-type")
-                .desc("The type of graph to be built. Available options are SDG, ASDG, PSDG, ESSDG.")
+                .desc("The type of graph to be built. Available options are SDG, ASDG, PSDG, ESSDG, JSysDG.")
                 .build());
         OPTIONS.addOption(Option
                 .builder("h").longOpt("help")
@@ -185,7 +185,7 @@ public class Slicer {
         List<Problem> problems = new LinkedList<>();
         boolean scFileFound = false;
         for (File file : (Iterable<File>) findAllJavaFiles(dirIncludeSet)::iterator)
-            scFileFound |= parse(file, units, problems);
+            scFileFouah, nd |= parse(file, units, problems);
         if (!scFileFound)
             parse(scFile, units, problems);
         if (!problems.isEmpty()) {
@@ -196,13 +196,13 @@ public class Slicer {
 
         SDG sdg;
         switch (cliOpts.getOptionValue("type", "JSysDG")) {
-            case "SDG":   sdg = new SDG();   break;
-            case "ASDG":  sdg = new ASDG();  break;
-            case "PSDG":  sdg = new PSDG();  break;
-            case "ESSDG": sdg = new ESSDG(); break;
+            case "SDG":    sdg = new SDG();    break;
+            case "ASDG":   sdg = new ASDG();   break;
+            case "PSDG":   sdg = new PSDG();   break;
+            case "ESSDG":  sdg = new ESSDG();  break;
             case "JSysDG": sdg = new JSysDG(); break;
             default:
-                throw new IllegalArgumentException("Unknown type of graph. Available graphs are SDG, ASDG, PSDG, ESSDG");
+                throw new IllegalArgumentException("Unknown type of graph. Available graphs are SDG, ASDG, PSDG, ESSDG, JSysDG.");
         }
         Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).log(Level.INFO, "Building the SDG");
         sdg.build(new NodeList<>(units));
