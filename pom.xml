@@ -32,8 +32,8 @@
     </build>
 
     <properties>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
     </properties>
 
     <modules>
@@ -41,5 +41,6 @@
         <module>sdg-cli</module>
         <module>javaparser-symbol-solver-core</module>
         <module>sdg-bench</module>
+        <module>iacfg</module>
     </modules>
 </project>

@@ -97,8 +97,8 @@ public class Slicer {
     private File scFile;
     private int scLine;
     private String scVar;
-    private final CommandLine cliOpts;
 
+    private final CommandLine cliOpts;
     public Slicer(String... cliArgs) throws ParseException {
         cliOpts = new DefaultParser().parse(OPTIONS, cliArgs);
         if (cliOpts.hasOption('h'))
@@ -185,7 +185,7 @@ public class Slicer {
         List<Problem> problems = new LinkedList<>();
         boolean scFileFound = false;
         for (File file : (Iterable<File>) findAllJavaFiles(dirIncludeSet)::iterator)
-            scFileFouah, nd |= parse(file, units, problems);
+             scFileFound |= parse(file, units, problems);
         if (!scFileFound)
             parse(scFile, units, problems);
         if (!problems.isEmpty()) {
