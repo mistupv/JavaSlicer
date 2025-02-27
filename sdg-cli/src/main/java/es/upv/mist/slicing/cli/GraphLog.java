@@ -71,13 +71,9 @@ public abstract class GraphLog<G extends Graph> {
     }
 
     public void generateImages(String imageName, String format) throws IOException {
-        this.imageName = imageName + "-" + graph.getClass().getSimpleName();
         this.format = format;
         generated = true;
-        File tmpDot = File.createTempFile("graph-source-", ".dot");
-        tmpDot.getParentFile().mkdirs();
-        getImageFile().getParentFile().mkdirs();
-
+        File tmpDot = getDotFile(imageName);
         // Graph -> DOT -> file
         try (Writer w = new FileWriter(tmpDot)) {
             getDOTExporter().exportGraph(graph, w);
@@ -95,6 +91,20 @@ public abstract class GraphLog<G extends Graph> {
         } catch (InterruptedException e) {
             Logger.log("Image generation failed\n" + e.getMessage());
         }
+    }
+
+    public File getDotFile(String imageName) throws IOException {
+        this.imageName = imageName + "-" + graph.getClass().getSimpleName();
+        File tmpDot = File.createTempFile("graph-source-", ".dot");
+        tmpDot.getParentFile().mkdirs();
+        getImageFile().getParentFile().mkdirs();
+
+        // Graph -> DOT -> file
+        try (Writer w = new FileWriter(tmpDot)) {
+            getDOTExporter().exportGraph(graph, w);
+        }
+
+        return tmpDot;
     }
 
     public void openVisualRepresentation() throws IOException {

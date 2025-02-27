@@ -12,8 +12,8 @@
     <artifactId>iacfg</artifactId>
 
     <properties>
-        <maven.compiler.source>8</maven.compiler.source>
-        <maven.compiler.target>8</maven.compiler.target>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
     <dependencies>
@@ -27,6 +27,11 @@
             <artifactId>sdg-core</artifactId>
             <version>1.3.0</version>
             <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>es.upv.mist.slicing</groupId>
+            <artifactId>sdg-cli</artifactId>
+            <version>1.3.0</version>
         </dependency>
     </dependencies>
 
