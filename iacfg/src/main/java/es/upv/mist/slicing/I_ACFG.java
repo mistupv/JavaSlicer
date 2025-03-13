@@ -9,7 +9,9 @@ import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.github.javaparser.utils.CodeGenerationUtils;
-import es.upv.mist.slicing.arcs.pdg.ControlDependencyArc;
+import es.upv.mist.slicing.arcs.Arc;
+import es.upv.mist.slicing.arcs.cfg.ControlFlowArc;
+import es.upv.mist.slicing.cli.DOTAttributes;
 import es.upv.mist.slicing.cli.GraphLog;
 import es.upv.mist.slicing.graphs.CallGraph;
 import es.upv.mist.slicing.graphs.ClassGraph;
@@ -19,9 +21,10 @@ import es.upv.mist.slicing.graphs.cfg.CFG;
 import es.upv.mist.slicing.graphs.sdg.InterproceduralDefinitionFinder;
 import es.upv.mist.slicing.graphs.sdg.InterproceduralUsageFinder;
 import es.upv.mist.slicing.nodes.GraphNode;
+import es.upv.mist.slicing.nodes.SyntheticNode;
 import es.upv.mist.slicing.nodes.VariableAction;
-import es.upv.mist.slicing.nodes.io.ActualIONode;
 import es.upv.mist.slicing.nodes.io.CallNode;
+import es.upv.mist.slicing.nodes.io.MethodExitNode;
 import es.upv.mist.slicing.utils.ASTUtils;
 import es.upv.mist.slicing.utils.StaticTypeSolver;
 import org.apache.commons.cli.ParseException;
@@ -32,12 +35,12 @@ import java.io.IOException;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 public class I_ACFG extends Graph {
 
     protected static final Map<CallableDeclaration<?>, CFG> acfgMap = ASTUtils.newIdentityHashMap();
     protected CallGraph callGraph;
-    protected GraphNode<?> secuentialNode = null;
 
     public static void main(String[] args) throws ParseException, IOException {
         String ruta = "/src/main/java/es/upv/mist/slicing/tests/";
@@ -67,16 +70,16 @@ public class I_ACFG extends Graph {
         dataFlowAnalysis();
         copyACFGs();
         expandCalls();
-        new GraphLog<>(this){}.generateImages("migrafo");
-        /* acfgMap.forEach((declaration, cfg)-> {
-            CFGLog cfgLog = new CFGLog(cfg);
-            try {
-                cfgLog.generateImages(declaration.getNameAsString());
-            } catch (IOException e) {
-                System.out.println("ERROR");
+        new GraphLog<>(this){
+            @Override
+            protected DOTAttributes edgeAttributes(Arc arc) {
+                DOTAttributes att = super.edgeAttributes(arc);
+                if (arc.isNonExecutableControlFlowArc())
+                    att.add("style", "dashed");
+                return att;
             }
-        }); */
-        System.out.println();
+        }.generateImages("migrafo");
+        System.out.println("Grafo generado...");
     }
 
     protected void buildACFGs(NodeList<CompilationUnit> nodeList) {
@@ -127,67 +130,100 @@ public class I_ACFG extends Graph {
     /** Build a PDG per declaration, based on the CFGs built previously and enhanced by data analyses. */
     protected void copyACFGs() {
         for (CFG acfg : acfgMap.values()) {
-            // for debugging
-            // APDG pdg = new APDG((ACFG) acfg);
-            // pdg.build(acfg.getDeclaration());
-
             acfg.vertexSet().forEach(this::addVertex);
             acfg.edgeSet().forEach(arc -> addEdge(acfg.getEdgeSource(arc), acfg.getEdgeTarget(arc), arc));
         }
     }
 
     protected void expandCalls() {
-        // debug statement to print graph
-        // new PDGLog(PDG.this).generateImages("pdg-debug")
         for (GraphNode<?> graphNode : Set.copyOf(vertexSet())) {
-            secuentialNode = null;
-            CallNode endCallNode = null;
+            GraphNode<?> lastMovableNode = null;
+            Deque<GraphNode<?>> firstNodeStack = new LinkedList<>();
+            boolean firstMovable = true;
             Deque<CallNode> callNodeStack = new LinkedList<>();
+            VariableAction lastAction = graphNode.getVariableActions().isEmpty() ? null : graphNode.getLastVariableAction();
+            VariableAction firsAction = graphNode.getVariableActions().isEmpty() ? null : graphNode.getVariableActions().get(0);
             for (VariableAction action : List.copyOf(graphNode.getVariableActions())) {
                 if (action instanceof VariableAction.CallMarker) {
                     VariableAction.CallMarker variableAction = (VariableAction.CallMarker) action;
                     // Compute the call node, if entering the marker. Additionally, it places the node
                     // in the graph and makes it control-dependent on its container.
                     if (!variableAction.isEnter()) {
+                        CallNode callNode = callNodeStack.peek();
+                        if (!containsVertex(callNode)) {
+                            addVertex(callNode);
+                            if (lastMovableNode != null)
+                                addControlFlowArc(lastMovableNode, callNode);
+                            lastMovableNode = callNode;
+                        }
                         callNodeStack.pop();
                     } else {
                         CallNode callNode = CallNode.create(variableAction.getCall());
-                        endCallNode = CallNode.create(variableAction.getCall());
                         if (graphNode.isImplicitInstruction())
                             callNode.markAsImplicit();
-                        addVertex(callNode);
-                        addControlDependencyArc(graphNode, callNode);
                         callNodeStack.push(callNode);
                     }
                 } else if (action instanceof VariableAction.Movable) {
                     // Move the variable to its own node, add that node to the graph and connect it.
                     var movable = (VariableAction.Movable) action;
                     movable.move(this);
-                    connectRealNode(graphNode, callNodeStack.peek(), movable.getRealNode());
+                    SyntheticNode<?> realNode = movable.getRealNode();
+                    if (realNode instanceof CallNode.Return) {
+                        CallNode callNode = callNodeStack.peek();
+                        addVertex(callNode);
+                        addControlFlowArc(lastMovableNode, callNode);
+                        addControlFlowArc(callNode, realNode);
+                    } else if(graphNode instanceof MethodExitNode && firstMovable) {
+                        Set.copyOf(this.incomingEdgesOf(graphNode).stream()
+                                .filter(Arc::isExecutableControlFlowArc)
+                                .collect(Collectors.toSet()))
+                                .forEach(arc -> {
+                                    GraphNode<?> source = getEdgeSource(arc);
+                                    removeEdge(arc);
+                                    addEdge(source, realNode, arc);
+                                });
+                        addControlFlowArc(realNode, graphNode);
+                    } else {
+                        if(firsAction.equals(action) && this.incomingEdgesOf(graphNode).isEmpty()){
+                            firstNodeStack.add(movable.getRealNode());
+                        }
+                        if(lastAction != null && lastAction.equals(action)){
+                            Set.copyOf(this.outgoingEdgesOf(graphNode).stream()
+                                            .filter(Arc::isExecutableControlFlowArc)
+                                            .collect(Collectors.toSet()))
+                                    .forEach(arc -> {
+                                        GraphNode<?> target = getEdgeTarget(arc);
+                                        removeEdge(arc);
+                                        addEdge(realNode, target, arc);
+                                    });
+
+                            // obtener primer nodo
+                            if(!firstNodeStack.isEmpty()){
+                                addControlFlowArc(graphNode, firstNodeStack.pop());
+                            }
+                        }
+                        if(!firstMovable) {
+                            connectRealNode(graphNode, lastMovableNode, realNode);
+                        }
+                    }
+                    firstMovable = false;
+                    lastMovableNode = realNode;
                 }
-            }
-            if(endCallNode != null && secuentialNode != null) {
-                addVertex(endCallNode);
-                addControlDependencyArc(secuentialNode, endCallNode);
             }
             assert callNodeStack.isEmpty();
         }
     }
 
-    public void addControlDependencyArc(GraphNode<?> from, GraphNode<?> to) {
-        this.addEdge(from, to, new ControlDependencyArc());
+    public void addControlFlowArc(GraphNode<?> from, GraphNode<?> to) {
+        this.addEdge(from, to, new ControlFlowArc());
     }
 
     /** Connects the real node to the proper parent, control-dependent-wise. */
-    protected void connectRealNode(GraphNode<?> graphNode, CallNode callNode, GraphNode<?> realNode) {
-        if (realNode instanceof ActualIONode || realNode instanceof CallNode.Return) {
-            assert callNode != null;
-            if(secuentialNode != realNode) {
-                addControlDependencyArc(secuentialNode == null ? callNode : secuentialNode, realNode);
-                secuentialNode = realNode;
-            }
+    protected void connectRealNode(GraphNode<?> graphNode, GraphNode<?> lastNode, GraphNode<?> realNode) {
+        if(lastNode != null && !lastNode.equals(realNode)) {
+            addControlFlowArc(lastNode, realNode);
         } else {
-            addControlDependencyArc(graphNode, realNode);
+            addControlFlowArc(graphNode, realNode);
         }
     }
 }

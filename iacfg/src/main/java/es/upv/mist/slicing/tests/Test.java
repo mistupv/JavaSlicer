@@ -10,7 +10,7 @@ public class Test {
 		while (x < 100) {
 			if (x < 50) {
 				System.out.println(x);
-				x = incrementar(x);
+				x = incrementar(x, 0);
 			} else {
 				System.out.println(x);
 				x = incrementarBucle(x);
@@ -18,7 +18,8 @@ public class Test {
 		}
 	}
 
-	private static int incrementar(int a){
+	private static int incrementar(int a, int b){
+		b++;
 		return a+1;
 	}
 
