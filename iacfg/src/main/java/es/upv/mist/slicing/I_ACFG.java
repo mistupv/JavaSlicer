@@ -227,6 +227,8 @@ public class I_ACFG extends Graph {
                     throw new IllegalStateException("Invalid pairing of call markers");
                 }
             } else if (va instanceof VariableAction.Movable movable) {
+                if (containsVertex(movable.getRealNode()))
+                    continue; // Skip multi-action nodes
                 movable.move(this);
                 // Check whether to insert call node (when we move from input to output)
                 if (input && !isActualIn(movable.getRealNode())) {
