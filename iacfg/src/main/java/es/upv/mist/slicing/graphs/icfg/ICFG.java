@@ -1,4 +1,4 @@
-package es.upv.mist.slicing;
+package es.upv.mist.slicing.graphs.icfg;
 
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
@@ -31,9 +31,12 @@ import java.util.*;
 
 import static es.upv.mist.slicing.util.SingletonCollector.toSingleton;
 
-public class I_ACFG extends Graph {
+/**
+ * An interprocedural CFG, whose component CFGs are built as ACFGs.
+ */
+public class ICFG extends Graph {
 
-    protected static final Map<CallableDeclaration<?>, CFG> acfgMap = ASTUtils.newIdentityHashMap();
+    protected static final Map<CallableDeclaration<?>, CFG> cfgMap = ASTUtils.newIdentityHashMap();
     protected CallGraph callGraph;
     protected boolean built = false;
 
@@ -51,16 +54,16 @@ public class I_ACFG extends Graph {
         }
 
         createClassGraph(units);
-        buildACFGs(units);
+        buildCFGs(units);
         createCallGraph(units);
         dataFlowAnalysis();
-        copyACFGs();
+        copyCFGs();
         expandCalls();
-        joinACFGs();
+        joinCFGs();
         built = true;
     }
 
-    protected void buildACFGs(NodeList<CompilationUnit> nodeList) {
+    protected void buildCFGs(NodeList<CompilationUnit> nodeList) {
         nodeList.accept(new VoidVisitorAdapter<Void>() {
             @Override
             public void visit(MethodDeclaration n, Void arg) {
@@ -81,7 +84,7 @@ public class I_ACFG extends Graph {
                     return; // Allow abstract methods
                 ACFG acfg = new ACFG();
                 acfg.build(n);
-                acfgMap.put(n, acfg);
+                cfgMap.put(n, acfg);
             }
         }, null);
     }
@@ -93,21 +96,21 @@ public class I_ACFG extends Graph {
 
     /** Create call graph from the list of compilation units. */
     protected void createCallGraph(NodeList<CompilationUnit> nodeList) {
-        callGraph = new CallGraph(acfgMap, ClassGraph.getInstance());
+        callGraph = new CallGraph(cfgMap, ClassGraph.getInstance());
         callGraph.build(nodeList);
     }
 
     /** Perform interprocedural analyses to determine the actual and formal nodes. */
     protected void dataFlowAnalysis() {
-        new InterproceduralDefinitionFinder(callGraph, acfgMap).save(); // 3.1
-        new InterproceduralUsageFinder(callGraph, acfgMap).save();      // 3.2
+        new InterproceduralDefinitionFinder(callGraph, cfgMap).save(); // 3.1
+        new InterproceduralUsageFinder(callGraph, cfgMap).save();      // 3.2
     }
 
     /** Build a PDG per declaration, based on the CFGs built previously and enhanced by data analyses. */
-    protected void copyACFGs() {
-        for (CFG acfg : acfgMap.values()) {
-            acfg.vertexSet().forEach(this::addVertex);
-            acfg.edgeSet().forEach(arc -> addEdge(acfg.getEdgeSource(arc), acfg.getEdgeTarget(arc), arc));
+    protected void copyCFGs() {
+        for (CFG cfg : cfgMap.values()) {
+            cfg.vertexSet().forEach(this::addVertex);
+            cfg.edgeSet().forEach(arc -> addEdge(cfg.getEdgeSource(arc), cfg.getEdgeTarget(arc), arc));
         }
     }
 
@@ -276,7 +279,7 @@ public class I_ACFG extends Graph {
         list.addAll(list2);
     }
 
-    protected void joinACFGs() {
+    protected void joinCFGs() {
         for (CallGraph.Edge<?> call : callGraph.edgeSet()) {
             // Nodes to be paired up
             GraphNode<?> callNode  = vertexSet().stream()
@@ -287,8 +290,8 @@ public class I_ACFG extends Graph {
                     .filter(n -> n instanceof CallNode.Return)
                     .filter(n -> n.getAstNode().equals(call.getCall()))
                     .collect(toSingleton());
-            GraphNode<?> enterNode = acfgMap.get(callGraph.getEdgeTarget(call).getDeclaration()).getRootNode();
-            GraphNode<?> exitNode  = acfgMap.get(callGraph.getEdgeTarget(call).getDeclaration()).getExitNode();
+            GraphNode<?> enterNode = cfgMap.get(callGraph.getEdgeTarget(call).getDeclaration()).getRootNode();
+            GraphNode<?> exitNode  = cfgMap.get(callGraph.getEdgeTarget(call).getDeclaration()).getExitNode();
             // Connections
             addControlFlowArc(callNode, enterNode);
             addControlFlowArc(exitNode, returnNode);
