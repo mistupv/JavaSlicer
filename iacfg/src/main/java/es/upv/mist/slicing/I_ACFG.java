@@ -38,6 +38,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import static es.upv.mist.slicing.util.SingletonCollector.toSingleton;
+
 public class I_ACFG extends Graph {
 
     protected static final Map<CallableDeclaration<?>, CFG> acfgMap = ASTUtils.newIdentityHashMap();
@@ -237,46 +239,24 @@ public class I_ACFG extends Graph {
 
 
     protected void joinACFGs() {
-        List<GraphNode<?>> enterNodes = new LinkedList<>();
-        List<GraphNode<?>> exitNodes = new LinkedList<>();
-
-        for (GraphNode<?> graphNode : Set.copyOf(vertexSet())) {
-            if(isEnter(graphNode) && graphNode.getAstNode() instanceof MethodDeclaration) {
-                enterNodes.add(graphNode);
-            }
-            if(isExit(graphNode)) {
-                exitNodes.add(graphNode);
-            }
+        for (CallGraph.Edge<?> call : callGraph.edgeSet()) {
+            // Nodes to be paired up
+            GraphNode<?> callNode  = vertexSet().stream()
+                    .filter(n -> n instanceof CallNode)
+                    .filter(n -> n.getAstNode().equals(call.getCall()))
+                    .collect(toSingleton());
+            GraphNode<?> returnNode = vertexSet().stream()
+                    .filter(n -> n instanceof CallNode.Return)
+                    .filter(n -> n.getAstNode().equals(call.getCall()))
+                    .collect(toSingleton());
+            GraphNode<?> enterNode = acfgMap.get(callGraph.getEdgeTarget(call).getDeclaration()).getRootNode();
+            GraphNode<?> exitNode  = acfgMap.get(callGraph.getEdgeTarget(call).getDeclaration()).getExitNode();
+            // Connections
+            addControlFlowArc(callNode, enterNode);
+            addControlFlowArc(exitNode, returnNode);
+            // TODO: move this arc creation to expandCalls
+            addEdge(callNode, returnNode, new ControlFlowArc.NonExecutable());
         }
-
-        enterNodes.sort(Comparator.comparingLong(GraphNode::getId));
-        exitNodes.sort(Comparator.comparingLong(GraphNode::getId));
-
-        enterNodes.remove(0);
-        exitNodes.remove(0);
-
-        for (GraphNode<?> graphNode : Set.copyOf(vertexSet())) {
-            if(graphNode instanceof CallNode) {
-                CallNode callNode = (CallNode) graphNode;
-                enterNodes.forEach(enterNode -> {
-                    if(isSameAstNode(enterNode, callNode)){
-                        addControlFlowArc(callNode, enterNode);
-                    }
-                });
-            }
-            if(graphNode instanceof CallNode.Return) {
-                SyntheticNode<?> returnNode = (SyntheticNode<?>) graphNode;
-                exitNodes.forEach(exitNode -> {
-                    if(isSameAstNode(exitNode, returnNode)){
-                        addControlFlowArc(exitNode, returnNode);
-                    }
-                });
-            }
-        }
-    }
-
-    private boolean isSameAstNode(GraphNode<?> comparableNode, GraphNode<?> graphNode ) {
-        return Objects.equals(((MethodDeclaration) comparableNode.getAstNode()).getName().getTokenRange().get().getBegin().getText(), ((MethodCallExpr) graphNode.getAstNode()).getName().getTokenRange().get().getBegin().getText());
     }
 
     private static boolean isExit(GraphNode<?> graphNode) {
