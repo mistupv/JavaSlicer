@@ -7,6 +7,7 @@ import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.github.javaparser.utils.CodeGenerationUtils;
 import es.upv.mist.slicing.arcs.Arc;
@@ -70,6 +71,7 @@ public class I_ACFG extends Graph {
         dataFlowAnalysis();
         copyACFGs();
         expandCalls();
+        joinACFGs();
         new GraphLog<>(this){
             @Override
             protected DOTAttributes edgeAttributes(Arc arc) {
@@ -142,7 +144,8 @@ public class I_ACFG extends Graph {
             boolean firstMovable = true;
             Deque<CallNode> callNodeStack = new LinkedList<>();
             VariableAction lastAction = graphNode.getVariableActions().isEmpty() ? null : graphNode.getLastVariableAction();
-            VariableAction firsAction = graphNode.getVariableActions().isEmpty() ? null : graphNode.getVariableActions().get(0);
+            VariableAction firstAction = graphNode.getVariableActions().isEmpty() ? null : graphNode.getVariableActions().get(0);
+            Set<GraphNode<?>> movableNodes = new HashSet<>();
             for (VariableAction action : List.copyOf(graphNode.getVariableActions())) {
                 if (action instanceof VariableAction.CallMarker) {
                     VariableAction.CallMarker variableAction = (VariableAction.CallMarker) action;
@@ -164,6 +167,9 @@ public class I_ACFG extends Graph {
                         callNodeStack.push(callNode);
                     }
                 } else if (action instanceof VariableAction.Movable) {
+                    if(!isEnter(graphNode) && !isExit(graphNode)) {
+                        movableNodes.add(graphNode);
+                    }
                     // Move the variable to its own node, add that node to the graph and connect it.
                     var movable = (VariableAction.Movable) action;
                     movable.move(this);
@@ -172,8 +178,11 @@ public class I_ACFG extends Graph {
                         CallNode callNode = callNodeStack.peek();
                         addVertex(callNode);
                         addControlFlowArc(lastMovableNode, callNode);
-                        addControlFlowArc(callNode, realNode);
-                    } else if(graphNode instanceof MethodExitNode && firstMovable) {
+                        if(movableNodes.contains(graphNode)) {
+                            addControlFlowArc(realNode, graphNode);
+                            movableNodes.remove(graphNode);
+                        }
+                    } else if(isExit(graphNode) && firstMovable) {
                         Set.copyOf(this.incomingEdgesOf(graphNode).stream()
                                 .filter(Arc::isExecutableControlFlowArc)
                                 .collect(Collectors.toSet()))
@@ -184,7 +193,7 @@ public class I_ACFG extends Graph {
                                 });
                         addControlFlowArc(realNode, graphNode);
                     } else {
-                        if(firsAction.equals(action) && this.incomingEdgesOf(graphNode).isEmpty()){
+                        if(firstAction.equals(action) && isEnter(graphNode)){
                             firstNodeStack.add(movable.getRealNode());
                         }
                         if(lastAction != null && lastAction.equals(action)){
@@ -202,6 +211,18 @@ public class I_ACFG extends Graph {
                                 addControlFlowArc(graphNode, firstNodeStack.pop());
                             }
                         }
+
+                        if (movableNodes.contains(graphNode)) {
+                            Set.copyOf(this.incomingEdgesOf(graphNode).stream()
+                                            .filter(Arc::isExecutableControlFlowArc)
+                                            .collect(Collectors.toSet()))
+                                    .forEach(arc -> {
+                                        GraphNode<?> source = getEdgeSource(arc);
+                                        removeEdge(arc);
+                                        addEdge(source, realNode, arc);
+                                    });
+                        }
+
                         if(!firstMovable) {
                             connectRealNode(graphNode, lastMovableNode, realNode);
                         }
@@ -214,6 +235,58 @@ public class I_ACFG extends Graph {
         }
     }
 
+
+    protected void joinACFGs() {
+        List<GraphNode<?>> enterNodes = new LinkedList<>();
+        List<GraphNode<?>> exitNodes = new LinkedList<>();
+
+        for (GraphNode<?> graphNode : Set.copyOf(vertexSet())) {
+            if(isEnter(graphNode) && graphNode.getAstNode() instanceof MethodDeclaration) {
+                enterNodes.add(graphNode);
+            }
+            if(isExit(graphNode)) {
+                exitNodes.add(graphNode);
+            }
+        }
+
+        enterNodes.sort(Comparator.comparingLong(GraphNode::getId));
+        exitNodes.sort(Comparator.comparingLong(GraphNode::getId));
+
+        enterNodes.remove(0);
+        exitNodes.remove(0);
+
+        for (GraphNode<?> graphNode : Set.copyOf(vertexSet())) {
+            if(graphNode instanceof CallNode) {
+                CallNode callNode = (CallNode) graphNode;
+                enterNodes.forEach(enterNode -> {
+                    if(isSameAstNode(enterNode, callNode)){
+                        addControlFlowArc(callNode, enterNode);
+                    }
+                });
+            }
+            if(graphNode instanceof CallNode.Return) {
+                SyntheticNode<?> returnNode = (SyntheticNode<?>) graphNode;
+                exitNodes.forEach(exitNode -> {
+                    if(isSameAstNode(exitNode, returnNode)){
+                        addControlFlowArc(exitNode, returnNode);
+                    }
+                });
+            }
+        }
+    }
+
+    private boolean isSameAstNode(GraphNode<?> comparableNode, GraphNode<?> graphNode ) {
+        return Objects.equals(((MethodDeclaration) comparableNode.getAstNode()).getName().getTokenRange().get().getBegin().getText(), ((MethodCallExpr) graphNode.getAstNode()).getName().getTokenRange().get().getBegin().getText());
+    }
+
+    private static boolean isExit(GraphNode<?> graphNode) {
+        return graphNode instanceof MethodExitNode;
+    }
+
+    private boolean isEnter(GraphNode<?> graphNode) {
+        return this.incomingEdgesOf(graphNode).isEmpty();
+    }
+
     public void addControlFlowArc(GraphNode<?> from, GraphNode<?> to) {
         this.addEdge(from, to, new ControlFlowArc());
     }
@@ -222,8 +295,6 @@ public class I_ACFG extends Graph {
     protected void connectRealNode(GraphNode<?> graphNode, GraphNode<?> lastNode, GraphNode<?> realNode) {
         if(lastNode != null && !lastNode.equals(realNode)) {
             addControlFlowArc(lastNode, realNode);
-        } else {
-            addControlFlowArc(graphNode, realNode);
         }
     }
 }
