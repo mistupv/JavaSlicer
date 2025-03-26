@@ -8,11 +8,8 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import com.github.javaparser.utils.CodeGenerationUtils;
 import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.arcs.cfg.ControlFlowArc;
-import es.upv.mist.slicing.cli.DOTAttributes;
-import es.upv.mist.slicing.cli.GraphLog;
 import es.upv.mist.slicing.graphs.CallGraph;
 import es.upv.mist.slicing.graphs.ClassGraph;
 import es.upv.mist.slicing.graphs.Graph;
@@ -30,7 +27,6 @@ import es.upv.mist.slicing.utils.StaticTypeSolver;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.util.*;
 
 import static es.upv.mist.slicing.util.SingletonCollector.toSingleton;
@@ -39,18 +35,11 @@ public class I_ACFG extends Graph {
 
     protected static final Map<CallableDeclaration<?>, CFG> acfgMap = ASTUtils.newIdentityHashMap();
     protected CallGraph callGraph;
+    protected boolean built = false;
 
-    public static void main(String[] args) throws IOException {
-        String ruta = "/src/main/java/es/upv/mist/slicing/tests/";
-        String fichero = "Test.java";
-
-        I_ACFG iAcfg = new I_ACFG();
-        iAcfg.generarACFG(ruta, fichero);
-    }
-
-    public void generarACFG(String ruta, String fichero) throws IOException {
+    public void build(File file) {
+        if (built) return;
         NodeList<CompilationUnit> units = new NodeList<>();
-        File file = new File(CodeGenerationUtils.mavenModuleRoot(I_ACFG.class)+ruta+fichero);
 
         StaticJavaParser.getConfiguration().setAttributeComments(false);
         StaticTypeSolver.addTypeSolverJRE();
@@ -68,16 +57,7 @@ public class I_ACFG extends Graph {
         copyACFGs();
         expandCalls();
         joinACFGs();
-        new GraphLog<>(this) {
-            @Override
-            protected DOTAttributes edgeAttributes(Arc arc) {
-                DOTAttributes att = super.edgeAttributes(arc);
-                if (arc.isNonExecutableControlFlowArc())
-                    att.add("style", "dashed");
-                return att;
-            }
-        }.generateImages("migrafo");
-        System.out.println("Grafo generado...");
+        built = true;
     }
 
     protected void buildACFGs(NodeList<CompilationUnit> nodeList) {
