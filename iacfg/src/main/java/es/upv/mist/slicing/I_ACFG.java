@@ -7,7 +7,6 @@ import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.github.javaparser.utils.CodeGenerationUtils;
 import es.upv.mist.slicing.arcs.Arc;
@@ -22,21 +21,17 @@ import es.upv.mist.slicing.graphs.cfg.CFG;
 import es.upv.mist.slicing.graphs.sdg.InterproceduralDefinitionFinder;
 import es.upv.mist.slicing.graphs.sdg.InterproceduralUsageFinder;
 import es.upv.mist.slicing.nodes.GraphNode;
-import es.upv.mist.slicing.nodes.SyntheticNode;
 import es.upv.mist.slicing.nodes.VariableAction;
+import es.upv.mist.slicing.nodes.io.ActualIONode;
 import es.upv.mist.slicing.nodes.io.CallNode;
 import es.upv.mist.slicing.nodes.io.MethodExitNode;
 import es.upv.mist.slicing.utils.ASTUtils;
 import es.upv.mist.slicing.utils.StaticTypeSolver;
-import org.apache.commons.cli.ParseException;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 import static es.upv.mist.slicing.util.SingletonCollector.toSingleton;
 
@@ -45,7 +40,7 @@ public class I_ACFG extends Graph {
     protected static final Map<CallableDeclaration<?>, CFG> acfgMap = ASTUtils.newIdentityHashMap();
     protected CallGraph callGraph;
 
-    public static void main(String[] args) throws ParseException, IOException {
+    public static void main(String[] args) throws IOException {
         String ruta = "/src/main/java/es/upv/mist/slicing/tests/";
         String fichero = "Test.java";
 
@@ -58,7 +53,6 @@ public class I_ACFG extends Graph {
         File file = new File(CodeGenerationUtils.mavenModuleRoot(I_ACFG.class)+ruta+fichero);
 
         StaticJavaParser.getConfiguration().setAttributeComments(false);
-        Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).log(Level.INFO, "Configuring JavaParser");
         StaticTypeSolver.addTypeSolverJRE();
 
         try {
@@ -74,7 +68,7 @@ public class I_ACFG extends Graph {
         copyACFGs();
         expandCalls();
         joinACFGs();
-        new GraphLog<>(this){
+        new GraphLog<>(this) {
             @Override
             protected DOTAttributes edgeAttributes(Arc arc) {
                 DOTAttributes att = super.edgeAttributes(arc);
@@ -90,18 +84,17 @@ public class I_ACFG extends Graph {
         nodeList.accept(new VoidVisitorAdapter<Void>() {
             @Override
             public void visit(MethodDeclaration n, Void arg) {
-                boolean isInInterface = n.findAncestor(ClassOrInterfaceDeclaration.class)
-                        .map(ClassOrInterfaceDeclaration::isInterface).orElse(false);
-                if (n.isAbstract() || isInInterface)
-                    return; // Allow abstract methods
-                ACFG acfg = new ACFG();
-                acfg.build(n);
-                acfgMap.put(n, acfg);
+                visitCallable(n);
                 super.visit(n, arg);
             }
 
             @Override
             public void visit(ConstructorDeclaration n, Void arg) {
+                visitCallable(n);
+                super.visit(n, arg);
+            }
+
+            private void visitCallable(CallableDeclaration<?> n) {
                 boolean isInInterface = n.findAncestor(ClassOrInterfaceDeclaration.class)
                         .map(ClassOrInterfaceDeclaration::isInterface).orElse(false);
                 if (n.isAbstract() || isInInterface)
@@ -109,7 +102,6 @@ public class I_ACFG extends Graph {
                 ACFG acfg = new ACFG();
                 acfg.build(n);
                 acfgMap.put(n, acfg);
-                super.visit(n, arg);
             }
         }, null);
     }
@@ -139,104 +131,168 @@ public class I_ACFG extends Graph {
         }
     }
 
+    /**
+     * Expands movable variable actions in calls, enter and exit nodes to their
+     * own separate nodes, placing them in the order of execution, and maintaining
+     * the properties of each CFG (single sink, single source).
+     */
     protected void expandCalls() {
         for (GraphNode<?> graphNode : Set.copyOf(vertexSet())) {
-            GraphNode<?> lastMovableNode = null;
-            Deque<GraphNode<?>> firstNodeStack = new LinkedList<>();
-            boolean firstMovable = true;
-            Deque<CallNode> callNodeStack = new LinkedList<>();
-            VariableAction lastAction = graphNode.getVariableActions().isEmpty() ? null : graphNode.getLastVariableAction();
-            VariableAction firstAction = graphNode.getVariableActions().isEmpty() ? null : graphNode.getVariableActions().get(0);
-            Set<GraphNode<?>> movableNodes = new HashSet<>();
-            for (VariableAction action : List.copyOf(graphNode.getVariableActions())) {
-                if (action instanceof VariableAction.CallMarker) {
-                    VariableAction.CallMarker variableAction = (VariableAction.CallMarker) action;
-                    // Compute the call node, if entering the marker. Additionally, it places the node
-                    // in the graph and makes it control-dependent on its container.
-                    if (!variableAction.isEnter()) {
-                        CallNode callNode = callNodeStack.peek();
-                        if (!containsVertex(callNode)) {
-                            addVertex(callNode);
-                            if (lastMovableNode != null)
-                                addControlFlowArc(lastMovableNode, callNode);
-                            lastMovableNode = callNode;
-                        }
-                        callNodeStack.pop();
-                    } else {
-                        CallNode callNode = CallNode.create(variableAction.getCall());
-                        if (graphNode.isImplicitInstruction())
-                            callNode.markAsImplicit();
-                        callNodeStack.push(callNode);
-                    }
-                } else if (action instanceof VariableAction.Movable) {
-                    if(!isEnter(graphNode) && !isExit(graphNode)) {
-                        movableNodes.add(graphNode);
-                    }
-                    // Move the variable to its own node, add that node to the graph and connect it.
-                    var movable = (VariableAction.Movable) action;
-                    movable.move(this);
-                    SyntheticNode<?> realNode = movable.getRealNode();
-                    if (realNode instanceof CallNode.Return) {
-                        CallNode callNode = callNodeStack.peek();
-                        addVertex(callNode);
-                        addControlFlowArc(lastMovableNode, callNode);
-                        if(movableNodes.contains(graphNode)) {
-                            addControlFlowArc(realNode, graphNode);
-                            movableNodes.remove(graphNode);
-                        }
-                    } else if(isExit(graphNode) && firstMovable) {
-                        Set.copyOf(this.incomingEdgesOf(graphNode).stream()
-                                .filter(Arc::isExecutableControlFlowArc)
-                                .collect(Collectors.toSet()))
-                                .forEach(arc -> {
-                                    GraphNode<?> source = getEdgeSource(arc);
-                                    removeEdge(arc);
-                                    addEdge(source, realNode, arc);
-                                });
-                        addControlFlowArc(realNode, graphNode);
-                    } else {
-                        if(firstAction.equals(action) && isEnter(graphNode)){
-                            firstNodeStack.add(movable.getRealNode());
-                        }
-                        if(lastAction != null && lastAction.equals(action)){
-                            Set.copyOf(this.outgoingEdgesOf(graphNode).stream()
-                                            .filter(Arc::isExecutableControlFlowArc)
-                                            .collect(Collectors.toSet()))
-                                    .forEach(arc -> {
-                                        GraphNode<?> target = getEdgeTarget(arc);
-                                        removeEdge(arc);
-                                        addEdge(realNode, target, arc);
-                                    });
-
-                            // obtener primer nodo
-                            if(!firstNodeStack.isEmpty()){
-                                addControlFlowArc(graphNode, firstNodeStack.pop());
-                            }
-                        }
-
-                        if (movableNodes.contains(graphNode)) {
-                            Set.copyOf(this.incomingEdgesOf(graphNode).stream()
-                                            .filter(Arc::isExecutableControlFlowArc)
-                                            .collect(Collectors.toSet()))
-                                    .forEach(arc -> {
-                                        GraphNode<?> source = getEdgeSource(arc);
-                                        removeEdge(arc);
-                                        addEdge(source, realNode, arc);
-                                    });
-                        }
-
-                        if(!firstMovable) {
-                            connectRealNode(graphNode, lastMovableNode, realNode);
-                        }
-                    }
-                    firstMovable = false;
-                    lastMovableNode = realNode;
-                }
-            }
-            assert callNodeStack.isEmpty();
+            if (isEnter(graphNode) || isExit(graphNode))
+                expandEnterExitNode(graphNode);
+            else
+                expandCalls(graphNode);
         }
     }
 
+    /**
+     * Extracts movable variable actions from a given Enter or Exit node. For the former,
+     * it places new nodes after it, moving the first instructions after formal-in nodes.
+     * For the latter, it places new nodes before it, moving the last instructions before
+     * formal-out nodes.
+     */
+    protected void expandEnterExitNode(GraphNode<?> node) {
+        LinkedList<GraphNode<?>> list = new LinkedList<>();
+
+        // All actions should be movables, move each and connect them as a linked list
+        // movable1 --> movable2 ... --> movableN
+        for (VariableAction va : List.copyOf(node.getVariableActions())) {
+            if (va instanceof VariableAction.Movable movable) {
+                movable.move(this);
+                connectAppend(list, movable.getRealNode());
+            } else {
+                throw new IllegalStateException("Enter node has non-movable actions");
+            }
+        }
+
+        if (!list.isEmpty())
+            insertListInGraph(node, list, isEnter(node));
+    }
+
+    /**
+     * Inserts a list of nodes in the graph before or after the given node. This method
+     * requires that the insList of nodes already be linked together in the graph.
+     * This method is not affected by and does not modify non-executable control-flow edges. <br>
+     * Graph before this method: <code>a, b -> node -> x, y | ins[0] -> ... -> ins[N]</code> <br>
+     * Graph after this method (before the node): <code>a, b -> ins[0] -> ... -> ins[N] -> node -> x, y</code> <br>
+     * Graph after this method (after the node): <code>a, b -> node -> ins[0] -> ... -> ins[N] -> x, y</code>
+     */
+    protected void insertListInGraph(GraphNode<?> node, LinkedList<GraphNode<?>> insList, boolean after) {
+        if (after) {
+            for (Arc e : outgoingEdgesOf(node).stream()
+                    .filter(Arc::isExecutableControlFlowArc)
+                    .toList()) {
+                GraphNode<?> target = getEdgeTarget(e);
+                removeEdge(e);
+                addEdge(insList.getLast(), target, e);
+            }
+            addControlFlowArc(node, insList.getFirst());
+        } else {
+            for (Arc e : incomingEdgesOf(node).stream()
+                    .filter(Arc::isExecutableControlFlowArc)
+                    .toList()) {
+                GraphNode<?> source = getEdgeSource(e);
+                removeEdge(e);
+                addEdge(source, insList.getFirst(), e);
+            }
+            addControlFlowArc(insList.getLast(), node);
+        }
+    }
+
+    /**
+     * Expands the calls inside a single node, if any. The node that contains
+     * the calls is placed after all the calls happened, with the previous instruction
+     * connected to the first actual-in. The sequence of nodes in a single call is:
+     * previous instruction, actual-in*, call node, return node, actual-out*, graphNode,
+     * next instruction. * means that 0-n nodes may appear.
+     */
+    protected void expandCalls(GraphNode<?> graphNode) {
+        Iterator<VariableAction> iterator = List.copyOf(graphNode.getVariableActions()).iterator();
+        LinkedList<GraphNode<?>> extracted = new LinkedList<>();
+        while (iterator.hasNext()) {
+            VariableAction va = iterator.next();
+            if (va instanceof VariableAction.Movable)
+                throw new IllegalStateException("Movable outside Enter/Exit or call");
+            else if (va instanceof VariableAction.CallMarker marker && marker.isEnter()) {
+                extracted.addAll(extractMovables(iterator, marker));
+            }
+        }
+        // Place extracted sequence before the node
+        if (!extracted.isEmpty())
+            insertListInGraph(graphNode, extracted, false);
+    }
+
+    /**
+     * Extracts movable nodes from a single call, recursively.
+     * @param iterator An iterator over a GraphNode's variable actions, which will be consumed
+     *                 until the closing CallMarker that matches callMarker is found.
+     * @param callMarker The call marker that enters the call to be analyzed.
+     * @return The list of nodes, inserted into the graph and connected to each other.
+     *     Includes all nested calls. The first node in the list has no incoming edges.
+     *     The last node in the list has no outgoing edges.
+     */
+    protected LinkedList<GraphNode<?>> extractMovables(Iterator<VariableAction> iterator, VariableAction.CallMarker callMarker) {
+        LinkedList<GraphNode<?>> res = new LinkedList<>();
+        boolean input = true;
+        while (iterator.hasNext()) {
+            VariableAction va = iterator.next();
+            if (va instanceof VariableAction.CallMarker newMarker) {
+                if (newMarker.isEnter()) {
+                    // Recursively enter the next function and connect it. Consumes movables.
+                    List<GraphNode<?>> moved = extractMovables(iterator, newMarker);
+                    connectAppend(res, moved);
+                } else if (newMarker.getCall().equals(callMarker.getCall())) {
+                    return res; // Process ended.
+                } else {
+                    throw new IllegalStateException("Invalid pairing of call markers");
+                }
+            } else if (va instanceof VariableAction.Movable movable) {
+                movable.move(this);
+                // Check whether to insert call node (when we move from input to output)
+                if (input && !isActualIn(movable.getRealNode())) {
+                    input = false;
+                    insertNode(res, CallNode.create(callMarker.getCall()), callMarker);
+                    // If it is a call to void method, add a blank "return"
+                    if (!(movable.getRealNode() instanceof CallNode.Return))
+                        insertNode(res, CallNode.Return.create(callMarker.getCall()), callMarker);
+                    else {
+                        addEdge(res.getLast(), movable.getRealNode(), new ControlFlowArc.NonExecutable());
+                        res.add(movable.getRealNode());
+                        continue;
+                    }
+                }
+                // Connect node to previous nodes and add to resulting list
+                connectAppend(res, movable.getRealNode());
+            }
+        }
+        throw new IllegalStateException("Closing call marker not found!");
+    }
+
+    /** Inserts a newly created CallNode or Return node into the graph and connects it to the sequence. */
+    protected void insertNode(List<GraphNode<?>> sequence, GraphNode<?> node, VariableAction.CallMarker callMarker) {
+        addVertex(node);
+        if (callMarker.getGraphNode().isImplicitInstruction())
+            node.markAsImplicit();
+        if (node instanceof CallNode.Return) {
+            addEdge(sequence.getLast(), node, new ControlFlowArc.NonExecutable());
+            sequence.add(node);
+        } else
+            connectAppend(sequence, node);
+    }
+
+    /** Connects a node with the last element of the list (if not empty) and adds it to the list. */
+    private void connectAppend(List<GraphNode<?>> list, GraphNode<?> node) {
+        if (!list.isEmpty())
+            addControlFlowArc(list.getLast(), node);
+        list.add(node);
+    }
+
+    /** Connects two lists of nodes in the graph (if the first is not empty) and concatenates them. */
+    private void connectAppend(List<GraphNode<?>> list, List<GraphNode<?>> list2) {
+        if (!list.isEmpty())
+            addControlFlowArc(list.getLast(), list2.getFirst());
+        list.addAll(list2);
+    }
 
     protected void joinACFGs() {
         for (CallGraph.Edge<?> call : callGraph.edgeSet()) {
@@ -254,9 +310,11 @@ public class I_ACFG extends Graph {
             // Connections
             addControlFlowArc(callNode, enterNode);
             addControlFlowArc(exitNode, returnNode);
-            // TODO: move this arc creation to expandCalls
-            addEdge(callNode, returnNode, new ControlFlowArc.NonExecutable());
         }
+    }
+
+    protected static boolean isActualIn(GraphNode<?> node) {
+        return node instanceof ActualIONode && ((ActualIONode) node).isInput();
     }
 
     private static boolean isExit(GraphNode<?> graphNode) {
@@ -269,12 +327,5 @@ public class I_ACFG extends Graph {
 
     public void addControlFlowArc(GraphNode<?> from, GraphNode<?> to) {
         this.addEdge(from, to, new ControlFlowArc());
-    }
-
-    /** Connects the real node to the proper parent, control-dependent-wise. */
-    protected void connectRealNode(GraphNode<?> graphNode, GraphNode<?> lastNode, GraphNode<?> realNode) {
-        if(lastNode != null && !lastNode.equals(realNode)) {
-            addControlFlowArc(lastNode, realNode);
-        }
     }
 }
