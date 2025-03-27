@@ -236,10 +236,10 @@ public class ICFG extends Graph {
                 // Check whether to insert call node (when we move from input to output)
                 if (input && !isActualIn(movable.getRealNode())) {
                     input = false;
-                    insertNode(res, CallNode.create(callMarker.getCall()), callMarker);
+                    insertCallerNode(res, CallNode.create(callMarker.getCall()), callMarker);
                     // If it is a call to void method, add a blank "return"
                     if (!(movable.getRealNode() instanceof CallNode.Return))
-                        insertNode(res, CallNode.Return.create(callMarker.getCall()), callMarker);
+                        insertCallerNode(res, CallNode.Return.create(callMarker.getCall()), callMarker);
                     else {
                         addEdge(res.getLast(), movable.getRealNode(), new ControlFlowArc.NonExecutable());
                         res.add(movable.getRealNode());
@@ -254,7 +254,7 @@ public class ICFG extends Graph {
     }
 
     /** Inserts a newly created CallNode or Return node into the graph and connects it to the sequence. */
-    protected void insertNode(List<GraphNode<?>> sequence, GraphNode<?> node, VariableAction.CallMarker callMarker) {
+    protected void insertCallerNode(List<GraphNode<?>> sequence, GraphNode<?> node, VariableAction.CallMarker callMarker) {
         addVertex(node);
         if (callMarker.getGraphNode().isImplicitInstruction())
             node.markAsImplicit();
