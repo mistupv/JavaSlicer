@@ -1,5 +1,3 @@
-package es.upv.mist.slicing.tests;
-
 public class Test {
 
 	public static int z = 0;
