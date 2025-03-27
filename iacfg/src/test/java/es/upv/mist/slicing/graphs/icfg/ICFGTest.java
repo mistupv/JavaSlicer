@@ -3,9 +3,6 @@ package es.upv.mist.slicing.graphs.icfg;
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.NodeList;
-import es.upv.mist.slicing.arcs.Arc;
-import es.upv.mist.slicing.cli.DOTAttributes;
-import es.upv.mist.slicing.cli.GraphLog;
 import es.upv.mist.slicing.utils.StaticTypeSolver;
 
 import java.io.File;
@@ -26,15 +23,7 @@ public class ICFGTest {
         }
         ICFG icfg = new ICFG();
         icfg.build(units);
-        new GraphLog<>(icfg) {
-            @Override
-            protected DOTAttributes edgeAttributes(Arc arc) {
-                DOTAttributes att = super.edgeAttributes(arc);
-                if (arc.isNonExecutableControlFlowArc())
-                    att.add("style", "dashed");
-                return att;
-            }
-        }.generateImages("migrafo");
+        new ICFGLog(icfg).generateImages("migrafo");
         System.out.println("Grafo generado...");
     }
 }
