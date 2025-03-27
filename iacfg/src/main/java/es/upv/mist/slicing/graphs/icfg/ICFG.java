@@ -33,7 +33,7 @@ import static es.upv.mist.slicing.util.SingletonCollector.toSingleton;
  */
 public class ICFG extends Graph implements Buildable<NodeList<CompilationUnit>> {
 
-    protected static final Map<CallableDeclaration<?>, CFG> cfgMap = ASTUtils.newIdentityHashMap();
+    protected final Map<CallableDeclaration<?>, CFG> cfgMap = ASTUtils.newIdentityHashMap();
     protected CallGraph callGraph;
     protected boolean built = false;
 
