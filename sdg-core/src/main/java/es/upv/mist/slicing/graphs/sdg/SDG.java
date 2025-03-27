@@ -69,7 +69,7 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
     }
 
     @Override
-    public void build(NodeList<CompilationUnit> nodeList) {
+    public final void build(NodeList<CompilationUnit> nodeList) {
         createBuilder().build(nodeList);
         compilationUnits = nodeList;
         built = true;

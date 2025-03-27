@@ -34,7 +34,6 @@ import static es.upv.mist.slicing.util.SingletonCollector.toSingleton;
 public class ICFG extends Graph implements Buildable<NodeList<CompilationUnit>> {
 
     protected final Map<CallableDeclaration<?>, CFG> cfgMap = ASTUtils.newIdentityHashMap();
-    protected CallGraph callGraph;
     protected boolean built = false;
 
     public void addControlFlowArc(GraphNode<?> from, GraphNode<?> to) {
@@ -46,9 +45,17 @@ public class ICFG extends Graph implements Buildable<NodeList<CompilationUnit>> 
     }
 
     @Override
-    public void build(NodeList<CompilationUnit> arg) {
+    public void build(NodeList<CompilationUnit> nodeList) {
         if (built) return;
-        new Builder().build(arg);
+        new Builder().build(nodeList);
+        built = true;
+    }
+
+    /** Builds the ICFG on a pre-built set of CFGs and their call graph. */
+    public void build(Map<CallableDeclaration<?>, CFG> cfgMap, CallGraph callGraph) {
+        if (built) return;
+        this.cfgMap.putAll(cfgMap);
+        new Builder().build(callGraph);
         built = true;
     }
 
@@ -58,11 +65,22 @@ public class ICFG extends Graph implements Buildable<NodeList<CompilationUnit>> 
     }
 
     public class Builder {
+        protected CallGraph callGraph;
+
         public void build(NodeList<CompilationUnit> units) {
             createClassGraph(units);
             buildCFGs(units);
             createCallGraph(units);
             dataFlowAnalysis();
+            buildFromCFGs();
+        }
+
+        public void build(CallGraph callGraph) {
+            this.callGraph = callGraph;
+            buildFromCFGs();
+        }
+
+        protected void buildFromCFGs() {
             copyCFGs();
             expandCalls();
             joinCFGs();
