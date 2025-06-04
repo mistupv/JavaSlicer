@@ -1,4 +1,4 @@
-public class Test {
+public class TestInicial {
 
 	public static int z = 0;
 

@@ -14,7 +14,18 @@ public class ICFGTest {
         StaticJavaParser.getConfiguration().setAttributeComments(false);
         StaticTypeSolver.addTypeSolverJRE();
 
-        File file = new File(Thread.currentThread().getContextClassLoader().getResource("Test.java").getPath());
+        createGraph("TestInicial.java", "grafoInicial");
+        System.out.println("Grafo 1 generado...");
+
+        createGraph("TestGlobalVariables.java", "grafoGlobalVariables");
+        System.out.println("Grafo 2 generado...");
+
+        createGraph("TestEmbebedFunctions.java", "grafoEmbebedFunctions");
+        System.out.println("Grafo 3 generado...");
+    }
+
+    private static void createGraph(String fileName, String graphName) throws IOException {
+        File file = new File(Thread.currentThread().getContextClassLoader().getResource(fileName).getPath());
         NodeList<CompilationUnit> units = new NodeList<>();
         try {
             units.add(StaticJavaParser.parse(file));
@@ -23,7 +34,6 @@ public class ICFGTest {
         }
         ICFG icfg = new ICFG();
         icfg.build(units);
-        new ICFGLog(icfg).generateImages("migrafo");
-        System.out.println("Grafo generado...");
+        new ICFGLog(icfg).generateImages(graphName);
     }
 }
