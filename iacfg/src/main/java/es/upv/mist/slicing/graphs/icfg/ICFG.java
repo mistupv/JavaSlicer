@@ -236,7 +236,7 @@ public class ICFG extends Graph implements Buildable<NodeList<CompilationUnit>> 
          * @param iterator An iterator over a GraphNode's variable actions, which will be consumed
          *                 until the closing CallMarker that matches callMarker is found.
          * @param callMarker The call marker that enters the call to be analyzed.
-         * @return The list of nodes, inserted into the graph and connected to each other.
+         * @return The non-empty list of nodes, inserted into the graph and connected to each other.
          *     Includes all nested calls. The first node in the list has no incoming edges.
          *     The last node in the list has no outgoing edges.
          */
@@ -251,6 +251,9 @@ public class ICFG extends Graph implements Buildable<NodeList<CompilationUnit>> 
                         List<GraphNode<?>> moved = extractMovables(iterator, newMarker);
                         connectAppend(res, moved);
                     } else if (newMarker.getCall().equals(callMarker.getCall())) {
+                        if (res.isEmpty())
+                            insertCallerNode(res, CallNode.Return.create(callMarker.getCall()), callMarker);
+                        assert !res.isEmpty();
                         return res; // Process ended.
                     } else {
                         throw new IllegalStateException("Invalid pairing of call markers");
