@@ -251,8 +251,12 @@ public class ICFG extends Graph implements Buildable<NodeList<CompilationUnit>> 
                         List<GraphNode<?>> moved = extractMovables(iterator, newMarker);
                         connectAppend(res, moved);
                     } else if (newMarker.getCall().equals(callMarker.getCall())) {
-                        if (res.isEmpty())
+                        if (input) {
+                            // Either we have only seen arguments or we have seen no elements (res is empty).
+                            insertCallerNode(res, CallNode.create(callMarker.getCall()), callMarker);
+                            // If we haven't seen a CallNode.Return node, the call is void: blank `return`.
                             insertCallerNode(res, CallNode.Return.create(callMarker.getCall()), callMarker);
+                        }
                         assert !res.isEmpty();
                         return res; // Process ended.
                     } else {
@@ -266,14 +270,9 @@ public class ICFG extends Graph implements Buildable<NodeList<CompilationUnit>> 
                     if (input && !isActualIn(movable.getRealNode())) {
                         input = false;
                         insertCallerNode(res, CallNode.create(callMarker.getCall()), callMarker);
-                        // If it is a call to void method, add a blank "return"
-                        if (!(movable.getRealNode() instanceof CallNode.Return))
-                            insertCallerNode(res, CallNode.Return.create(callMarker.getCall()), callMarker);
-                        else {
-                            addNonExecControlFlowArc(res.getLast(), movable.getRealNode());
-                            res.add(movable.getRealNode());
-                            continue;
-                        }
+                        addNonExecControlFlowArc(res.getLast(), movable.getRealNode());
+                        res.add(movable.getRealNode());
+                        continue;
                     }
                     // Connect node to previous nodes and add to resulting list
                     connectAppend(res, movable.getRealNode());
