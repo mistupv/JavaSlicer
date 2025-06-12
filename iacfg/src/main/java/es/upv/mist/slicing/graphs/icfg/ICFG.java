@@ -220,7 +220,10 @@ public class ICFG extends Graph implements Buildable<NodeList<CompilationUnit>> 
                 if (va instanceof VariableAction.Movable)
                     throw new IllegalStateException("Movable outside Enter/Exit or call");
                 else if (va instanceof VariableAction.CallMarker marker && marker.isEnter()) {
-                    extracted.addAll(extractMovables(iterator, marker));
+                    LinkedList<GraphNode<?>> callSequence = extractMovables(iterator, marker);
+                    if (!extracted.isEmpty() && !ICFG.this.containsEdge(extracted.getLast(), callSequence.getFirst()))
+                        addControlFlowArc(extracted.getLast(), callSequence.getFirst());
+                    extracted.addAll(callSequence);
                 }
             }
             // Place extracted sequence before the node
