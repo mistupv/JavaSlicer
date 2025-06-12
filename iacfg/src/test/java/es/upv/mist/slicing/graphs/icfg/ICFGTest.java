@@ -14,14 +14,17 @@ public class ICFGTest {
         StaticJavaParser.getConfiguration().setAttributeComments(false);
         StaticTypeSolver.addTypeSolverJRE();
 
-        createGraph("TestInicial.java", "grafoInicial");
+        /*createGraph("TestInicial.java", "grafoInicial");
         System.out.println("Grafo 1 generado...");
 
         createGraph("TestGlobalVariables.java", "grafoGlobalVariables");
         System.out.println("Grafo 2 generado...");
 
-        createGraph("TestEmbebedFunctions.java", "grafoEmbebedFunctions");
-        System.out.println("Grafo 3 generado...");
+        createGraph("TestEmbebedFunctions.java", "grafoEmbebedFunctions";
+        System.out.println("Grafo 3 generado...");*/
+
+        createGraph("TestInlineFunctions.java", "grafoInlineVariables");
+        System.out.println("Grafo 4 generado...");
     }
 
     private static void createGraph(String fileName, String graphName) throws IOException {
