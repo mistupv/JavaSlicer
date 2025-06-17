@@ -23,6 +23,8 @@ import es.upv.mist.slicing.nodes.io.ActualIONode;
 import es.upv.mist.slicing.nodes.io.CallNode;
 import es.upv.mist.slicing.nodes.io.MethodExitNode;
 import es.upv.mist.slicing.utils.ASTUtils;
+import org.jgrapht.alg.connectivity.KosarajuStrongConnectivityInspector;
+import org.jgrapht.graph.DefaultDirectedGraph;
 
 import java.util.*;
 
@@ -66,6 +68,7 @@ public class ICFG extends Graph implements Buildable<NodeList<CompilationUnit>> 
 
     public class Builder {
         protected CallGraph callGraph;
+        protected List<Set<Object>> scrs;
 
         public void build(NodeList<CompilationUnit> units) {
             createClassGraph(units);
@@ -84,7 +87,41 @@ public class ICFG extends Graph implements Buildable<NodeList<CompilationUnit>> 
             copyCFGs();
             expandCalls();
             joinCFGs();
+            getSCRs(callGraph);
         }
+
+        protected void getSCRs(CallGraph callGraph) {
+            DefaultDirectedGraph<Object, CallGraph.Edge> convertedCallGraph = deleteDuplicatedEdges(callGraph);
+            KosarajuStrongConnectivityInspector<Object, CallGraph.Edge> inspector =
+                    new KosarajuStrongConnectivityInspector<>(convertedCallGraph);
+
+            scrs = inspector.stronglyConnectedSets();
+        }
+
+        public static DefaultDirectedGraph<Object, CallGraph.Edge> deleteDuplicatedEdges(CallGraph callGraph) {
+            DefaultDirectedGraph<Object, CallGraph.Edge> simpleGraph = new DefaultDirectedGraph<>(CallGraph.Edge.class);
+
+            for (CallGraph.Vertex v : callGraph.vertexSet()) {
+                simpleGraph.addVertex(v);
+            }
+
+            Map<String, CallGraph.Edge<?>> edgeMap = new HashMap<>();
+
+            for (CallGraph.Edge<?> edge : callGraph.edgeSet()) {
+                CallGraph.Vertex src = callGraph.getEdgeSource(edge);
+                CallGraph.Vertex tgt = callGraph.getEdgeTarget(edge);
+
+                String key = src.getDeclaration().getDeclarationAsString() + "->" + tgt.getDeclaration().getDeclarationAsString();
+
+                if (!edgeMap.containsKey(key)) {
+                    simpleGraph.addEdge(src, tgt, edge);
+                    edgeMap.put(key, edge);
+                }
+            }
+
+            return simpleGraph;
+        }
+
 
         protected void buildCFGs(NodeList<CompilationUnit> nodeList) {
             nodeList.accept(new VoidVisitorAdapter<Void>() {
