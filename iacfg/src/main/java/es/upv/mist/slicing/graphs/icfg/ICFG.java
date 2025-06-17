@@ -349,11 +349,11 @@ public class ICFG extends Graph implements Buildable<NodeList<CompilationUnit>> 
                 // Nodes to be paired up
                 GraphNode<?> callNode  = vertexSet().stream()
                         .filter(n -> n instanceof CallNode)
-                        .filter(n -> n.getAstNode().equals(call.getCall()))
+                        .filter(n -> ASTUtils.equalsWithRange(n.getAstNode(), call.getCall()))
                         .collect(toSingleton());
                 GraphNode<?> returnNode = vertexSet().stream()
                         .filter(n -> n instanceof CallNode.Return)
-                        .filter(n -> n.getAstNode().equals(call.getCall()))
+                        .filter(n -> ASTUtils.equalsWithRange(n.getAstNode(), call.getCall()))
                         .collect(toSingleton());
                 GraphNode<?> enterNode = cfgMap.get(callGraph.getEdgeTarget(call).getDeclaration()).getRootNode();
                 GraphNode<?> exitNode  = cfgMap.get(callGraph.getEdgeTarget(call).getDeclaration()).getExitNode();
