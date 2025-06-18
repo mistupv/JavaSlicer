@@ -26,8 +26,11 @@ public class ICFGTest {
         createGraph("TestInlineFunctions.java", "grafoInlineVariables");
         System.out.println("Grafo 4 generado...");
 
-        createGraph("TestExamplePaper.java", "grafoInlineVariables");
+        createGraph("TestExamplePaper.java", "grafoPaper");
         System.out.println("Grafo 5 generado...");
+
+        createGraph("TestExamplePaperSimple.java", "grafoPaperSimple");
+        System.out.println("Grafo 6 generado...");
     }
 
     private static void createGraph(String fileName, String graphName) throws IOException {

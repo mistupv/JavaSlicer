@@ -12,7 +12,6 @@ import es.upv.mist.slicing.arcs.cfg.ControlFlowArc;
 import es.upv.mist.slicing.graphs.Buildable;
 import es.upv.mist.slicing.graphs.CallGraph;
 import es.upv.mist.slicing.graphs.ClassGraph;
-import es.upv.mist.slicing.graphs.Graph;
 import es.upv.mist.slicing.graphs.augmented.ACFG;
 import es.upv.mist.slicing.graphs.cfg.CFG;
 import es.upv.mist.slicing.graphs.sdg.InterproceduralDefinitionFinder;
@@ -23,8 +22,10 @@ import es.upv.mist.slicing.nodes.io.ActualIONode;
 import es.upv.mist.slicing.nodes.io.CallNode;
 import es.upv.mist.slicing.nodes.io.MethodExitNode;
 import es.upv.mist.slicing.utils.ASTUtils;
+import org.jgrapht.Graph;
 import org.jgrapht.alg.connectivity.KosarajuStrongConnectivityInspector;
 import org.jgrapht.graph.DefaultDirectedGraph;
+import org.jgrapht.graph.DefaultEdge;
 
 import java.util.*;
 
@@ -33,13 +34,15 @@ import static es.upv.mist.slicing.util.SingletonCollector.toSingleton;
 /**
  * An interprocedural CFG, whose component CFGs are built as ACFGs.
  */
-public class ICFG extends Graph implements Buildable<NodeList<CompilationUnit>> {
+public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<NodeList<CompilationUnit>> {
 
     protected final Map<CallableDeclaration<?>, CFG> cfgMap = ASTUtils.newIdentityHashMap();
     protected boolean built = false;
 
-    public void addControlFlowArc(GraphNode<?> from, GraphNode<?> to) {
-        addEdge(from, to, new ControlFlowArc());
+    public ControlFlowArc addControlFlowArc(GraphNode<?> from, GraphNode<?> to) {
+        ControlFlowArc a = new ControlFlowArc();
+        addEdge(from, to, a);
+        return a;
     }
 
     public void addNonExecControlFlowArc(GraphNode<?> from, GraphNode<?> to) {
@@ -68,7 +71,9 @@ public class ICFG extends Graph implements Buildable<NodeList<CompilationUnit>> 
 
     public class Builder {
         protected CallGraph callGraph;
-        protected List<Set<Object>> scrs;
+        protected final Map<CallGraph.Edge<?>, List<ControlFlowArc>> callGraphEdge2ICFGArcMap = new HashMap<>();
+        protected Graph<Graph<GraphNode<?>, Arc>, DefaultEdge> intraSCRs = new DefaultDirectedGraph<>(null, null, false);
+
 
         public void build(NodeList<CompilationUnit> units) {
             createClassGraph(units);
@@ -87,36 +92,51 @@ public class ICFG extends Graph implements Buildable<NodeList<CompilationUnit>> 
             copyCFGs();
             expandCalls();
             joinCFGs();
-            getSCRs(callGraph);
+            intraSCRs = computeIntraSCRs();
         }
 
-        protected void getSCRs(CallGraph callGraph) {
-            DefaultDirectedGraph<Object, CallGraph.Edge> convertedCallGraph = deleteDuplicatedEdges(callGraph);
-            KosarajuStrongConnectivityInspector<Object, CallGraph.Edge> inspector =
-                    new KosarajuStrongConnectivityInspector<>(convertedCallGraph);
-
-            scrs = inspector.stronglyConnectedSets();
-        }
-
-        public static DefaultDirectedGraph<Object, CallGraph.Edge> deleteDuplicatedEdges(CallGraph callGraph) {
-            DefaultDirectedGraph<Object, CallGraph.Edge> simpleGraph = new DefaultDirectedGraph<>(CallGraph.Edge.class);
-
-            for (CallGraph.Vertex v : callGraph.vertexSet()) {
-                simpleGraph.addVertex(v);
-            }
-
-            Map<String, CallGraph.Edge<?>> edgeMap = new HashMap<>();
-
-            for (CallGraph.Edge<?> edge : callGraph.edgeSet()) {
-                CallGraph.Vertex src = callGraph.getEdgeSource(edge);
-                CallGraph.Vertex tgt = callGraph.getEdgeTarget(edge);
-
-                String key = src.getDeclaration().getDeclarationAsString() + "->" + tgt.getDeclaration().getDeclarationAsString();
-
-                if (!edgeMap.containsKey(key)) {
-                    simpleGraph.addEdge(src, tgt, edge);
-                    edgeMap.put(key, edge);
+        protected Graph<Graph<GraphNode<?>, Arc>, DefaultEdge> computeIntraSCRs() {
+            // 1. Copiar el ICFG a un nuevo grafo sin arcos duplicados. (opcional)
+            var simpleICFG = deleteDuplicatedEdges(ICFG.this);
+            // 2. Compute cSCR graph
+            var cSCRs = computeCallSCRs();
+            // 3. Borrar del ICFG todos los arcos que aparecen en cSCRs
+            for (DefaultEdge e : cSCRs.edgeSet()) {
+                int callsDeleted = 0;
+                for (CallGraph.Vertex src : cSCRs.getEdgeSource(e).vertexSet()) {
+                    for (CallGraph.Vertex tgt : cSCRs.getEdgeTarget(e).vertexSet()) {
+                        // 3a. Buscar el arco(s) correspondiente en el callgraph
+                        for (CallGraph.Edge<?> callEdge : callGraph.getAllEdges(src, tgt)) {
+                            // 3b. Buscar el arco(s) correspondientes en el simpleICFG y borrarlos
+                            for (ControlFlowArc controlFlowArc : callGraphEdge2ICFGArcMap.get(callEdge))
+                                if (simpleICFG.removeEdge(controlFlowArc))
+                                    callsDeleted++;
+                        }
+                    }
                 }
+                if (callsDeleted < 2)
+                    throw new IllegalStateException("The creation of intraSCRs did not delete the minimum amount of call/return arcs");
+                if (callsDeleted % 2 == 1)
+                    throw new IllegalStateException("The creation of intraSCRs missed a call or a return arc");
+            }
+            // 4. Generar los SCR del simpleICFG, para producir los intraSCRs
+            return new KosarajuStrongConnectivityInspector<>(simpleICFG).getCondensation();
+        }
+
+        protected Graph<Graph<CallGraph.Vertex, CallGraph.Edge<?>>, DefaultEdge> computeCallSCRs() {
+            return new KosarajuStrongConnectivityInspector<>(deleteDuplicatedEdges(callGraph)).getCondensation();
+        }
+
+        public static <V, E> DefaultDirectedGraph<V, E> deleteDuplicatedEdges(Graph<V, E> baseGraph) {
+            DefaultDirectedGraph<V, E> simpleGraph = new DefaultDirectedGraph<>(null, null, false);
+
+            for (V v : baseGraph.vertexSet())
+                simpleGraph.addVertex(v);
+            for (E edge : baseGraph.edgeSet()) {
+                V src = baseGraph.getEdgeSource(edge);
+                V tgt = baseGraph.getEdgeTarget(edge);
+                if (!simpleGraph.containsEdge(src, tgt))
+                    simpleGraph.addEdge(src, tgt, edge);
             }
 
             return simpleGraph;
@@ -358,8 +378,9 @@ public class ICFG extends Graph implements Buildable<NodeList<CompilationUnit>> 
                 GraphNode<?> enterNode = cfgMap.get(callGraph.getEdgeTarget(call).getDeclaration()).getRootNode();
                 GraphNode<?> exitNode  = cfgMap.get(callGraph.getEdgeTarget(call).getDeclaration()).getExitNode();
                 // Connections
-                addControlFlowArc(callNode, enterNode);
-                addControlFlowArc(exitNode, returnNode);
+                ControlFlowArc call2enter = addControlFlowArc(callNode, enterNode);
+                ControlFlowArc exit2return = addControlFlowArc(exitNode, returnNode);
+                callGraphEdge2ICFGArcMap.put(call, List.of(call2enter, exit2return));
             }
         }
 
