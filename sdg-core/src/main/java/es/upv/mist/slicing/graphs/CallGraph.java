@@ -266,6 +266,11 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
         throw new NodeNotFoundException("call " + n + " could not be located! cfg was " + cfgMap.get(declaration).rootNode.getLongLabel() + " and declaration was " + declaration.getDeclarationAsString());
     }
 
+    @Override
+    public String toString() {
+        return String.join("\n", edgeSet().stream().map(Edge::toString).toList());
+    }
+
     /** A vertex containing the declaration it represents. It only exists because
      *  JGraphT relies heavily on equals comparison, which may not be correct in declarations. */
     public static class Vertex {
@@ -332,9 +337,9 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
         @Override
         public String toString() {
             return String.format("%s -%d-> %s",
-                    ((CallableDeclaration<?>) getSource()).getDeclarationAsString(false, false, false),
+                    ((Vertex) getSource()).getDeclaration().getDeclarationAsString(false, false, false),
                     graphNode.getId(),
-                    ((CallableDeclaration<?>) getTarget()).getDeclarationAsString(false, false, false));
+                    ((Vertex) getTarget()).getDeclaration().getDeclarationAsString(false, false, false));
         }
     }
 }
