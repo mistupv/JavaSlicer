@@ -1,7 +1,6 @@
 package es.upv.mist.slicing.graphs.icfg;
 
 import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
@@ -101,7 +100,7 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
         }
 
         private void buildCacheTransitive() {
-            List<Graph<CallGraph.Vertex, CallGraph.Edge<?>>> processedCSCRNode = new ArrayList<>();
+            Set<Graph<CallGraph.Vertex, CallGraph.Edge<?>>> processedCSCRNode = new HashSet<>();
 
             // startFromMain
             // getMain vertex
@@ -116,59 +115,44 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
             cacheTransitive(mainNode, processedCSCRNode);
         }
 
-        private void cacheTransitive(Graph<CallGraph.Vertex, CallGraph.Edge<?>> cSCRNode, List<Graph<CallGraph.Vertex, CallGraph.Edge<?>>> processedCSCRs) {
+        private void cacheTransitive(Graph<CallGraph.Vertex, CallGraph.Edge<?>> cSCRNode, Set<Graph<CallGraph.Vertex, CallGraph.Edge<?>>> processedCSCRs) {
             if (processedCSCRs.contains(cSCRNode)) {
                 return;
             }
             processedCSCRs.add(cSCRNode);
 
+            Set<Graph<GraphNode<?>, Arc>> intraSCRNodes = getEnterNodesRelatedToProcess(cSCRNode);
+            Set<Graph<GraphNode<?>, Arc>> SCRNodes = new HashSet<>();
+            getAllIntraSCRNodes(intraSCRNodes, SCRNodes);
+            transitiveMap.computeIfAbsent(cSCRNode, k -> new HashSet<>()).addAll(SCRNodes);
+
+            for (Graph<CallGraph.Vertex, CallGraph.Edge<?>> successor : Graphs.successorListOf(cSCRs, cSCRNode)) {
+                cacheTransitive(successor, processedCSCRs);
+                transitiveMap.get(cSCRNode).addAll(transitiveMap.get(successor));
+            }
+        }
+
+        private Set<Graph<GraphNode<?>, Arc>> getEnterNodesRelatedToProcess(Graph<CallGraph.Vertex, CallGraph.Edge<?>> cSCRNode) {
+            Set<Graph<GraphNode<?>, Arc>> intraSCRNodes = new HashSet<>();
             for (CallGraph.Vertex process : cSCRNode.vertexSet()) {
                 for (Graph<GraphNode<?>, Arc> intraSCR : intraSCRs.vertexSet()) {
                     for (GraphNode<?> graphNode : intraSCR.vertexSet()) {
-                        if (ASTUtils.equalsWithRange(process.getDeclaration(), graphNode.getAstNode())) {
-                            addElementToTransitiveMap(cSCRNode, intraSCR);
-                        } else {
-                            Node node = graphNode.getAstNode();
-                            while(node.hasParentNode()){
-                                if(ASTUtils.equalsWithRange(process.getDeclaration(), node.getParentNode().get())){
-                                    addElementToTransitiveMap(cSCRNode, intraSCR);
-                                    break;
-                                }
-                                node = node.getParentNode().get();
-                            }
+                        if (graphNode.getAstNode() instanceof MethodDeclaration
+                                && ASTUtils.equalsWithRange(process.getDeclaration(), graphNode.getAstNode())
+                                && intraSCRs.incomingEdgesOf(intraSCR).isEmpty()) {
+                            intraSCRNodes.add(intraSCR);
                         }
                     }
                 }
             }
-            for (Graph<CallGraph.Vertex, CallGraph.Edge<?>> successor : Graphs.successorListOf(cSCRs, cSCRNode)) {
-                cacheTransitive(successor, processedCSCRs);
-                addToTransitiveMap(cSCRNode, successor);
-            }
+            return intraSCRNodes;
         }
 
-        private void addElementToTransitiveMap(Graph<CallGraph.Vertex, CallGraph.Edge<?>> cSCRNode,Graph<GraphNode<?>, Arc> intraSCRNode){
-            if (transitiveMap.containsKey(cSCRNode)) {
-                Set<Graph<GraphNode<?>, Arc>> currentCache = transitiveMap.get(cSCRNode);
-                currentCache.add(intraSCRNode);
-                transitiveMap.put(cSCRNode, currentCache);
-            } else {
-                Set<Graph<GraphNode<?>, Arc>> currentCache = new HashSet<>();
-                currentCache.add(intraSCRNode);
-                transitiveMap.put(cSCRNode, currentCache);
-            }
-        }
-
-        private void addToTransitiveMap(Graph<CallGraph.Vertex, CallGraph.Edge<?>> cSCRNode, Graph<CallGraph.Vertex, CallGraph.Edge<?>> successor) {
-            if (transitiveMap.containsKey(cSCRNode)) {
-                Set<Graph<GraphNode<?>, Arc>> currentCache = transitiveMap.get(cSCRNode);
-                if (transitiveMap.containsKey(successor)) {
-                    currentCache.addAll(transitiveMap.get(successor));
-                    transitiveMap.put(cSCRNode, currentCache);
-                }
-            } else {
-                if (transitiveMap.containsKey(successor)) {
-                    transitiveMap.put(cSCRNode, transitiveMap.get(successor));
-                }
+        private void getAllIntraSCRNodes(Set<Graph<GraphNode<?>, Arc>> intraSCRNodes, Set<Graph<GraphNode<?>, Arc>> SCRNodes) {
+            for (Graph<GraphNode<?>, Arc> intraSCRNode : intraSCRNodes) {
+                SCRNodes.add(intraSCRNode);
+                SCRNodes.addAll(Graphs.successorListOf(intraSCRs, intraSCRNode));
+                getAllIntraSCRNodes(new HashSet<>(Graphs.successorListOf(intraSCRs, intraSCRNode)), SCRNodes);
             }
         }
 
