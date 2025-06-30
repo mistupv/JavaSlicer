@@ -1,6 +1,7 @@
 package es.upv.mist.slicing.graphs.icfg;
 
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
@@ -23,6 +24,7 @@ import es.upv.mist.slicing.nodes.io.CallNode;
 import es.upv.mist.slicing.nodes.io.MethodExitNode;
 import es.upv.mist.slicing.utils.ASTUtils;
 import org.jgrapht.Graph;
+import org.jgrapht.Graphs;
 import org.jgrapht.alg.connectivity.KosarajuStrongConnectivityInspector;
 import org.jgrapht.graph.DefaultDirectedGraph;
 import org.jgrapht.graph.DefaultEdge;
@@ -72,8 +74,9 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
     public class Builder {
         protected CallGraph callGraph;
         protected final Map<CallGraph.Edge<?>, List<ControlFlowArc>> callGraphEdge2ICFGArcMap = new HashMap<>();
+        protected Graph<Graph<CallGraph.Vertex, CallGraph.Edge<?>>, DefaultEdge> cSCRs = new DefaultDirectedGraph<>(null, null, false);
+        protected final Map<Graph<CallGraph.Vertex, CallGraph.Edge<?>>, Set<Graph<GraphNode<?>, Arc>>> transitiveMap = new HashMap<>();
         protected Graph<Graph<GraphNode<?>, Arc>, DefaultEdge> intraSCRs = new DefaultDirectedGraph<>(null, null, false);
-
 
         public void build(NodeList<CompilationUnit> units) {
             createClassGraph(units);
@@ -92,22 +95,94 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
             copyCFGs();
             expandCalls();
             joinCFGs();
+            cSCRs = computeCallSCRs();
             intraSCRs = computeIntraSCRs();
+            buildCacheTransitive();
+        }
+
+        private void buildCacheTransitive() {
+            List<Graph<CallGraph.Vertex, CallGraph.Edge<?>>> processedCSCRNode = new ArrayList<>();
+
+            // startFromMain
+            // getMain vertex
+            Graph<CallGraph.Vertex, CallGraph.Edge<?>> mainNode = null;
+            for (Graph<CallGraph.Vertex, CallGraph.Edge<?>> cSCRNode : cSCRs.vertexSet()) {
+                if (cSCRs.inDegreeOf(cSCRNode) == 0) {
+                    mainNode = cSCRNode;
+                    break;
+                }
+            }
+            //callCacheTransitive for mainNode (successors are visited inside)
+            cacheTransitive(mainNode, processedCSCRNode);
+        }
+
+        private void cacheTransitive(Graph<CallGraph.Vertex, CallGraph.Edge<?>> cSCRNode, List<Graph<CallGraph.Vertex, CallGraph.Edge<?>>> processedCSCRs) {
+            if (processedCSCRs.contains(cSCRNode)) {
+                return;
+            }
+            processedCSCRs.add(cSCRNode);
+
+            for (CallGraph.Vertex process : cSCRNode.vertexSet()) {
+                for (Graph<GraphNode<?>, Arc> intraSCR : intraSCRs.vertexSet()) {
+                    for (GraphNode<?> graphNode : intraSCR.vertexSet()) {
+                        if (ASTUtils.equalsWithRange(process.getDeclaration(), graphNode.getAstNode())) {
+                            addElementToTransitiveMap(cSCRNode, intraSCR);
+                        } else {
+                            Node node = graphNode.getAstNode();
+                            while(node.hasParentNode()){
+                                if(ASTUtils.equalsWithRange(process.getDeclaration(), node.getParentNode().get())){
+                                    addElementToTransitiveMap(cSCRNode, intraSCR);
+                                    break;
+                                }
+                                node = node.getParentNode().get();
+                            }
+                        }
+                    }
+                }
+            }
+            for (Graph<CallGraph.Vertex, CallGraph.Edge<?>> successor : Graphs.successorListOf(cSCRs, cSCRNode)) {
+                cacheTransitive(successor, processedCSCRs);
+                addToTransitiveMap(cSCRNode, successor);
+            }
+        }
+
+        private void addElementToTransitiveMap(Graph<CallGraph.Vertex, CallGraph.Edge<?>> cSCRNode,Graph<GraphNode<?>, Arc> intraSCRNode){
+            if (transitiveMap.containsKey(cSCRNode)) {
+                Set<Graph<GraphNode<?>, Arc>> currentCache = transitiveMap.get(cSCRNode);
+                currentCache.add(intraSCRNode);
+                transitiveMap.put(cSCRNode, currentCache);
+            } else {
+                Set<Graph<GraphNode<?>, Arc>> currentCache = new HashSet<>();
+                currentCache.add(intraSCRNode);
+                transitiveMap.put(cSCRNode, currentCache);
+            }
+        }
+
+        private void addToTransitiveMap(Graph<CallGraph.Vertex, CallGraph.Edge<?>> cSCRNode, Graph<CallGraph.Vertex, CallGraph.Edge<?>> successor) {
+            if (transitiveMap.containsKey(cSCRNode)) {
+                Set<Graph<GraphNode<?>, Arc>> currentCache = transitiveMap.get(cSCRNode);
+                if (transitiveMap.containsKey(successor)) {
+                    currentCache.addAll(transitiveMap.get(successor));
+                    transitiveMap.put(cSCRNode, currentCache);
+                }
+            } else {
+                if (transitiveMap.containsKey(successor)) {
+                    transitiveMap.put(cSCRNode, transitiveMap.get(successor));
+                }
+            }
         }
 
         protected Graph<Graph<GraphNode<?>, Arc>, DefaultEdge> computeIntraSCRs() {
             // 1. Copiar el ICFG a un nuevo grafo sin arcos duplicados. (opcional)
             var simpleICFG = deleteDuplicatedEdges(ICFG.this);
-            // 2. Compute cSCR graph
-            var cSCRs = computeCallSCRs();
-            // 3. Borrar del ICFG todos los arcos que aparecen en cSCRs
+            // 2. Borrar del ICFG todos los arcos que aparecen en cSCRs
             for (DefaultEdge e : cSCRs.edgeSet()) {
                 int callsDeleted = 0;
                 for (CallGraph.Vertex src : cSCRs.getEdgeSource(e).vertexSet()) {
                     for (CallGraph.Vertex tgt : cSCRs.getEdgeTarget(e).vertexSet()) {
-                        // 3a. Buscar el arco(s) correspondiente en el callgraph
+                        // 2a. Buscar el arco(s) correspondiente en el callgraph
                         for (CallGraph.Edge<?> callEdge : callGraph.getAllEdges(src, tgt)) {
-                            // 3b. Buscar el arco(s) correspondientes en el simpleICFG y borrarlos
+                            // 2b. Buscar el arco(s) correspondientes en el simpleICFG y borrarlos
                             for (ControlFlowArc controlFlowArc : callGraphEdge2ICFGArcMap.get(callEdge))
                                 if (simpleICFG.removeEdge(controlFlowArc))
                                     callsDeleted++;
@@ -367,7 +442,7 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
         protected void joinCFGs() {
             for (CallGraph.Edge<?> call : callGraph.edgeSet()) {
                 // Nodes to be paired up
-                GraphNode<?> callNode  = vertexSet().stream()
+                GraphNode<?> callNode = vertexSet().stream()
                         .filter(n -> n instanceof CallNode)
                         .filter(n -> ASTUtils.equalsWithRange(n.getAstNode(), call.getCall()))
                         .collect(toSingleton());
@@ -376,7 +451,7 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
                         .filter(n -> ASTUtils.equalsWithRange(n.getAstNode(), call.getCall()))
                         .collect(toSingleton());
                 GraphNode<?> enterNode = cfgMap.get(callGraph.getEdgeTarget(call).getDeclaration()).getRootNode();
-                GraphNode<?> exitNode  = cfgMap.get(callGraph.getEdgeTarget(call).getDeclaration()).getExitNode();
+                GraphNode<?> exitNode = cfgMap.get(callGraph.getEdgeTarget(call).getDeclaration()).getExitNode();
                 // Connections
                 ControlFlowArc call2enter = addControlFlowArc(callNode, enterNode);
                 ControlFlowArc exit2return = addControlFlowArc(exitNode, returnNode);

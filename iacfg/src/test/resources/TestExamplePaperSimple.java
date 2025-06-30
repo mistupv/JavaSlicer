@@ -2,7 +2,6 @@ public class TestExamplePaperSimple {
 
     public static void main(String[] args) {
 
-        System.out.println("LLAMAMOS P");
         while (1 > 2) {
             System.out.println("S1");
             p1();
