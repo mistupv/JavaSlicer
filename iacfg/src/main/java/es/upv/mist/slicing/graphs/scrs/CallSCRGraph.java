@@ -14,7 +14,7 @@ import java.util.Set;
 public class CallSCRGraph extends CondensedGraph<CallGraph.Vertex, CallGraph.Edge<?>, CallSCR> {
     public CallSCRGraph(Graph<CallGraph.Vertex, CallGraph.Edge<?>> graph) {
         super(DefaultEdge.class);
-        regionMap = new AbstractSCRAlgorithm<CallGraph.Vertex, CallGraph.Edge<?>, CallSCR>(graph) {
+        new AbstractSCRAlgorithm<CallGraph.Vertex, CallGraph.Edge<?>, CallSCR>(graph) {
             @Override
             public CallSCR newSCR(Graph<CallGraph.Vertex, CallGraph.Edge<?>> graph, Set<CallGraph.Vertex> nodeSet, Set<CallGraph.Edge<?>> edgeSet) {
                 return new CallSCR(graph, nodeSet, edgeSet);

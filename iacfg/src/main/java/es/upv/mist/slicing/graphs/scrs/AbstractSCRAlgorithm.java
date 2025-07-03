@@ -4,9 +4,7 @@ import org.jgrapht.Graph;
 import org.jgrapht.alg.connectivity.KosarajuStrongConnectivityInspector;
 import org.jgrapht.graph.DefaultEdge;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -37,32 +35,28 @@ public abstract class AbstractSCRAlgorithm<V, E, R extends AbstractSCR<V, E>> ex
      *
      * @return A map, connecting each vertex in the original map to its location (region) in the condensation.
      */
-    public Map<V, R> copySCRs(Graph<R, DefaultEdge> condensation) {
+    public void copySCRs(CondensedGraph<V, E, R> condensation) {
         List<Set<V>> sets = stronglyConnectedSets();
-
-        Map<V, R> vertexToComponent = new HashMap<>();
 
         for (Set<V> set : sets) {
             R component = newSCR(graph, set, null);
             condensation.addVertex(component);
             for (V v : set) {
-                vertexToComponent.put(v, component);
+                condensation.regionMap.put(v, component);
             }
         }
 
         for (E e : graph.edgeSet()) {
             V s = graph.getEdgeSource(e);
-            R sComponent = vertexToComponent.get(s);
+            R sComponent = condensation.regionMap.get(s);
 
             V t = graph.getEdgeTarget(e);
-            R tComponent = vertexToComponent.get(t);
+            R tComponent = condensation.regionMap.get(t);
 
             if (sComponent != tComponent) { // reference equal on purpose
                 // TODO: instead of DefaultEdges, use a grouping class to hold multiple data edges (Arc, CallGraph.Edge)
                 condensation.addEdge(sComponent, tComponent);
             }
         }
-
-        return vertexToComponent;
     }
 }

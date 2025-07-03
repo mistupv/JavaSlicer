@@ -16,7 +16,7 @@ import java.util.Set;
 public class IntraSCRGraph extends CondensedGraph<GraphNode<?>, Arc, IntraSCR> {
     public IntraSCRGraph(Graph<GraphNode<?>, Arc> graph) {
         super(DefaultEdge.class);
-        this.regionMap = new AbstractSCRAlgorithm<GraphNode<?>, Arc, IntraSCR>(graph) {
+        new AbstractSCRAlgorithm<GraphNode<?>, Arc, IntraSCR>(graph) {
             @Override
             public IntraSCR newSCR(Graph<GraphNode<?>, Arc> graph, Set<GraphNode<?>> nodeSet, Set<Arc> edgeSet) {
                 return new IntraSCR(graph, nodeSet, edgeSet);

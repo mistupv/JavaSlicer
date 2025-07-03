@@ -3,6 +3,7 @@ package es.upv.mist.slicing.graphs.scrs;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.SimpleDirectedGraph;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -14,7 +15,7 @@ import java.util.function.Supplier;
  * @see AbstractSCRAlgorithm
  */
 public abstract class CondensedGraph<V, E, R extends AbstractSCR<V, E>> extends SimpleDirectedGraph<R, DefaultEdge> {
-    protected Map<V, R> regionMap;
+    protected final Map<V, R> regionMap = new HashMap<>();
 
     public CondensedGraph(Class<? extends DefaultEdge> edgeClass) {
         super(edgeClass);
