@@ -25,8 +25,10 @@ import es.upv.mist.slicing.utils.ASTUtils;
 import org.jgrapht.Graph;
 import org.jgrapht.Graphs;
 import org.jgrapht.alg.connectivity.KosarajuStrongConnectivityInspector;
+import org.jgrapht.alg.util.Triple;
 import org.jgrapht.graph.DefaultDirectedGraph;
 import org.jgrapht.graph.DefaultEdge;
+import org.jgrapht.traverse.DepthFirstIterator;
 
 import java.util.*;
 
@@ -72,10 +74,20 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
 
     public class Builder {
         protected CallGraph callGraph;
+        /** A map to locate interprocedural {@link ControlFlowArc}s that correspond to a given {@link CallGraph}'s edge. */
         protected final Map<CallGraph.Edge<?>, List<ControlFlowArc>> callGraphEdge2ICFGArcMap = new HashMap<>();
+        /** The strongly connected components of the {@link CallGraph}. */
         protected Graph<Graph<CallGraph.Vertex, CallGraph.Edge<?>>, DefaultEdge> cSCRs = new DefaultDirectedGraph<>(null, null, false);
+        /** A map to locate declarations in the {@link #cSCRs}. */
+        protected Map<CallableDeclaration<?>, Graph<CallGraph.Vertex, CallGraph.Edge<?>>> cSCRsMap;
+        /** A map to locate the set of {@link #intraSCRs} nodes that correspond (transitively) to a given {@link #cSCRs} node. */
         protected final Map<Graph<CallGraph.Vertex, CallGraph.Edge<?>>, Set<Graph<GraphNode<?>, Arc>>> transitiveMap = new HashMap<>();
+        /** The strongly connected components of the {@link ICFG}, computed while ignoring
+         *  interprocedural edges that connect {@link #cSCRs} nodes. <br>
+         *  Fulfils steps 2-3 of the Nanda-Ramesh topological numbers algorithm. */
         protected Graph<Graph<GraphNode<?>, Arc>, DefaultEdge> intraSCRs = new DefaultDirectedGraph<>(null, null, false);
+        /** Non-Recursive interprocedural Arcs from {@link  #intraSCRs} */
+        protected Set<Triple<GraphNode<?>, GraphNode<?>, ControlFlowArc>> interprocNonRecArcs = new HashSet<>();
 
         public void build(NodeList<CompilationUnit> units) {
             createClassGraph(units);
@@ -94,9 +106,25 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
             copyCFGs();
             expandCalls();
             joinCFGs();
-            cSCRs = computeCallSCRs();
-            intraSCRs = computeIntraSCRs();
-            buildCacheTransitive();
+            computeCallSCRs();
+            computeIntraSCRs();
+            buildISCR();
+        }
+
+        private void addEdgesToIntraSCRs(Set<Triple<GraphNode<?>, GraphNode<?>, ControlFlowArc>> deletedArcs) {
+            for (Triple<GraphNode<?>, GraphNode<?>, ControlFlowArc> arc : deletedArcs) {
+                for (Graph<GraphNode<?>, Arc> srcSCR : intraSCRs.vertexSet()) {
+                    for (Graph<GraphNode<?>, Arc> tgtSCR : intraSCRs.vertexSet()) {
+                        if (srcSCR.containsVertex(arc.getFirst()) && tgtSCR.containsVertex(arc.getSecond())) {
+                            if (srcSCR == tgtSCR)
+                                srcSCR.addEdge(arc.getFirst(), arc.getSecond(), arc.getThird());
+                            else
+                                intraSCRs.addEdge(srcSCR, tgtSCR);
+                            break;
+                        }
+                    }
+                }
+            }
         }
 
         private void buildCacheTransitive() {
@@ -136,13 +164,13 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
             Set<Graph<GraphNode<?>, Arc>> intraSCRNodes = new HashSet<>();
             for (CallGraph.Vertex process : cSCRNode.vertexSet()) {
                 for (Graph<GraphNode<?>, Arc> intraSCR : intraSCRs.vertexSet()) {
-                    for (GraphNode<?> graphNode : intraSCR.vertexSet()) {
-                        if (graphNode.getAstNode() instanceof MethodDeclaration
-                                && ASTUtils.equalsWithRange(process.getDeclaration(), graphNode.getAstNode())
-                                && intraSCRs.incomingEdgesOf(intraSCR).isEmpty()) {
-                            intraSCRNodes.add(intraSCR);
+                    if (intraSCRs.inDegreeOf(intraSCR) == 0)
+                        for (GraphNode<?> graphNode : intraSCR.vertexSet()) {
+                            if (graphNode.getAstNode() instanceof MethodDeclaration
+                                    && ASTUtils.equalsWithRange(process.getDeclaration(), graphNode.getAstNode())) {
+                                intraSCRNodes.add(intraSCR);
+                            }
                         }
-                    }
                 }
             }
             return intraSCRNodes;
@@ -151,39 +179,139 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
         private void getAllIntraSCRNodes(Set<Graph<GraphNode<?>, Arc>> intraSCRNodes, Set<Graph<GraphNode<?>, Arc>> SCRNodes) {
             for (Graph<GraphNode<?>, Arc> intraSCRNode : intraSCRNodes) {
                 SCRNodes.add(intraSCRNode);
-                SCRNodes.addAll(Graphs.successorListOf(intraSCRs, intraSCRNode));
-                getAllIntraSCRNodes(new HashSet<>(Graphs.successorListOf(intraSCRs, intraSCRNode)), SCRNodes);
+                Iterator<Graph<GraphNode<?>, Arc>> iterator = new DepthFirstIterator<>(intraSCRs,intraSCRNode);
+                while (iterator.hasNext()) {
+                    SCRNodes.add(iterator.next());
+                }
             }
         }
 
-        protected Graph<Graph<GraphNode<?>, Arc>, DefaultEdge> computeIntraSCRs() {
-            // 1. Copiar el ICFG a un nuevo grafo sin arcos duplicados. (opcional)
-            var simpleICFG = deleteDuplicatedEdges(ICFG.this);
-            // 2. Borrar del ICFG todos los arcos que aparecen en cSCRs
-            for (DefaultEdge e : cSCRs.edgeSet()) {
-                int callsDeleted = 0;
-                for (CallGraph.Vertex src : cSCRs.getEdgeSource(e).vertexSet()) {
-                    for (CallGraph.Vertex tgt : cSCRs.getEdgeTarget(e).vertexSet()) {
-                        // 2a. Buscar el arco(s) correspondiente en el callgraph
-                        for (CallGraph.Edge<?> callEdge : callGraph.getAllEdges(src, tgt)) {
-                            // 2b. Buscar el arco(s) correspondientes en el simpleICFG y borrarlos
-                            for (ControlFlowArc controlFlowArc : callGraphEdge2ICFGArcMap.get(callEdge))
-                                if (simpleICFG.removeEdge(controlFlowArc))
-                                    callsDeleted++;
+        private void buildISCR() {
+            List<Graph<GraphNode<?>, Arc>> processedIntraSCRs = new ArrayList<>();
+            // startFromMain
+            // getMain vertex
+            Graph<GraphNode<?>, Arc> mainIntraSCR = null;
+            List<Graph<GraphNode<?>, Arc>> listIntraSCR = new ArrayList<>();
+            for (Graph<GraphNode<?>, Arc> intraSCR : intraSCRs.vertexSet()) {
+                if(intraSCRs.incomingEdgesOf(intraSCR).isEmpty()) {
+                    listIntraSCR.add(intraSCR);
+                }
+            }
+            for (Graph<GraphNode<?>, Arc> intraSCRNode : listIntraSCR) {
+                for (GraphNode<?> graphNode : intraSCRNode.vertexSet()) {
+                    MethodDeclaration declaration = (MethodDeclaration) graphNode.getAstNode();
+                    if(declaration.isPublic() && declaration.isStatic() && declaration.getType().isVoidType()) {
+                        mainIntraSCR = intraSCRNode;
+                    }
+                }
+            }
+            buildISCRGraph(mainIntraSCR, processedIntraSCRs);
+        }
+
+        private static void mergeGraphs(Graph<GraphNode<?>, Arc> target, Graph<GraphNode<?>, Arc> src) {
+            for (GraphNode<?> n : src.vertexSet())
+                if (!target.addVertex(n))
+                    throw new RuntimeException();
+            for (Arc arc : src.edgeSet())
+                if (!target.addEdge(src.getEdgeSource(arc), src.getEdgeTarget(arc), arc))
+                    throw new RuntimeException();
+        }
+
+        private void buildISCRGraph(Graph<GraphNode<?>, Arc> intraSCR, List<Graph<GraphNode<?>, Arc>> processedIntraSCRs) {
+            if (processedIntraSCRs.contains(intraSCR)) {
+                return;
+            }
+            processedIntraSCRs.add(intraSCR);
+            Set<GraphNode<?>> graphNodes = intraSCR.vertexSet();
+            if (graphNodes.size() > 1) {
+                //multi
+                for (GraphNode<?> graphNode : graphNodes) {
+                    if (graphNode instanceof CallNode) {
+                        for (Triple<GraphNode<?>, GraphNode<?>, ControlFlowArc> arc : interprocNonRecArcs) {
+                            if (graphNode.equals(arc.getFirst())) {
+                                GraphNode<CallableDeclaration<?>> enterNode = (GraphNode<CallableDeclaration<?>>) arc.getSecond();
+                                for (Graph<GraphNode<?>, Arc> graph : transitiveMap.get(cSCRsMap.get(enterNode.getAstNode()))) {
+                                    mergeGraphs(intraSCR, graph);
+                                }
+                                Graph<GraphNode<?>, Arc> iSCRtarget = intraSCRs.vertexSet().stream()
+                                        .filter(iSCR -> iSCR.containsVertex(enterNode))
+                                        .findFirst().orElseThrow();
+                                intraSCRs.removeEdge(intraSCR, iSCRtarget);
+                            }
                         }
                     }
                 }
-                if (callsDeleted < 2)
-                    throw new IllegalStateException("The creation of intraSCRs did not delete the minimum amount of call/return arcs");
-                if (callsDeleted % 2 == 1)
-                    throw new IllegalStateException("The creation of intraSCRs missed a call or a return arc");
+            } else if (graphNodes.size() == 1) {
+                //single
+
+            } else {
+                throw new IllegalStateException("The intraSCRs is empty");
             }
-            // 4. Generar los SCR del simpleICFG, para producir los intraSCRs
-            return new KosarajuStrongConnectivityInspector<>(simpleICFG).getCondensation();
+
+            for (Graph<GraphNode<?>, Arc> successor : Graphs.successorListOf(intraSCRs, intraSCR)) {
+                buildISCRGraph(successor, processedIntraSCRs);
+            }
         }
 
-        protected Graph<Graph<CallGraph.Vertex, CallGraph.Edge<?>>, DefaultEdge> computeCallSCRs() {
-            return new KosarajuStrongConnectivityInspector<>(deleteDuplicatedEdges(callGraph)).getCondensation();
+        protected void computeIntraSCRs() {
+            // 1. Copiar el ICFG a un nuevo grafo sin arcos duplicados. (opcional)
+            var simpleICFG = deleteDuplicatedEdges(ICFG.this);
+            // 2. Borrar del ICFG todos los arcos que aparecen en cSCRs
+            if (callGraph.vertexSet().size() * callGraph.vertexSet().size() < callGraph.edgeSet().size())
+                for (CallGraph.Edge<?> e : callGraph.edgeSet()) {
+                    CallableDeclaration<?> src = callGraph.getEdgeSource(e).getDeclaration();
+                    CallableDeclaration<?> tgt = callGraph.getEdgeTarget(e).getDeclaration();
+                    if (cSCRsMap.get(src) != cSCRsMap.get(tgt)) {
+                        int callsDeleted = 0;
+                        for (ControlFlowArc arc : callGraphEdge2ICFGArcMap.get(e)) {
+                            if (simpleICFG.removeEdge(arc)) {
+                                interprocNonRecArcs.add(new Triple<>(simpleICFG.getEdgeSource(arc), simpleICFG.getEdgeTarget(arc), arc));
+                                callsDeleted++;
+                            }
+                        }
+                        if (callsDeleted < 2)
+                            throw new IllegalStateException("The creation of intraSCRs did not delete the minimum amount of call/return arcs");
+                        if (callsDeleted % 2 == 1)
+                            throw new IllegalStateException("The creation of intraSCRs missed a call or a return arc");
+
+                    }
+                }
+            else
+                for (DefaultEdge e : cSCRs.edgeSet()) {
+                    int callsDeleted = 0;
+                    for (CallGraph.Vertex src : cSCRs.getEdgeSource(e).vertexSet()) {
+                        for (CallGraph.Vertex tgt : cSCRs.getEdgeTarget(e).vertexSet()) {
+                            // 2a. Buscar el arco(s) correspondiente en el callgraph
+                            for (CallGraph.Edge<?> callEdge : callGraph.getAllEdges(src, tgt)) {
+                                // 2b. Buscar el arco(s) correspondientes en el simpleICFG y borrarlos
+                                for (ControlFlowArc controlFlowArc : callGraphEdge2ICFGArcMap.get(callEdge)) {
+                                    if (simpleICFG.removeEdge(controlFlowArc)) {
+                                        interprocNonRecArcs.add(new Triple<>(simpleICFG.getEdgeSource(controlFlowArc), simpleICFG.getEdgeTarget(controlFlowArc), controlFlowArc));
+                                        callsDeleted++;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (callsDeleted < 2)
+                        throw new IllegalStateException("The creation of intraSCRs did not delete the minimum amount of call/return arcs");
+                    if (callsDeleted % 2 == 1)
+                        throw new IllegalStateException("The creation of intraSCRs missed a call or a return arc");
+                }
+            // 4. Generar los SCR del simpleICFG, para producir los intraSCRs
+            intraSCRs = new KosarajuStrongConnectivityInspector<>(simpleICFG).getCondensation();
+            // buildCache algorithm
+            buildCacheTransitive();
+            // Only now can interprocedural edges be re-added to intraSCRs, cache building required
+            addEdgesToIntraSCRs(interprocNonRecArcs);
+        }
+
+        protected void computeCallSCRs() {
+            cSCRs = new KosarajuStrongConnectivityInspector<>(deleteDuplicatedEdges(callGraph)).getCondensation();
+            cSCRsMap = new HashMap<>(callGraph.vertexSet().size());
+            for (Graph<CallGraph.Vertex, CallGraph.Edge<?>> cSCR : cSCRs.vertexSet())
+                for (CallGraph.Vertex vertex : cSCR.vertexSet())
+                    cSCRsMap.put(vertex.getDeclaration(), cSCR);
         }
 
         public static <V, E> DefaultDirectedGraph<V, E> deleteDuplicatedEdges(Graph<V, E> baseGraph) {
