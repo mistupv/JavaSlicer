@@ -1,10 +1,10 @@
 package es.upv.mist.slicing.graphs.icfg;
 
-import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.cli.DOTAttributes;
+import es.upv.mist.slicing.graphs.scrs.IntraSCR;
+import es.upv.mist.slicing.graphs.scrs.IntraSCRGraph;
 import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.utils.Logger;
-import org.jgrapht.Graph;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.nio.dot.DOTExporter;
 
@@ -12,7 +12,7 @@ import java.awt.*;
 import java.io.*;
 import java.util.stream.Collectors;
 
-public abstract class GraphLogIntraSCR<G extends Graph<Graph<GraphNode<?>, Arc>, DefaultEdge>> {
+public abstract class GraphLogIntraSCR<G extends IntraSCRGraph> {
 
     protected G graph;
 
@@ -130,17 +130,17 @@ public abstract class GraphLogIntraSCR<G extends Graph<Graph<GraphNode<?>, Arc>,
         return new File(outputDir, imageName + "." + format);
     }
 
-    protected DOTExporter<Graph<GraphNode<?>, Arc>, DefaultEdge> getDOTExporter() {
-        DOTExporter<Graph<GraphNode<?>, Arc>, DefaultEdge> exporter = new DOTExporter<>();
+    protected DOTExporter<IntraSCR, DefaultEdge> getDOTExporter() {
+        DOTExporter<IntraSCR, DefaultEdge> exporter = new DOTExporter<>();
         exporter.setVertexIdProvider(node -> String.valueOf(node.vertexSet().stream().map(GraphNode::getId).findFirst().orElse(-1L)));
         exporter.setVertexAttributeProvider(v -> vertexAttributes(v).build());
         exporter.setEdgeAttributeProvider(v -> edgeAttributes(v).build());
         return exporter;
     }
 
-    protected DOTAttributes vertexAttributes(Graph<GraphNode<?>, Arc> vertex) {
+    protected DOTAttributes vertexAttributes(IntraSCR vertex) {
         DOTAttributes res = new DOTAttributes();
-        res.set("label", vertex.vertexSet().stream()
+        res.set("label", "X" + vertex.getId() + "\n" + vertex.vertexSet().stream()
                 .map(graphNode -> "%04d: %s".formatted(graphNode.getId(), graphNode.getLabel()))
                 .sorted()
                 .collect(Collectors.joining("\n")));

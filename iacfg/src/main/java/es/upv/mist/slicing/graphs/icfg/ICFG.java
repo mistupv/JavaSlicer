@@ -14,6 +14,10 @@ import es.upv.mist.slicing.graphs.CallGraph;
 import es.upv.mist.slicing.graphs.ClassGraph;
 import es.upv.mist.slicing.graphs.augmented.ACFG;
 import es.upv.mist.slicing.graphs.cfg.CFG;
+import es.upv.mist.slicing.graphs.scrs.CallSCR;
+import es.upv.mist.slicing.graphs.scrs.CallSCRGraph;
+import es.upv.mist.slicing.graphs.scrs.IntraSCR;
+import es.upv.mist.slicing.graphs.scrs.IntraSCRGraph;
 import es.upv.mist.slicing.graphs.sdg.InterproceduralDefinitionFinder;
 import es.upv.mist.slicing.graphs.sdg.InterproceduralUsageFinder;
 import es.upv.mist.slicing.nodes.GraphNode;
@@ -24,7 +28,6 @@ import es.upv.mist.slicing.nodes.io.MethodExitNode;
 import es.upv.mist.slicing.utils.ASTUtils;
 import org.jgrapht.Graph;
 import org.jgrapht.Graphs;
-import org.jgrapht.alg.connectivity.KosarajuStrongConnectivityInspector;
 import org.jgrapht.alg.util.Triple;
 import org.jgrapht.graph.DefaultDirectedGraph;
 import org.jgrapht.graph.DefaultEdge;
@@ -77,15 +80,15 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
         /** A map to locate interprocedural {@link ControlFlowArc}s that correspond to a given {@link CallGraph}'s edge. */
         protected final Map<CallGraph.Edge<?>, List<ControlFlowArc>> callGraphEdge2ICFGArcMap = new HashMap<>();
         /** The strongly connected components of the {@link CallGraph}. */
-        protected Graph<Graph<CallGraph.Vertex, CallGraph.Edge<?>>, DefaultEdge> cSCRs = new DefaultDirectedGraph<>(null, null, false);
+        protected CallSCRGraph cSCRs;
         /** A map to locate declarations in the {@link #cSCRs}. */
-        protected Map<CallableDeclaration<?>, Graph<CallGraph.Vertex, CallGraph.Edge<?>>> cSCRsMap;
+        protected Map<CallableDeclaration<?>, CallSCR> cSCRsMap;
         /** A map to locate the set of {@link #intraSCRs} nodes that correspond (transitively) to a given {@link #cSCRs} node. */
-        protected final Map<Graph<CallGraph.Vertex, CallGraph.Edge<?>>, Set<Graph<GraphNode<?>, Arc>>> transitiveMap = new HashMap<>();
+        protected final Map<CallSCR, Set<IntraSCR>> transitiveMap = new HashMap<>();
         /** The strongly connected components of the {@link ICFG}, computed while ignoring
          *  interprocedural edges that connect {@link #cSCRs} nodes. <br>
          *  Fulfils steps 2-3 of the Nanda-Ramesh topological numbers algorithm. */
-        protected Graph<Graph<GraphNode<?>, Arc>, DefaultEdge> intraSCRs = new DefaultDirectedGraph<>(null, null, false);
+        protected IntraSCRGraph intraSCRs;
         /** Non-Recursive interprocedural Arcs from {@link  #intraSCRs} */
         protected Set<Triple<GraphNode<?>, GraphNode<?>, ControlFlowArc>> interprocNonRecArcs = new HashSet<>();
 
@@ -113,8 +116,8 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
 
         private void addEdgesToIntraSCRs(Set<Triple<GraphNode<?>, GraphNode<?>, ControlFlowArc>> deletedArcs) {
             for (Triple<GraphNode<?>, GraphNode<?>, ControlFlowArc> arc : deletedArcs) {
-                for (Graph<GraphNode<?>, Arc> srcSCR : intraSCRs.vertexSet()) {
-                    for (Graph<GraphNode<?>, Arc> tgtSCR : intraSCRs.vertexSet()) {
+                for (IntraSCR srcSCR : intraSCRs.vertexSet()) {
+                    for (IntraSCR tgtSCR : intraSCRs.vertexSet()) {
                         if (srcSCR.containsVertex(arc.getFirst()) && tgtSCR.containsVertex(arc.getSecond())) {
                             if (srcSCR == tgtSCR)
                                 srcSCR.addEdge(arc.getFirst(), arc.getSecond(), arc.getThird());
@@ -128,12 +131,12 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
         }
 
         private void buildCacheTransitive() {
-            Set<Graph<CallGraph.Vertex, CallGraph.Edge<?>>> processedCSCRNode = new HashSet<>();
+            Set<CallSCR> processedCSCRNode = new HashSet<>();
 
             // startFromMain
             // getMain vertex
-            Graph<CallGraph.Vertex, CallGraph.Edge<?>> mainNode = null;
-            for (Graph<CallGraph.Vertex, CallGraph.Edge<?>> cSCRNode : cSCRs.vertexSet()) {
+            CallSCR mainNode = null;
+            for (CallSCR cSCRNode : cSCRs.vertexSet()) {
                 if (cSCRs.inDegreeOf(cSCRNode) == 0) {
                     mainNode = cSCRNode;
                     break;
@@ -143,27 +146,27 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
             cacheTransitive(mainNode, processedCSCRNode);
         }
 
-        private void cacheTransitive(Graph<CallGraph.Vertex, CallGraph.Edge<?>> cSCRNode, Set<Graph<CallGraph.Vertex, CallGraph.Edge<?>>> processedCSCRs) {
+        private void cacheTransitive(CallSCR cSCRNode, Set<CallSCR> processedCSCRs) {
             if (processedCSCRs.contains(cSCRNode)) {
                 return;
             }
             processedCSCRs.add(cSCRNode);
 
-            Set<Graph<GraphNode<?>, Arc>> intraSCRNodes = getEnterNodesRelatedToProcess(cSCRNode);
-            Set<Graph<GraphNode<?>, Arc>> SCRNodes = new HashSet<>();
+            Set<IntraSCR> intraSCRNodes = getEnterNodesRelatedToProcess(cSCRNode);
+            Set<IntraSCR> SCRNodes = new HashSet<>();
             getAllIntraSCRNodes(intraSCRNodes, SCRNodes);
             transitiveMap.computeIfAbsent(cSCRNode, k -> new HashSet<>()).addAll(SCRNodes);
 
-            for (Graph<CallGraph.Vertex, CallGraph.Edge<?>> successor : Graphs.successorListOf(cSCRs, cSCRNode)) {
+            for (CallSCR successor : Graphs.successorListOf(cSCRs, cSCRNode)) {
                 cacheTransitive(successor, processedCSCRs);
                 transitiveMap.get(cSCRNode).addAll(transitiveMap.get(successor));
             }
         }
 
-        private Set<Graph<GraphNode<?>, Arc>> getEnterNodesRelatedToProcess(Graph<CallGraph.Vertex, CallGraph.Edge<?>> cSCRNode) {
-            Set<Graph<GraphNode<?>, Arc>> intraSCRNodes = new HashSet<>();
+        private Set<IntraSCR> getEnterNodesRelatedToProcess(CallSCR cSCRNode) {
+            Set<IntraSCR> intraSCRNodes = new HashSet<>();
             for (CallGraph.Vertex process : cSCRNode.vertexSet()) {
-                for (Graph<GraphNode<?>, Arc> intraSCR : intraSCRs.vertexSet()) {
+                for (IntraSCR intraSCR : intraSCRs.vertexSet()) {
                     if (intraSCRs.inDegreeOf(intraSCR) == 0)
                         for (GraphNode<?> graphNode : intraSCR.vertexSet()) {
                             if (graphNode.getAstNode() instanceof MethodDeclaration
@@ -176,10 +179,10 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
             return intraSCRNodes;
         }
 
-        private void getAllIntraSCRNodes(Set<Graph<GraphNode<?>, Arc>> intraSCRNodes, Set<Graph<GraphNode<?>, Arc>> SCRNodes) {
-            for (Graph<GraphNode<?>, Arc> intraSCRNode : intraSCRNodes) {
+        private void getAllIntraSCRNodes(Set<IntraSCR> intraSCRNodes, Set<IntraSCR> SCRNodes) {
+            for (IntraSCR intraSCRNode : intraSCRNodes) {
                 SCRNodes.add(intraSCRNode);
-                Iterator<Graph<GraphNode<?>, Arc>> iterator = new DepthFirstIterator<>(intraSCRs,intraSCRNode);
+                Iterator<IntraSCR> iterator = new DepthFirstIterator<>(intraSCRs,intraSCRNode);
                 while (iterator.hasNext()) {
                     SCRNodes.add(iterator.next());
                 }
@@ -187,17 +190,17 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
         }
 
         private void buildISCR() {
-            List<Graph<GraphNode<?>, Arc>> processedIntraSCRs = new ArrayList<>();
+            List<IntraSCR> processedIntraSCRs = new ArrayList<>();
             // startFromMain
             // getMain vertex
-            Graph<GraphNode<?>, Arc> mainIntraSCR = null;
-            List<Graph<GraphNode<?>, Arc>> listIntraSCR = new ArrayList<>();
-            for (Graph<GraphNode<?>, Arc> intraSCR : intraSCRs.vertexSet()) {
+            IntraSCR mainIntraSCR = null;
+            List<IntraSCR> listIntraSCR = new ArrayList<>();
+            for (IntraSCR intraSCR : intraSCRs.vertexSet()) {
                 if(intraSCRs.incomingEdgesOf(intraSCR).isEmpty()) {
                     listIntraSCR.add(intraSCR);
                 }
             }
-            for (Graph<GraphNode<?>, Arc> intraSCRNode : listIntraSCR) {
+            for (IntraSCR intraSCRNode : listIntraSCR) {
                 for (GraphNode<?> graphNode : intraSCRNode.vertexSet()) {
                     MethodDeclaration declaration = (MethodDeclaration) graphNode.getAstNode();
                     if(declaration.isPublic() && declaration.isStatic() && declaration.getType().isVoidType()) {
@@ -208,7 +211,7 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
             buildISCRGraph(mainIntraSCR, processedIntraSCRs);
         }
 
-        private static void mergeGraphs(Graph<GraphNode<?>, Arc> target, Graph<GraphNode<?>, Arc> src) {
+        private static void mergeGraphs(IntraSCR target, IntraSCR src) {
             for (GraphNode<?> n : src.vertexSet())
                 if (!target.addVertex(n))
                     throw new RuntimeException();
@@ -217,7 +220,7 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
                     throw new RuntimeException();
         }
 
-        private void buildISCRGraph(Graph<GraphNode<?>, Arc> intraSCR, List<Graph<GraphNode<?>, Arc>> processedIntraSCRs) {
+        private void buildISCRGraph(IntraSCR intraSCR, List<IntraSCR> processedIntraSCRs) {
             if (processedIntraSCRs.contains(intraSCR)) {
                 return;
             }
@@ -225,22 +228,24 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
             Set<GraphNode<?>> graphNodes = intraSCR.vertexSet();
             if (graphNodes.size() > 1) {
                 //multi
+                Set<IntraSCR> toBeMerged = new HashSet<>();
                 for (GraphNode<?> graphNode : graphNodes) {
                     if (graphNode instanceof CallNode) {
                         for (Triple<GraphNode<?>, GraphNode<?>, ControlFlowArc> arc : interprocNonRecArcs) {
                             if (graphNode.equals(arc.getFirst())) {
                                 GraphNode<CallableDeclaration<?>> enterNode = (GraphNode<CallableDeclaration<?>>) arc.getSecond();
-                                for (Graph<GraphNode<?>, Arc> graph : transitiveMap.get(cSCRsMap.get(enterNode.getAstNode()))) {
-                                    mergeGraphs(intraSCR, graph);
-                                }
-                                Graph<GraphNode<?>, Arc> iSCRtarget = intraSCRs.vertexSet().stream()
+                                toBeMerged.addAll(transitiveMap.get(cSCRsMap.get(enterNode.getAstNode())));
+                                IntraSCR iSCRtarget = intraSCRs.vertexSet().stream()
                                         .filter(iSCR -> iSCR.containsVertex(enterNode))
                                         .findFirst().orElseThrow();
                                 intraSCRs.removeEdge(intraSCR, iSCRtarget);
+                                break;
                             }
                         }
                     }
                 }
+                for (IntraSCR graph : toBeMerged)
+                    mergeGraphs(intraSCR, graph);
             } else if (graphNodes.size() == 1) {
                 //single
 
@@ -248,7 +253,7 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
                 throw new IllegalStateException("The intraSCRs is empty");
             }
 
-            for (Graph<GraphNode<?>, Arc> successor : Graphs.successorListOf(intraSCRs, intraSCR)) {
+            for (IntraSCR successor : Graphs.successorListOf(intraSCRs, intraSCR)) {
                 buildISCRGraph(successor, processedIntraSCRs);
             }
         }
@@ -299,7 +304,7 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
                         throw new IllegalStateException("The creation of intraSCRs missed a call or a return arc");
                 }
             // 4. Generar los SCR del simpleICFG, para producir los intraSCRs
-            intraSCRs = new KosarajuStrongConnectivityInspector<>(simpleICFG).getCondensation();
+            intraSCRs = new IntraSCRGraph(simpleICFG);
             // buildCache algorithm
             buildCacheTransitive();
             // Only now can interprocedural edges be re-added to intraSCRs, cache building required
@@ -307,9 +312,9 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
         }
 
         protected void computeCallSCRs() {
-            cSCRs = new KosarajuStrongConnectivityInspector<>(deleteDuplicatedEdges(callGraph)).getCondensation();
+            cSCRs = new CallSCRGraph(deleteDuplicatedEdges(callGraph));
             cSCRsMap = new HashMap<>(callGraph.vertexSet().size());
-            for (Graph<CallGraph.Vertex, CallGraph.Edge<?>> cSCR : cSCRs.vertexSet())
+            for (CallSCR cSCR : cSCRs.vertexSet())
                 for (CallGraph.Vertex vertex : cSCR.vertexSet())
                     cSCRsMap.put(vertex.getDeclaration(), cSCR);
         }
