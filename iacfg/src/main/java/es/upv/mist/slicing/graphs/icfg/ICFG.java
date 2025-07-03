@@ -81,8 +81,6 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
         protected final Map<CallGraph.Edge<?>, List<ControlFlowArc>> callGraphEdge2ICFGArcMap = new HashMap<>();
         /** The strongly connected components of the {@link CallGraph}. */
         protected CallSCRGraph cSCRs;
-        /** A map to locate declarations in the {@link #cSCRs}. */
-        protected Map<CallableDeclaration<?>, CallSCR> cSCRsMap;
         /** A map to locate the set of {@link #intraSCRs} nodes that correspond (transitively) to a given {@link #cSCRs} node. */
         protected final Map<CallSCR, Set<IntraSCR>> transitiveMap = new HashMap<>();
         /** The strongly connected components of the {@link ICFG}, computed while ignoring
@@ -116,17 +114,12 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
 
         private void addEdgesToIntraSCRs(Set<Triple<GraphNode<?>, GraphNode<?>, ControlFlowArc>> deletedArcs) {
             for (Triple<GraphNode<?>, GraphNode<?>, ControlFlowArc> arc : deletedArcs) {
-                for (IntraSCR srcSCR : intraSCRs.vertexSet()) {
-                    for (IntraSCR tgtSCR : intraSCRs.vertexSet()) {
-                        if (srcSCR.containsVertex(arc.getFirst()) && tgtSCR.containsVertex(arc.getSecond())) {
-                            if (srcSCR == tgtSCR)
-                                srcSCR.addEdge(arc.getFirst(), arc.getSecond(), arc.getThird());
-                            else
-                                intraSCRs.addEdge(srcSCR, tgtSCR);
-                            break;
-                        }
-                    }
-                }
+                IntraSCR srcRegion = intraSCRs.getRegion(arc.getFirst());
+                IntraSCR tgtRegion = intraSCRs.getRegion(arc.getSecond());
+                if (srcRegion.equals(tgtRegion))
+                    srcRegion.addEdge(arc.getFirst(), arc.getSecond(), arc.getThird());
+                else
+                    intraSCRs.addEdge(srcRegion, tgtRegion);
             }
         }
 
@@ -234,7 +227,10 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
                         for (Triple<GraphNode<?>, GraphNode<?>, ControlFlowArc> arc : interprocNonRecArcs) {
                             if (graphNode.equals(arc.getFirst())) {
                                 GraphNode<CallableDeclaration<?>> enterNode = (GraphNode<CallableDeclaration<?>>) arc.getSecond();
-                                toBeMerged.addAll(transitiveMap.get(cSCRsMap.get(enterNode.getAstNode())));
+                                CallGraph.Vertex procVertex = new CallGraph.Vertex(enterNode.getAstNode());
+                                CallSCR procRegion = cSCRs.getRegion(procVertex);
+                                Set<IntraSCR> procIntraSCRset = transitiveMap.get(procRegion);
+                                toBeMerged.addAll(procIntraSCRset);
                                 IntraSCR iSCRtarget = intraSCRs.vertexSet().stream()
                                         .filter(iSCR -> iSCR.containsVertex(enterNode))
                                         .findFirst().orElseThrow();
@@ -264,9 +260,7 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
             // 2. Borrar del ICFG todos los arcos que aparecen en cSCRs
             if (callGraph.vertexSet().size() * callGraph.vertexSet().size() < callGraph.edgeSet().size())
                 for (CallGraph.Edge<?> e : callGraph.edgeSet()) {
-                    CallableDeclaration<?> src = callGraph.getEdgeSource(e).getDeclaration();
-                    CallableDeclaration<?> tgt = callGraph.getEdgeTarget(e).getDeclaration();
-                    if (cSCRsMap.get(src) != cSCRsMap.get(tgt)) {
+                    if (cSCRs.getRegion(callGraph.getEdgeSource(e)) != cSCRs.getRegion(callGraph.getEdgeTarget(e))) {
                         int callsDeleted = 0;
                         for (ControlFlowArc arc : callGraphEdge2ICFGArcMap.get(e)) {
                             if (simpleICFG.removeEdge(arc)) {
@@ -313,10 +307,6 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
 
         protected void computeCallSCRs() {
             cSCRs = new CallSCRGraph(deleteDuplicatedEdges(callGraph));
-            cSCRsMap = new HashMap<>(callGraph.vertexSet().size());
-            for (CallSCR cSCR : cSCRs.vertexSet())
-                for (CallGraph.Vertex vertex : cSCR.vertexSet())
-                    cSCRsMap.put(vertex.getDeclaration(), cSCR);
         }
 
         public static <V, E> DefaultDirectedGraph<V, E> deleteDuplicatedEdges(Graph<V, E> baseGraph) {

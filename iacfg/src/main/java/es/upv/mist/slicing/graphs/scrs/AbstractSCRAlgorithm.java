@@ -34,8 +34,10 @@ public abstract class AbstractSCRAlgorithm<V, E, R extends AbstractSCR<V, E>> ex
     /**
      * Reimplementation of {@link org.jgrapht.alg.connectivity.AbstractStrongConnectivityInspector#getCondensation()} to wrap each strongly
      * connected component into a class with constant {@code hashCode} and {@code equals} implementation.
+     *
+     * @return A map, connecting each vertex in the original map to its location (region) in the condensation.
      */
-    public void copySCRs(Graph<R, DefaultEdge> condensation) {
+    public Map<V, R> copySCRs(Graph<R, DefaultEdge> condensation) {
         List<Set<V>> sets = stronglyConnectedSets();
 
         Map<V, R> vertexToComponent = new HashMap<>();
@@ -60,5 +62,7 @@ public abstract class AbstractSCRAlgorithm<V, E, R extends AbstractSCR<V, E>> ex
                 condensation.addEdge(sComponent, tComponent);
             }
         }
+
+        return vertexToComponent;
     }
 }
