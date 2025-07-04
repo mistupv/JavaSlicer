@@ -28,6 +28,7 @@ import es.upv.mist.slicing.nodes.io.MethodExitNode;
 import es.upv.mist.slicing.utils.ASTUtils;
 import org.jgrapht.Graph;
 import org.jgrapht.Graphs;
+import org.jgrapht.alg.connectivity.ConnectivityInspector;
 import org.jgrapht.alg.util.Triple;
 import org.jgrapht.graph.DefaultDirectedGraph;
 import org.jgrapht.graph.DefaultEdge;
@@ -110,6 +111,7 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
             computeCallSCRs();
             computeIntraSCRs();
             buildISCR();
+            System.out.println("testing");
         }
 
         private void addEdgesToIntraSCRs(Set<Triple<GraphNode<?>, GraphNode<?>, ControlFlowArc>> deletedArcs) {
@@ -202,6 +204,44 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
                 }
             }
             buildISCRGraph(mainIntraSCR, processedIntraSCRs);
+            deleteCallReturnEdges();
+            getMainProcess(mainIntraSCR);
+        }
+
+        private void getMainProcess(IntraSCR mainIntraSCR) {
+            ConnectivityInspector<IntraSCR, DefaultEdge> inspector = new ConnectivityInspector<>(intraSCRs);
+            Set<IntraSCR> mainProcess = inspector.connectedSetOf(mainIntraSCR);
+            Set<IntraSCR> nodesToBeDeleted = new HashSet<>();
+            for (IntraSCR intraSCR : intraSCRs.vertexSet()) {
+                if(!mainProcess.contains(intraSCR)){
+                    nodesToBeDeleted.add(intraSCR);
+                }
+            }
+            for (IntraSCR node : nodesToBeDeleted) {
+                intraSCRs.removeVertex(node);
+            }
+        }
+
+        private void deleteCallReturnEdges() {
+            Set<DefaultEdge> toBeDeletedSet = new HashSet<>();
+            for (DefaultEdge e : intraSCRs.edgeSet()) {
+                IntraSCR source = intraSCRs.getEdgeSource(e);
+                IntraSCR target = intraSCRs.getEdgeTarget(e);
+                // Deleted only if source vertex is simple intraSCR
+                // ToDo: check if target will always be simple (ask Carlos)
+                if(source.vertexSet().size() == 1){
+                    for(GraphNode<?> src : source.vertexSet()) {
+                        for(GraphNode<?> tgt : target.vertexSet()) {
+                            if(src instanceof CallNode && tgt instanceof CallNode.Return) {
+                                toBeDeletedSet.add(e);
+                            }
+                        }
+                    }
+                }
+            }
+            for (DefaultEdge deletedEdge : toBeDeletedSet) {
+                intraSCRs.removeEdge(deletedEdge);
+            }
         }
 
         private static void mergeGraphs(IntraSCR target, IntraSCR src) {
@@ -227,14 +267,23 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
                         for (Triple<GraphNode<?>, GraphNode<?>, ControlFlowArc> arc : interprocNonRecArcs) {
                             if (graphNode.equals(arc.getFirst())) {
                                 GraphNode<CallableDeclaration<?>> enterNode = (GraphNode<CallableDeclaration<?>>) arc.getSecond();
-                                CallGraph.Vertex procVertex = new CallGraph.Vertex(enterNode.getAstNode());
-                                CallSCR procRegion = cSCRs.getRegion(procVertex);
-                                Set<IntraSCR> procIntraSCRset = transitiveMap.get(procRegion);
+                                Set<IntraSCR> procIntraSCRset = getProcIntraSCRset(enterNode);
                                 toBeMerged.addAll(procIntraSCRset);
                                 IntraSCR iSCRtarget = intraSCRs.vertexSet().stream()
                                         .filter(iSCR -> iSCR.containsVertex(enterNode))
                                         .findFirst().orElseThrow();
                                 intraSCRs.removeEdge(intraSCR, iSCRtarget);
+                                break;
+                            }
+                        }
+                    } else if(graphNode instanceof CallNode.Return){
+                        for (Triple<GraphNode<?>, GraphNode<?>, ControlFlowArc> arc : interprocNonRecArcs) {
+                            if (graphNode.equals(arc.getSecond())) {
+                                GraphNode<CallableDeclaration<?>> exitNode = (GraphNode<CallableDeclaration<?>>) arc.getFirst();
+                                IntraSCR iSCRSource = intraSCRs.vertexSet().stream()
+                                        .filter(iSCR -> iSCR.containsVertex(exitNode))
+                                        .findFirst().orElseThrow();
+                                intraSCRs.removeEdge(iSCRSource, intraSCR);
                                 break;
                             }
                         }
@@ -244,7 +293,16 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
                     mergeGraphs(intraSCR, graph);
             } else if (graphNodes.size() == 1) {
                 //single
-
+                GraphNode<?> graphNode = graphNodes.iterator().next();
+                if (graphNode instanceof CallNode) {
+                    for (Triple<GraphNode<?>, GraphNode<?>, ControlFlowArc> arc : interprocNonRecArcs) {
+                        if (graphNode.equals(arc.getFirst())) {
+                            GraphNode<CallableDeclaration<?>> enterNode = (GraphNode<CallableDeclaration<?>>) arc.getSecond();
+                            IntraSCR enterIntraSCR = getEnterIntraSCR(enterNode);
+                            buildISCRGraph(enterIntraSCR, processedIntraSCRs);
+                        }
+                    }
+                }
             } else {
                 throw new IllegalStateException("The intraSCRs is empty");
             }
@@ -252,6 +310,19 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
             for (IntraSCR successor : Graphs.successorListOf(intraSCRs, intraSCR)) {
                 buildISCRGraph(successor, processedIntraSCRs);
             }
+        }
+
+        private IntraSCR getEnterIntraSCR(GraphNode<CallableDeclaration<?>> enterNode) {
+            return getProcIntraSCRset(enterNode).stream()
+                    .filter(scr -> scr.containsVertex(enterNode))
+                    .findFirst()
+                    .orElseThrow();
+        }
+
+        private Set<IntraSCR> getProcIntraSCRset(GraphNode<CallableDeclaration<?>> node) {
+            CallGraph.Vertex procVertex = new CallGraph.Vertex(node.getAstNode());
+            CallSCR procRegion = cSCRs.getRegion(procVertex);
+            return transitiveMap.get(procRegion);
         }
 
         protected void computeIntraSCRs() {
