@@ -266,6 +266,7 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
                     if (graphNode instanceof CallNode) {
                         for (Triple<GraphNode<?>, GraphNode<?>, ControlFlowArc> arc : interprocNonRecArcs) {
                             if (graphNode.equals(arc.getFirst())) {
+                                @SuppressWarnings("unchecked")
                                 GraphNode<CallableDeclaration<?>> enterNode = (GraphNode<CallableDeclaration<?>>) arc.getSecond();
                                 Set<IntraSCR> procIntraSCRset = getProcIntraSCRset(enterNode);
                                 toBeMerged.addAll(procIntraSCRset);
@@ -279,6 +280,7 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
                     } else if(graphNode instanceof CallNode.Return){
                         for (Triple<GraphNode<?>, GraphNode<?>, ControlFlowArc> arc : interprocNonRecArcs) {
                             if (graphNode.equals(arc.getSecond())) {
+                                @SuppressWarnings("unchecked")
                                 GraphNode<CallableDeclaration<?>> exitNode = (GraphNode<CallableDeclaration<?>>) arc.getFirst();
                                 IntraSCR iSCRSource = intraSCRs.vertexSet().stream()
                                         .filter(iSCR -> iSCR.containsVertex(exitNode))
@@ -297,6 +299,7 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
                 if (graphNode instanceof CallNode) {
                     for (Triple<GraphNode<?>, GraphNode<?>, ControlFlowArc> arc : interprocNonRecArcs) {
                         if (graphNode.equals(arc.getFirst())) {
+                            @SuppressWarnings("unchecked")
                             GraphNode<CallableDeclaration<?>> enterNode = (GraphNode<CallableDeclaration<?>>) arc.getSecond();
                             IntraSCR enterIntraSCR = getEnterIntraSCR(enterNode);
                             buildISCRGraph(enterIntraSCR, processedIntraSCRs);
