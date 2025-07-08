@@ -86,10 +86,22 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
         protected final Map<CallSCR, Set<IntraSCR>> transitiveMap = new HashMap<>();
         /** The strongly connected components of the {@link ICFG}, computed while ignoring
          *  interprocedural edges that connect {@link #cSCRs} nodes. <br>
-         *  Fulfils steps 2-3 of the Nanda-Ramesh topological numbers algorithm. */
+         *  Fulfils steps 2-3 of the Nanda-Ramesh topological numbers' algorithm. */
         protected IntraSCRGraph intraSCRs;
         /** Non-Recursive interprocedural Arcs from {@link  #intraSCRs} */
         protected Set<Triple<GraphNode<?>, GraphNode<?>, ControlFlowArc>> interprocNonRecArcs = new HashSet<>();
+        /** A list of all {@link  #intraSCRs} that have an callSite type in Nanda-Ramesh algorithm */
+        protected Set<IntraSCR> callSiteIntraSCRs = new HashSet<>();
+        /** A list of all {@link  #intraSCRs} that have an returnSite type in Nanda-Ramesh algorithm */
+        protected Set<IntraSCR> returnSiteIntraSCRs = new HashSet<>();
+        /** A map to locate the correspondent call node from a return node */
+        protected final Map<IntraSCR, IntraSCR> returnToCorrespondentCallSiteMap = new HashMap<>();
+        /** A map to locate the {@link  #intraSCRs} within a call*/
+        protected final Map<IntraSCR, Set<IntraSCR>> callNodeProcessMap = new HashMap<>();
+        /** A map to get the topological number associated to the {@link  #intraSCRs} */
+        protected final Map<Integer, IntraSCR> topologicalNumbersMap = new HashMap<>();
+        /** counter for topologicalNumbers */
+        protected int topologicalNumber = 0;
 
         public void build(NodeList<CompilationUnit> units) {
             createClassGraph(units);
@@ -111,7 +123,53 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
             computeCallSCRs();
             computeIntraSCRs();
             buildISCR();
-            System.out.println("testing");
+            generateTopologicalNumbers();
+        }
+
+        private void generateTopologicalNumbers() {
+            Set<IntraSCR> proccessedIntraSCRs = new HashSet<>();
+            Stack<IntraSCR> callStack = new Stack<>();
+            // get exit node
+            IntraSCR exitNode = null;
+            for (IntraSCR cSCRNode : intraSCRs.vertexSet()) {
+                if (intraSCRs.outDegreeOf(cSCRNode) == 0) {
+                    exitNode = cSCRNode;
+                    break;
+                }
+            }
+            //callGetTopologicalNumber for exitNode (predecessors are visited inside)
+            getTopologicalNumber(exitNode, proccessedIntraSCRs, callStack);
+        }
+
+        private <V> void getTopologicalNumber(IntraSCR node, Set<IntraSCR> proccessedIntraSCRs, Stack<IntraSCR> callStack) {
+            if(proccessedIntraSCRs.contains(node)) {
+                return;
+            }
+
+            for(IntraSCR predecessor : Graphs.predecessorListOf(intraSCRs, node)) {
+                if(callSiteIntraSCRs.contains(predecessor) && !callStack.isEmpty() && predecessor == callStack.peek()) {
+                    callStack.pop();
+                    getTopologicalNumber(predecessor, proccessedIntraSCRs, callStack);
+                } else if(returnSiteIntraSCRs.contains(predecessor) ) {
+                    IntraSCR callNode = returnToCorrespondentCallSiteMap.get(predecessor);
+                    callStack.push(callNode);
+                    getTopologicalNumber(predecessor, proccessedIntraSCRs, callStack);
+                    if(callNodeProcessMap.containsKey(callNode)) {
+                        for (IntraSCR intraSCR : callNodeProcessMap.get(callNode)) {
+                            proccessedIntraSCRs.remove(intraSCR);
+                        }
+                    }
+                } else {
+                    if(!callStack.isEmpty()) {
+                        callNodeProcessMap.computeIfAbsent(callStack.peek(), k -> new HashSet<>()).add(predecessor);
+                    }
+                    getTopologicalNumber(predecessor, proccessedIntraSCRs, callStack);
+                }
+            }
+            node.addTopologicalNumber(topologicalNumber);
+            topologicalNumber++;
+
+            proccessedIntraSCRs.add(node);
         }
 
         private void addEdgesToIntraSCRs(Set<Triple<GraphNode<?>, GraphNode<?>, ControlFlowArc>> deletedArcs) {
@@ -205,6 +263,7 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
             }
             buildISCRGraph(mainIntraSCR, processedIntraSCRs);
             deleteCallReturnEdges();
+            deleteMainExitEdge(mainIntraSCR);
             getMainProcess(mainIntraSCR);
         }
 
@@ -222,6 +281,15 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
             }
         }
 
+        private void deleteMainExitEdge(IntraSCR mainIntraSCR) {
+            IntraSCR exitNode = intraSCRs.outgoingEdgesOf(mainIntraSCR).stream()
+                    .map(intraSCRs::getEdgeTarget)
+                    .filter(target -> target.vertexSet().stream().anyMatch(node -> node instanceof MethodExitNode))
+                    .findFirst().orElseThrow();
+
+            intraSCRs.removeEdge(mainIntraSCR, exitNode);
+        }
+
         private void deleteCallReturnEdges() {
             Set<DefaultEdge> toBeDeletedSet = new HashSet<>();
             for (DefaultEdge e : intraSCRs.edgeSet()) {
@@ -233,6 +301,7 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
                     for(GraphNode<?> src : source.vertexSet()) {
                         for(GraphNode<?> tgt : target.vertexSet()) {
                             if(src instanceof CallNode && tgt instanceof CallNode.Return) {
+                                returnToCorrespondentCallSiteMap.put(target, source);
                                 toBeDeletedSet.add(e);
                             }
                         }
@@ -299,12 +368,15 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
                 if (graphNode instanceof CallNode) {
                     for (Triple<GraphNode<?>, GraphNode<?>, ControlFlowArc> arc : interprocNonRecArcs) {
                         if (graphNode.equals(arc.getFirst())) {
+                            callSiteIntraSCRs.add(intraSCR);
                             @SuppressWarnings("unchecked")
                             GraphNode<CallableDeclaration<?>> enterNode = (GraphNode<CallableDeclaration<?>>) arc.getSecond();
                             IntraSCR enterIntraSCR = getEnterIntraSCR(enterNode);
                             buildISCRGraph(enterIntraSCR, processedIntraSCRs);
                         }
                     }
+                } else if(graphNode instanceof CallNode.Return){
+                    returnSiteIntraSCRs.add(intraSCR);
                 }
             } else {
                 throw new IllegalStateException("The intraSCRs is empty");

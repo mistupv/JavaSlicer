@@ -140,7 +140,7 @@ public abstract class GraphLogIntraSCR<G extends IntraSCRGraph> {
 
     protected DOTAttributes vertexAttributes(IntraSCR vertex) {
         DOTAttributes res = new DOTAttributes();
-        res.set("label", "X" + vertex.getId() + "\n" + vertex.vertexSet().stream()
+        res.set("label", "X" + vertex.getId() + "\n" + "TOP-" + vertex.getTopologicalNumber() + "\n" + vertex.vertexSet().stream()
                 .map(graphNode -> "%04d: %s".formatted(graphNode.getId(), graphNode.getLabel()))
                 .sorted()
                 .collect(Collectors.joining("\n")));

@@ -14,7 +14,7 @@ public class ICFGTest {
         StaticJavaParser.getConfiguration().setAttributeComments(false);
         StaticTypeSolver.addTypeSolverJRE();
 
-        createGraph("TestInicial.java", "grafoInicial");
+        /*createGraph("TestInicial.java", "grafoInicial");
         System.out.println("Grafo 1 generado...");
 
         createGraph("TestGlobalVariables.java", "grafoGlobalVariables");
@@ -28,6 +28,7 @@ public class ICFGTest {
 
         createGraph("TestExamplePaper.java", "grafoPaper");
         System.out.println("Grafo 5 generado...");
+         */
 
         createGraph("TestExamplePaperSimple.java", "grafoPaperSimple");
         System.out.println("Grafo 6 generado...");
