@@ -147,7 +147,9 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
             }
 
             for(IntraSCR predecessor : Graphs.predecessorListOf(intraSCRs, node)) {
-                if(callSiteIntraSCRs.contains(predecessor) && !callStack.isEmpty() && predecessor == callStack.peek()) {
+                if (callSiteIntraSCRs.contains(predecessor)) {
+                    if (callStack.isEmpty() || !predecessor.equals(callStack.peek()))
+                        continue; // Non-matching call nodes are ignored
                     callStack.pop();
                     getTopologicalNumber(predecessor, proccessedIntraSCRs, callStack);
                 } else if(returnSiteIntraSCRs.contains(predecessor) ) {
