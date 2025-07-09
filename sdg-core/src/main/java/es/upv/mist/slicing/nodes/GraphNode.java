@@ -10,7 +10,6 @@ import es.upv.mist.slicing.graphs.sdg.SDG;
 import es.upv.mist.slicing.utils.ASTUtils;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static es.upv.mist.slicing.graphs.exceptionsensitive.ESCFG.ACTIVE_EXCEPTION_VARIABLE;
 
@@ -38,9 +37,6 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
 
     /** @see #isImplicitInstruction() */
     protected boolean isImplicit = false;
-
-    /** Topological numbers associated to GraphNode */
-    protected final Set<Integer> topologicalNumbersSet = new HashSet<>();
 
     /** Create a graph node, with id and variable actions generated automatically. */
     public GraphNode(String label, N astNode) {
@@ -101,8 +97,7 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
 
     /** The node's long-form label, including its id and information on variables. */
     public String getLongLabel() {
-        String label = "Top - " + getTopologicalNumbersString() + " -";
-        label += getId() + ": " + getLabel().replace("\\", "\\\\");
+        String label = getId() + ": " + getLabel().replace("\\", "\\\\");
         if (!getVariableActions().isEmpty())
             label += "\\n" + getVariableActions().stream().map(Object::toString).reduce((a, b) -> a + "," + b).orElse("--");
         return label;
@@ -211,16 +206,6 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
     public void addCallMarker(Resolvable<? extends ResolvedMethodLikeDeclaration> call, boolean enter) {
         if (enter) methodCalls.add(call);
         variableActions.add(new VariableAction.CallMarker(call, this, enter));
-    }
-
-    public void setTopologicalNumbers(Set<Integer> topologicalNumbers) {
-        this.topologicalNumbersSet.addAll(topologicalNumbers);
-    }
-
-    public String getTopologicalNumbersString() {
-        return this.topologicalNumbersSet.stream()
-                .map(String::valueOf)
-                .collect(Collectors.joining(","));
     }
 
     // ============================================================
