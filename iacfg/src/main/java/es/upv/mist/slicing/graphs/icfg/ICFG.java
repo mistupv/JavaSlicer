@@ -131,7 +131,7 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
             getTopologicalNumber(exitNode, new HashSet<>(), new Stack<>(), new HashMap<>());
         }
 
-        private <V> void getTopologicalNumber(IntraSCR node, Set<IntraSCR> proccessedIntraSCRs, Stack<IntraSCR> callStack, Map<IntraSCR, Set<IntraSCR>> callNodeProcessMap) {
+        private void getTopologicalNumber(IntraSCR node, Set<IntraSCR> proccessedIntraSCRs, Stack<IntraSCR> callStack, Map<IntraSCR, Set<IntraSCR>> callNodeProcessMap) {
             if(proccessedIntraSCRs.contains(node)) {
                 return;
             }
