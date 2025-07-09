@@ -39,6 +39,7 @@ public class GraphNode<N extends Node> implements Comparable<GraphNode<?>> {
     /** @see #isImplicitInstruction() */
     protected boolean isImplicit = false;
 
+    /** Topological numbers associated to GraphNode */
     protected final Set<Integer> topologicalNumbersSet = new HashSet<>();
 
     /** Create a graph node, with id and variable actions generated automatically. */
