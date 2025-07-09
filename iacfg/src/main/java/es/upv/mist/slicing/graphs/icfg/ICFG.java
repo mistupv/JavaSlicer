@@ -90,8 +90,16 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
         protected IntraSCRGraph intraSCRs;
         /** Non-Recursive interprocedural Arcs from {@link  #intraSCRs} */
         protected Set<Triple<GraphNode<?>, GraphNode<?>, ControlFlowArc>> interprocNonRecArcs = new HashSet<>();
+        /** A list of all {@link  #intraSCRs} that have an callSite type in Nanda-Ramesh algorithm */
+        protected Set<IntraSCR> callSiteIntraSCRs = new HashSet<>();
+        /** A list of all {@link  #intraSCRs} that have an returnSite type in Nanda-Ramesh algorithm */
+        protected Set<IntraSCR> returnSiteIntraSCRs = new HashSet<>();
         /** A map to locate the correspondent call node from a return node */
         protected final Map<IntraSCR, IntraSCR> returnToCorrespondentCallSiteMap = new HashMap<>();
+        /** A map to locate the {@link  #intraSCRs} within a call*/
+        protected final Map<IntraSCR, Set<IntraSCR>> callNodeProcessMap = new HashMap<>();
+        /** A map to get the topological number associated to the {@link  #intraSCRs} */
+        protected final Map<Integer, IntraSCR> topologicalNumbersMap = new HashMap<>();
         /** counter for topologicalNumbers */
         protected int topologicalNumber = 0;
 
@@ -116,6 +124,15 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
             computeIntraSCRs();
             buildISCR();
             generateTopologicalNumbers();
+            setTopologicalNumbersIntoICFG();
+        }
+
+        private void setTopologicalNumbersIntoICFG() {
+            for (IntraSCR intraSCR : intraSCRs.vertexSet()) {
+                for (GraphNode<?> graphNode : intraSCR.vertexSet()) {
+                    graphNode.setTopologicalNumbers(intraSCR.getTopologicalNumberSet());
+                }
+            }
         }
 
         private void generateTopologicalNumbers() {

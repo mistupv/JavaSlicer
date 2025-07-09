@@ -31,4 +31,8 @@ public class IntraSCR extends AbstractSCR<GraphNode<?>, Arc> {
                 .map(String::valueOf)
                 .collect(Collectors.joining("-"));
     }
+
+    public Set<Integer> getTopologicalNumberSet() {
+        return this.topologicalNumberSet;
+    }
 }
