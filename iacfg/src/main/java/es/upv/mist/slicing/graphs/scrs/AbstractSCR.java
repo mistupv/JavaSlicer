@@ -9,6 +9,7 @@ import java.util.Set;
 /**
  * An abstract Strongly Connected Region (or Component) of a graph g, implemented as a subgraph of g.
  * This SCR can be freely modified (edges, vertices added and removed), and it will remain a part of the condensation.
+ *
  * @param <V> The type of vertices in the original graph.
  * @param <E> The type of edges in the original graph.
  * @see AbstractSCRAlgorithm

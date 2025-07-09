@@ -15,6 +15,7 @@ public abstract class GraphLog<G extends Graph> {
         PDF("pdf");
 
         private String ext;
+
         Format(String ext) {
             this.ext = ext;
         }
@@ -80,8 +81,8 @@ public abstract class GraphLog<G extends Graph> {
         }
         // Execute dot
         ProcessBuilder pb = new ProcessBuilder("dot",
-            tmpDot.getAbsolutePath(), "-T" + format,
-            "-o", getImageFile().getAbsolutePath());
+                tmpDot.getAbsolutePath(), "-T" + format,
+                "-o", getImageFile().getAbsolutePath());
         try {
             int result = pb.start().waitFor();
             if (result == 0)

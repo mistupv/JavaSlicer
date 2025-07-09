@@ -65,8 +65,10 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
                 .map(Node.class::cast);
     }
 
-    /** Locates the calls contained in a given method or constructor.
-     *  See {@link #callsTo(CallableDeclaration)} for the return value. */
+    /**
+     * Locates the calls contained in a given method or constructor.
+     * See {@link #callsTo(CallableDeclaration)} for the return value.
+     */
     public Stream<Node> callsFrom(CallableDeclaration<?> caller) {
         return outgoingEdgesOf(findVertexByDeclaration(caller)).stream()
                 .map(Edge::getCall)
@@ -271,8 +273,10 @@ public class CallGraph extends DirectedPseudograph<CallGraph.Vertex, CallGraph.E
         return String.join("\n", edgeSet().stream().map(Edge::toString).toList());
     }
 
-    /** A vertex containing the declaration it represents. It only exists because
-     *  JGraphT relies heavily on equals comparison, which may not be correct in declarations. */
+    /**
+     * A vertex containing the declaration it represents. It only exists because
+     * JGraphT relies heavily on equals comparison, which may not be correct in declarations.
+     */
     public static class Vertex {
         protected final CallableDeclaration<?> declaration;
 

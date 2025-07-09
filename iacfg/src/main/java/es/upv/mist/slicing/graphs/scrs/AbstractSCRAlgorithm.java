@@ -16,6 +16,7 @@ import java.util.Set;
  * This class uses a more specific type for the vertices of the condensation, yielding {@code Graph<R, DefaultEdge>}
  * for the condensation. This type is a wrapper on the subgraph, with implementations of {@code hashCode} and {@code equals}
  * that do not change when the graph changes, therefore allowing modifications.
+ *
  * @param <V> The type of vertices on the original graph.
  * @param <E> The type of edges on the original graph.
  * @param <R> The type of vertices on the condensed graph.

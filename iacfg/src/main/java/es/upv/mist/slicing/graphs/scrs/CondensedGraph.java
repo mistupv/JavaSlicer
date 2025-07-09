@@ -9,6 +9,7 @@ import java.util.function.Supplier;
 
 /**
  * An abstract class for condensed graphs.
+ *
  * @param <V> The type of the original graph's vertices.
  * @param <E> The type of the original graph's edges.
  * @param <R> The type of this graph's strongly connected regions.

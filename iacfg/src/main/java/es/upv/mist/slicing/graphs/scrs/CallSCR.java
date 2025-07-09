@@ -7,6 +7,7 @@ import java.util.Set;
 
 /**
  * A strongly connected region (or component) on a {@link CallGraph}.
+ *
  * @see AbstractSCR
  */
 public class CallSCR extends AbstractSCR<CallGraph.Vertex, CallGraph.Edge<?>> {

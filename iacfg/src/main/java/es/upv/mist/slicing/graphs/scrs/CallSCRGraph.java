@@ -8,6 +8,7 @@ import java.util.Set;
 
 /**
  * A condensation of the strongly connected regions of a {@link CallGraph}.
+ *
  * @see AbstractSCRAlgorithm
  * @see CallSCR CallSCR: The component members of this graph.
  */

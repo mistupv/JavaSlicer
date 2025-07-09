@@ -52,8 +52,10 @@ public class PDG extends GraphWithRootNode<CallableDeclaration<?>> {
         built = true;
     }
 
-    /** Create a new PDG builder. Child classes that wish to alter the creation of the graph
-     * should create a new PDG builder and override this method. */
+    /**
+     * Create a new PDG builder. Child classes that wish to alter the creation of the graph
+     * should create a new PDG builder and override this method.
+     */
     protected Builder createBuilder() {
         return new Builder();
     }

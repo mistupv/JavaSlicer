@@ -94,9 +94,11 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
         protected CallSCRGraph cSCRs;
         /** A map to locate the set of {@link #intraSCRs} nodes that correspond (transitively) to a given {@link #cSCRs} node. */
         protected final Map<CallSCR, Set<IntraSCR>> transitiveMap = new HashMap<>();
-        /** The strongly connected components of the {@link ICFG}, computed while ignoring
-         *  interprocedural edges that connect {@link #cSCRs} nodes. <br>
-         *  Fulfils steps 2-3 of the Nanda-Ramesh topological numbers' algorithm. */
+        /**
+         * The strongly connected components of the {@link ICFG}, computed while ignoring
+         * interprocedural edges that connect {@link #cSCRs} nodes. <br>
+         * Fulfils steps 2-3 of the Nanda-Ramesh topological numbers' algorithm.
+         */
         protected IntraSCRGraph intraSCRs;
         /** Non-Recursive interprocedural Arcs from {@link  #intraSCRs} */
         protected Set<Triple<GraphNode<?>, GraphNode<?>, ControlFlowArc>> interprocNonRecArcs = new HashSet<>();
@@ -152,25 +154,25 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
         }
 
         private void getTopologicalNumber(IntraSCR node, Set<IntraSCR> processedIntraSCRs, Stack<IntraSCR> callStack, Map<IntraSCR, Set<IntraSCR>> callNodeProcessMap) {
-            if(processedIntraSCRs.contains(node)) {
+            if (processedIntraSCRs.contains(node)) {
                 return;
             }
 
-            for(IntraSCR predecessor : Graphs.predecessorListOf(intraSCRs, node)) {
+            for (IntraSCR predecessor : Graphs.predecessorListOf(intraSCRs, node)) {
                 if (isCallSCR(predecessor)) {
                     if (callStack.isEmpty() || !predecessor.equals(callStack.peek()))
                         continue; // Non-matching call nodes are ignored
                     callStack.pop();
                     getTopologicalNumber(predecessor, processedIntraSCRs, callStack, callNodeProcessMap);
-                } else if(isReturnSCR(predecessor)) {
+                } else if (isReturnSCR(predecessor)) {
                     IntraSCR callNode = returnToCorrespondentCallSiteMap.get(predecessor);
                     callStack.push(callNode);
                     callNodeProcessMap.computeIfAbsent(callNode, k -> new HashSet<>());
                     getTopologicalNumber(predecessor, processedIntraSCRs, callStack, callNodeProcessMap);
-                    if(callNodeProcessMap.containsKey(callNode))
+                    if (callNodeProcessMap.containsKey(callNode))
                         processedIntraSCRs.removeAll(callNodeProcessMap.get(callNode));
                 } else {
-                    if(!callStack.isEmpty())
+                    if (!callStack.isEmpty())
                         callNodeProcessMap.get(callStack.peek()).add(predecessor);
                     getTopologicalNumber(predecessor, processedIntraSCRs, callStack, callNodeProcessMap);
                 }
@@ -251,7 +253,7 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
         private void getAllIntraSCRNodes(Set<IntraSCR> intraSCRNodes, Set<IntraSCR> SCRNodes) {
             for (IntraSCR intraSCRNode : intraSCRNodes) {
                 SCRNodes.add(intraSCRNode);
-                Iterator<IntraSCR> iterator = new DepthFirstIterator<>(intraSCRs,intraSCRNode);
+                Iterator<IntraSCR> iterator = new DepthFirstIterator<>(intraSCRs, intraSCRNode);
                 while (iterator.hasNext()) {
                     SCRNodes.add(iterator.next());
                 }
@@ -265,14 +267,14 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
             IntraSCR mainIntraSCR = null;
             List<IntraSCR> listIntraSCR = new ArrayList<>();
             for (IntraSCR intraSCR : intraSCRs.vertexSet()) {
-                if(intraSCRs.incomingEdgesOf(intraSCR).isEmpty()) {
+                if (intraSCRs.incomingEdgesOf(intraSCR).isEmpty()) {
                     listIntraSCR.add(intraSCR);
                 }
             }
             for (IntraSCR intraSCRNode : listIntraSCR) {
                 for (GraphNode<?> graphNode : intraSCRNode.vertexSet()) {
                     MethodDeclaration declaration = (MethodDeclaration) graphNode.getAstNode();
-                    if(declaration.isPublic() && declaration.isStatic() && declaration.getType().isVoidType()) {
+                    if (declaration.isPublic() && declaration.isStatic() && declaration.getType().isVoidType()) {
                         mainIntraSCR = intraSCRNode;
                     }
                 }
@@ -288,7 +290,7 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
             Set<IntraSCR> mainProcess = inspector.connectedSetOf(mainIntraSCR);
             Set<IntraSCR> nodesToBeDeleted = new HashSet<>();
             for (IntraSCR intraSCR : intraSCRs.vertexSet()) {
-                if(!mainProcess.contains(intraSCR)){
+                if (!mainProcess.contains(intraSCR)) {
                     nodesToBeDeleted.add(intraSCR);
                 }
             }
@@ -313,10 +315,10 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
                 IntraSCR target = intraSCRs.getEdgeTarget(e);
                 // Deleted only if source vertex is simple intraSCR
                 // ToDo: check if target will always be simple (ask Carlos)
-                if(source.vertexSet().size() == 1){
-                    for(GraphNode<?> src : source.vertexSet()) {
-                        for(GraphNode<?> tgt : target.vertexSet()) {
-                            if(src instanceof CallNode && tgt instanceof CallNode.Return) {
+                if (source.vertexSet().size() == 1) {
+                    for (GraphNode<?> src : source.vertexSet()) {
+                        for (GraphNode<?> tgt : target.vertexSet()) {
+                            if (src instanceof CallNode && tgt instanceof CallNode.Return) {
                                 returnToCorrespondentCallSiteMap.put(target, source);
                                 toBeDeletedSet.add(e);
                             }
@@ -362,7 +364,7 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
                                 break;
                             }
                         }
-                    } else if(graphNode instanceof CallNode.Return){
+                    } else if (graphNode instanceof CallNode.Return) {
                         for (Triple<GraphNode<?>, GraphNode<?>, ControlFlowArc> arc : interprocNonRecArcs) {
                             if (graphNode.equals(arc.getSecond())) {
                                 @SuppressWarnings("unchecked")
@@ -510,8 +512,10 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
             }, null);
         }
 
-        /** Create class graph from the list of compilation units. */
-        protected void createClassGraph(NodeList<CompilationUnit> nodeList){
+        /**
+         * Create class graph from the list of compilation units.
+         */
+        protected void createClassGraph(NodeList<CompilationUnit> nodeList) {
             ClassGraph.getNewInstance().build(nodeList);
         }
 
@@ -631,12 +635,13 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
 
         /**
          * Extracts movable nodes from a single call, recursively.
-         * @param iterator An iterator over a GraphNode's variable actions, which will be consumed
-         *                 until the closing CallMarker that matches callMarker is found.
+         *
+         * @param iterator   An iterator over a GraphNode's variable actions, which will be consumed
+         *                   until the closing CallMarker that matches callMarker is found.
          * @param callMarker The call marker that enters the call to be analyzed.
          * @return The non-empty list of nodes, inserted into the graph and connected to each other.
-         *     Includes all nested calls. The first node in the list has no incoming edges.
-         *     The last node in the list has no outgoing edges.
+         * Includes all nested calls. The first node in the list has no incoming edges.
+         * The last node in the list has no outgoing edges.
          */
         protected LinkedList<GraphNode<?>> extractMovables(Iterator<VariableAction> iterator, VariableAction.CallMarker callMarker) {
             LinkedList<GraphNode<?>> res = new LinkedList<>();

@@ -64,7 +64,7 @@ public class Slicer {
         OPTIONS.addOption(Option
                 .builder("c").longOpt("criterion")
                 .hasArg().argName("file#line[:var]")
-                .desc("The slicing criterion, in the format \"file#line:var\". The variable is optional."+
+                .desc("The slicing criterion, in the format \"file#line:var\". The variable is optional." +
                         " This option may be replaced by \"-f\", \"-l\" and \"-v\"." +
                         " If this argument is set, it will override the individual ones.")
                 .build());
@@ -99,6 +99,7 @@ public class Slicer {
     private String scVar;
 
     private final CommandLine cliOpts;
+
     public Slicer(String... cliArgs) throws ParseException {
         cliOpts = new DefaultParser().parse(OPTIONS, cliArgs);
         if (cliOpts.hasOption('h'))
@@ -185,7 +186,7 @@ public class Slicer {
         List<Problem> problems = new LinkedList<>();
         boolean scFileFound = false;
         for (File file : (Iterable<File>) findAllJavaFiles(dirIncludeSet)::iterator)
-             scFileFound |= parse(file, units, problems);
+            scFileFound |= parse(file, units, problems);
         if (!scFileFound)
             parse(scFile, units, problems);
         if (!problems.isEmpty()) {

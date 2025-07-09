@@ -37,8 +37,14 @@ public class TestExamplePaperSimple {
         System.out.println("S12");
     }
 
-    public static void p1() { p2(); }
-    public static void p2() { p3(); }
+    public static void p1() {
+        p2();
+    }
+
+    public static void p2() {
+        p3();
+    }
+
     public static void p3() {
         while (1 > 2) {
             System.out.println("P3!");

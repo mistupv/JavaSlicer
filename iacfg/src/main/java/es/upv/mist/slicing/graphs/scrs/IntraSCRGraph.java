@@ -10,6 +10,7 @@ import java.util.Set;
 
 /**
  * A condensation of the strongly connected regions of a {@link ICFG}.
+ *
  * @see AbstractSCRAlgorithm
  * @see IntraSCR IntraSCR: The component members of this graph.
  */

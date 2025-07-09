@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 
 /**
  * A strongly connected region (or component) in a {@link ICFG}.
+ *
  * @see AbstractSCR
  */
 public class IntraSCR extends AbstractSCR<GraphNode<?>, Arc> {
