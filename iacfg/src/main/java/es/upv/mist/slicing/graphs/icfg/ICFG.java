@@ -145,16 +145,13 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
                 } else if(isReturnSCR(predecessor)) {
                     IntraSCR callNode = returnToCorrespondentCallSiteMap.get(predecessor);
                     callStack.push(callNode);
+                    callNodeProcessMap.computeIfAbsent(callNode, k -> new HashSet<>());
                     getTopologicalNumber(predecessor, proccessedIntraSCRs, callStack, callNodeProcessMap);
-                    if(callNodeProcessMap.containsKey(callNode)) {
-                        for (IntraSCR intraSCR : callNodeProcessMap.get(callNode)) {
-                            proccessedIntraSCRs.remove(intraSCR);
-                        }
-                    }
+                    if(callNodeProcessMap.containsKey(callNode))
+                        proccessedIntraSCRs.removeAll(callNodeProcessMap.get(callNode));
                 } else {
-                    if(!callStack.isEmpty()) {
-                        callNodeProcessMap.computeIfAbsent(callStack.peek(), k -> new HashSet<>()).add(predecessor);
-                    }
+                    if(!callStack.isEmpty())
+                        callNodeProcessMap.get(callStack.peek()).add(predecessor);
                     getTopologicalNumber(predecessor, proccessedIntraSCRs, callStack, callNodeProcessMap);
                 }
             }
