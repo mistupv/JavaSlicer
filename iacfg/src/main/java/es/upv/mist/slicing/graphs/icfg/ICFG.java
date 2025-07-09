@@ -121,9 +121,9 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
         private void generateTopologicalNumbers() {
             // get exit node
             IntraSCR exitNode = null;
-            for (IntraSCR cSCRNode : intraSCRs.vertexSet()) {
-                if (intraSCRs.outDegreeOf(cSCRNode) == 0) {
-                    exitNode = cSCRNode;
+            for (IntraSCR intraSCR : intraSCRs.vertexSet()) {
+                if (intraSCRs.outDegreeOf(intraSCR) == 0) {
+                    exitNode = intraSCR;
                     break;
                 }
             }
@@ -131,8 +131,8 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
             getTopologicalNumber(exitNode, new HashSet<>(), new Stack<>(), new HashMap<>());
         }
 
-        private void getTopologicalNumber(IntraSCR node, Set<IntraSCR> proccessedIntraSCRs, Stack<IntraSCR> callStack, Map<IntraSCR, Set<IntraSCR>> callNodeProcessMap) {
-            if(proccessedIntraSCRs.contains(node)) {
+        private void getTopologicalNumber(IntraSCR node, Set<IntraSCR> processedIntraSCRs, Stack<IntraSCR> callStack, Map<IntraSCR, Set<IntraSCR>> callNodeProcessMap) {
+            if(processedIntraSCRs.contains(node)) {
                 return;
             }
 
@@ -141,23 +141,23 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
                     if (callStack.isEmpty() || !predecessor.equals(callStack.peek()))
                         continue; // Non-matching call nodes are ignored
                     callStack.pop();
-                    getTopologicalNumber(predecessor, proccessedIntraSCRs, callStack, callNodeProcessMap);
+                    getTopologicalNumber(predecessor, processedIntraSCRs, callStack, callNodeProcessMap);
                 } else if(isReturnSCR(predecessor)) {
                     IntraSCR callNode = returnToCorrespondentCallSiteMap.get(predecessor);
                     callStack.push(callNode);
                     callNodeProcessMap.computeIfAbsent(callNode, k -> new HashSet<>());
-                    getTopologicalNumber(predecessor, proccessedIntraSCRs, callStack, callNodeProcessMap);
+                    getTopologicalNumber(predecessor, processedIntraSCRs, callStack, callNodeProcessMap);
                     if(callNodeProcessMap.containsKey(callNode))
-                        proccessedIntraSCRs.removeAll(callNodeProcessMap.get(callNode));
+                        processedIntraSCRs.removeAll(callNodeProcessMap.get(callNode));
                 } else {
                     if(!callStack.isEmpty())
                         callNodeProcessMap.get(callStack.peek()).add(predecessor);
-                    getTopologicalNumber(predecessor, proccessedIntraSCRs, callStack, callNodeProcessMap);
+                    getTopologicalNumber(predecessor, processedIntraSCRs, callStack, callNodeProcessMap);
                 }
             }
             node.addTopologicalNumber(topologicalNumber++);
 
-            proccessedIntraSCRs.add(node);
+            processedIntraSCRs.add(node);
         }
 
         private static boolean isCallSCR(IntraSCR node) {
