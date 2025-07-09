@@ -90,16 +90,8 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
         protected IntraSCRGraph intraSCRs;
         /** Non-Recursive interprocedural Arcs from {@link  #intraSCRs} */
         protected Set<Triple<GraphNode<?>, GraphNode<?>, ControlFlowArc>> interprocNonRecArcs = new HashSet<>();
-        /** A list of all {@link  #intraSCRs} that have an callSite type in Nanda-Ramesh algorithm */
-        protected Set<IntraSCR> callSiteIntraSCRs = new HashSet<>();
-        /** A list of all {@link  #intraSCRs} that have an returnSite type in Nanda-Ramesh algorithm */
-        protected Set<IntraSCR> returnSiteIntraSCRs = new HashSet<>();
         /** A map to locate the correspondent call node from a return node */
         protected final Map<IntraSCR, IntraSCR> returnToCorrespondentCallSiteMap = new HashMap<>();
-        /** A map to locate the {@link  #intraSCRs} within a call*/
-        protected final Map<IntraSCR, Set<IntraSCR>> callNodeProcessMap = new HashMap<>();
-        /** A map to get the topological number associated to the {@link  #intraSCRs} */
-        protected final Map<Integer, IntraSCR> topologicalNumbersMap = new HashMap<>();
         /** counter for topologicalNumbers */
         protected int topologicalNumber = 0;
 
@@ -127,8 +119,6 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
         }
 
         private void generateTopologicalNumbers() {
-            Set<IntraSCR> proccessedIntraSCRs = new HashSet<>();
-            Stack<IntraSCR> callStack = new Stack<>();
             // get exit node
             IntraSCR exitNode = null;
             for (IntraSCR cSCRNode : intraSCRs.vertexSet()) {
@@ -138,24 +128,24 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
                 }
             }
             //callGetTopologicalNumber for exitNode (predecessors are visited inside)
-            getTopologicalNumber(exitNode, proccessedIntraSCRs, callStack);
+            getTopologicalNumber(exitNode, new HashSet<>(), new Stack<>(), new HashMap<>());
         }
 
-        private <V> void getTopologicalNumber(IntraSCR node, Set<IntraSCR> proccessedIntraSCRs, Stack<IntraSCR> callStack) {
+        private <V> void getTopologicalNumber(IntraSCR node, Set<IntraSCR> proccessedIntraSCRs, Stack<IntraSCR> callStack, Map<IntraSCR, Set<IntraSCR>> callNodeProcessMap) {
             if(proccessedIntraSCRs.contains(node)) {
                 return;
             }
 
             for(IntraSCR predecessor : Graphs.predecessorListOf(intraSCRs, node)) {
-                if (callSiteIntraSCRs.contains(predecessor)) {
+                if (isCallSCR(predecessor)) {
                     if (callStack.isEmpty() || !predecessor.equals(callStack.peek()))
                         continue; // Non-matching call nodes are ignored
                     callStack.pop();
-                    getTopologicalNumber(predecessor, proccessedIntraSCRs, callStack);
-                } else if(returnSiteIntraSCRs.contains(predecessor) ) {
+                    getTopologicalNumber(predecessor, proccessedIntraSCRs, callStack, callNodeProcessMap);
+                } else if(isReturnSCR(predecessor)) {
                     IntraSCR callNode = returnToCorrespondentCallSiteMap.get(predecessor);
                     callStack.push(callNode);
-                    getTopologicalNumber(predecessor, proccessedIntraSCRs, callStack);
+                    getTopologicalNumber(predecessor, proccessedIntraSCRs, callStack, callNodeProcessMap);
                     if(callNodeProcessMap.containsKey(callNode)) {
                         for (IntraSCR intraSCR : callNodeProcessMap.get(callNode)) {
                             proccessedIntraSCRs.remove(intraSCR);
@@ -165,13 +155,20 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
                     if(!callStack.isEmpty()) {
                         callNodeProcessMap.computeIfAbsent(callStack.peek(), k -> new HashSet<>()).add(predecessor);
                     }
-                    getTopologicalNumber(predecessor, proccessedIntraSCRs, callStack);
+                    getTopologicalNumber(predecessor, proccessedIntraSCRs, callStack, callNodeProcessMap);
                 }
             }
-            node.addTopologicalNumber(topologicalNumber);
-            topologicalNumber++;
+            node.addTopologicalNumber(topologicalNumber++);
 
             proccessedIntraSCRs.add(node);
+        }
+
+        private static boolean isCallSCR(IntraSCR node) {
+            return node.vertexSet().size() == 1 && node.vertexSet().iterator().next() instanceof CallNode;
+        }
+
+        private static boolean isReturnSCR(IntraSCR node) {
+            return node.vertexSet().size() == 1 && node.vertexSet().iterator().next() instanceof CallNode.Return;
         }
 
         private void addEdgesToIntraSCRs(Set<Triple<GraphNode<?>, GraphNode<?>, ControlFlowArc>> deletedArcs) {
@@ -370,15 +367,12 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
                 if (graphNode instanceof CallNode) {
                     for (Triple<GraphNode<?>, GraphNode<?>, ControlFlowArc> arc : interprocNonRecArcs) {
                         if (graphNode.equals(arc.getFirst())) {
-                            callSiteIntraSCRs.add(intraSCR);
                             @SuppressWarnings("unchecked")
                             GraphNode<CallableDeclaration<?>> enterNode = (GraphNode<CallableDeclaration<?>>) arc.getSecond();
                             IntraSCR enterIntraSCR = getEnterIntraSCR(enterNode);
                             buildISCRGraph(enterIntraSCR, processedIntraSCRs);
                         }
                     }
-                } else if(graphNode instanceof CallNode.Return){
-                    returnSiteIntraSCRs.add(intraSCR);
                 }
             } else {
                 throw new IllegalStateException("The intraSCRs is empty");
