@@ -78,3 +78,34 @@ If the graph is of interest, it can be outputted in `dot` or PDF format via `SDG
 ## Missing Java features
 
 * Parallel features: threads, shared memory, synchronized methods, etc.
+
+## Cite this software
+
+To cite the use of this software, you can use the following [reference][doi]:
+
+> Carlos Galindo, Sergio Pérez, Josep Silva. 2022. A program slicer for Java (tool paper). International Conference on Software Engineering and Formal Methods, 146-151.
+
+You can also use the following BibTeX entry:
+
+<details>
+<summary>BibTeX entry</summary>
+    
+```bibtex
+@InProceedings{javaslicer,
+  author    = {Galindo, Carlos and Perez, Sergio and Silva, Josep},
+  editor    = {Schlingloff, Bernd-Holger and Chai, Ming},
+  title     = {A Program Slicer for Java (Tool Paper)},
+  booktitle = {Software Engineering and Formal Methods},
+  series    = {SEFM},
+  year      = {2022},
+  publisher = {Springer International Publishing},
+  address   = {Cham},
+  pages     = {146--151},
+  isbn      = {978-3-031-17108-6},
+  doi       = {10.1007/978-3-031-17108-6_9}
+}
+```
+
+</details>
+
+[doi]: https://doi.org/10.1007/978-3-031-17108-6_9
