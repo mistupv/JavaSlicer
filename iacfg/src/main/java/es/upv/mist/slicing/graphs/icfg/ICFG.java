@@ -51,7 +51,7 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
     protected final Map<GraphNode<?>, Set<Integer>> topologicalNumbersMap = new HashMap<>();
 
     public String getTopologicalNumbersString(GraphNode<?> node) {
-        return topologicalNumbersMap.get(node).stream()
+        return topologicalNumbersMap.get(node) == null ? "" : topologicalNumbersMap.get(node).stream()
                 .map(String::valueOf)
                 .collect(Collectors.joining(","));
     }
@@ -207,10 +207,14 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
             // startFromMain
             // getMain vertex
             CallSCR mainNode = null;
-            for (CallSCR cSCRNode : cSCRs.vertexSet()) {
-                if (cSCRs.inDegreeOf(cSCRNode) == 0) {
-                    mainNode = cSCRNode;
-                    break;
+            outer: for (CallSCR cSCRNode : cSCRs.vertexSet()) {
+                for (CallGraph.Vertex vertex : cSCRNode.vertexSet()) {
+                    MethodDeclaration declaration = (MethodDeclaration) vertex.getDeclaration();
+                    if(declaration.isPublic() && declaration.isStatic() && declaration.getType().isVoidType()
+                            && declaration.getNameAsString().equals("main") && declaration.getParameters().size() == 1){
+                        mainNode = cSCRNode;
+                        break outer;
+                    }
                 }
             }
             //callCacheTransitive for mainNode (successors are visited inside)
@@ -265,23 +269,22 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
             // startFromMain
             // getMain vertex
             IntraSCR mainIntraSCR = null;
-            List<IntraSCR> listIntraSCR = new ArrayList<>();
-            for (IntraSCR intraSCR : intraSCRs.vertexSet()) {
-                if (intraSCRs.incomingEdgesOf(intraSCR).isEmpty()) {
-                    listIntraSCR.add(intraSCR);
-                }
-            }
-            for (IntraSCR intraSCRNode : listIntraSCR) {
-                for (GraphNode<?> graphNode : intraSCRNode.vertexSet()) {
-                    MethodDeclaration declaration = (MethodDeclaration) graphNode.getAstNode();
-                    if (declaration.isPublic() && declaration.isStatic() && declaration.getType().isVoidType()) {
-                        mainIntraSCR = intraSCRNode;
+            outer: for (IntraSCR intraSCR : intraSCRs.vertexSet()) {
+                for (GraphNode<?> graphNode : intraSCR.vertexSet()) {
+                    if(graphNode.getAstNode() instanceof MethodDeclaration declaration) {
+                        if (declaration.isPublic() && declaration.isStatic() && declaration.getType().isVoidType()
+                                && declaration.getNameAsString().equals("main") && declaration.getParameters().size() == 1) {
+                            mainIntraSCR = intraSCR;
+                            break outer;
+                        }
                     }
                 }
             }
-            buildISCRGraph(mainIntraSCR, processedIntraSCRs);
+
+
             deleteCallReturnEdges();
             deleteMainExitEdge(mainIntraSCR);
+            buildISCRGraph(mainIntraSCR, processedIntraSCRs);
             getMainProcess(mainIntraSCR);
         }
 
@@ -300,12 +303,15 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
         }
 
         private void deleteMainExitEdge(IntraSCR mainIntraSCR) {
-            IntraSCR exitNode = intraSCRs.outgoingEdgesOf(mainIntraSCR).stream()
-                    .map(intraSCRs::getEdgeTarget)
-                    .filter(target -> target.vertexSet().stream().anyMatch(node -> node instanceof MethodExitNode))
-                    .findFirst().orElseThrow();
+            //only delete edge if main has other outgoing edges
+            if(intraSCRs.outgoingEdgesOf(mainIntraSCR).size() > 1) {
+                IntraSCR exitNode = intraSCRs.outgoingEdgesOf(mainIntraSCR).stream()
+                        .map(intraSCRs::getEdgeTarget)
+                        .filter(target -> target.vertexSet().stream().anyMatch(node -> node instanceof MethodExitNode))
+                        .findFirst().orElseThrow();
 
-            intraSCRs.removeEdge(mainIntraSCR, exitNode);
+                intraSCRs.removeEdge(mainIntraSCR, exitNode);
+            }
         }
 
         private void deleteCallReturnEdges() {
@@ -314,8 +320,7 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
                 IntraSCR source = intraSCRs.getEdgeSource(e);
                 IntraSCR target = intraSCRs.getEdgeTarget(e);
                 // Deleted only if source vertex is simple intraSCR
-                // ToDo: check if target will always be simple (ask Carlos)
-                if (source.vertexSet().size() == 1) {
+                if (source.vertexSet().size() == 1 && target.vertexSet().size() == 1) {
                     for (GraphNode<?> src : source.vertexSet()) {
                         for (GraphNode<?> tgt : target.vertexSet()) {
                             if (src instanceof CallNode && tgt instanceof CallNode.Return) {
