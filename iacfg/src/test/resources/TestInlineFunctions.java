@@ -27,16 +27,4 @@ public class TestInlineFunctions {
         b++;
         return a + 1;
     }
-
-    private static int incrementarBucle(int a) {
-        if (a > 0) {
-            int x = 0;
-            for (int i = 0; i < a; i++) {
-                x = x + i;
-            }
-            return x;
-        } else {
-            return a;
-        }
-    }
 }
