@@ -338,11 +338,13 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
 
         private static void mergeGraphs(IntraSCR target, IntraSCR src) {
             for (GraphNode<?> n : src.vertexSet())
-                if (!target.addVertex(n))
+                if (!target.vertexSet().contains(n) && !target.addVertex(n))
                     throw new RuntimeException();
-            for (Arc arc : src.edgeSet())
-                if (!target.addEdge(src.getEdgeSource(arc), src.getEdgeTarget(arc), arc))
+            for (Arc arc : src.edgeSet()) {
+                Arc edge = target.getEdge(src.getEdgeSource(arc), src.getEdgeTarget(arc));
+                if (edge == null && !target.addEdge(src.getEdgeSource(arc), src.getEdgeTarget(arc), arc))
                     throw new RuntimeException();
+            }
         }
 
         private void buildISCRGraph(IntraSCR intraSCR, List<IntraSCR> processedIntraSCRs) {

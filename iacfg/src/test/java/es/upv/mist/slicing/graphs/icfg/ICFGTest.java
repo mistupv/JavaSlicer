@@ -47,8 +47,8 @@ public class ICFGTest {
         createGraph("Test6.java", "grafoTest6");
         System.out.println("Grafo 11 generado...");*/
 
-        createGraph("TestExamplePaperSimple.java", "grafoPaperSimple");
-        System.out.println("Grafo 12 generado...");
+        /*createGraph("TestExamplePaperSimple.java", "grafoPaperSimple");
+        System.out.println("Grafo 12 generado...");*/
 
         /* createGraph("TestExamplePaperSimpleContra1.java", "contra1");
         System.out.println("Grafo 13 generado...");*/
@@ -56,8 +56,8 @@ public class ICFGTest {
         /* createGraph("TestExamplePaperSimpleContra2.java", "contra2");
         System.out.println("Grafo 14 generado..."); */
 
-        /* createGraph("TestExamplePaperSimpleContra3.java", "contra3");
-        System.out.println("Grafo 15 generado...");*/
+        createGraph("TestExamplePaperSimpleContra3.java", "contra3");
+        System.out.println("Grafo 15 generado...");
 
         /* createGraph("TestExamplePaperSimpleContra4.java", "contra4");
         System.out.println("Grafo 16 generado..."); */
