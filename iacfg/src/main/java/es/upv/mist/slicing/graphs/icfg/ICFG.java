@@ -2,10 +2,8 @@ package es.upv.mist.slicing.graphs.icfg;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.NodeList;
-import com.github.javaparser.ast.body.CallableDeclaration;
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
-import com.github.javaparser.ast.body.ConstructorDeclaration;
-import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.*;
+import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import es.upv.mist.slicing.arcs.Arc;
 import es.upv.mist.slicing.arcs.cfg.ControlFlowArc;
@@ -201,6 +199,24 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
             }
         }
 
+        public static boolean isMainMethod(MethodDeclaration declaration) {
+            if (declaration.isPublic() &&
+                    declaration.isStatic() &&
+                    declaration.getType().isVoidType() &&
+                    declaration.getNameAsString().equals("main") &&
+                    declaration.getParameters().size() == 1) {
+
+                Parameter param = declaration.getParameter(0);
+                Type paramType = param.getType();
+
+                return (paramType.isArrayType() &&
+                        paramType.asArrayType().getComponentType().asString().equals("String"))
+                        || (param.isVarArgs() &&
+                        paramType.asClassOrInterfaceType().getNameAsString().equals("String"));
+            }
+            return false;
+        }
+
         private void buildCacheTransitive() {
             Set<CallSCR> processedCSCRNode = new HashSet<>();
 
@@ -210,8 +226,7 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
             outer: for (CallSCR cSCRNode : cSCRs.vertexSet()) {
                 for (CallGraph.Vertex vertex : cSCRNode.vertexSet()) {
                     MethodDeclaration declaration = (MethodDeclaration) vertex.getDeclaration();
-                    if(declaration.isPublic() && declaration.isStatic() && declaration.getType().isVoidType()
-                            && declaration.getNameAsString().equals("main") && declaration.getParameters().size() == 1){
+                    if (isMainMethod(declaration)) {
                         mainNode = cSCRNode;
                         break outer;
                     }
@@ -272,8 +287,7 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
             outer: for (IntraSCR intraSCR : intraSCRs.vertexSet()) {
                 for (GraphNode<?> graphNode : intraSCR.vertexSet()) {
                     if(graphNode.getAstNode() instanceof MethodDeclaration declaration) {
-                        if (declaration.isPublic() && declaration.isStatic() && declaration.getType().isVoidType()
-                                && declaration.getNameAsString().equals("main") && declaration.getParameters().size() == 1) {
+                        if(isMainMethod(declaration)) {
                             mainIntraSCR = intraSCR;
                             break outer;
                         }
@@ -281,8 +295,10 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
                 }
             }
 
-
             deleteCallReturnEdges();
+            // main never will be null
+            if (mainIntraSCR == null)
+                throw new RuntimeException();
             deleteMainExitEdge(mainIntraSCR);
             buildISCRGraph(mainIntraSCR, processedIntraSCRs);
             getMainProcess(mainIntraSCR);
@@ -303,8 +319,8 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
         }
 
         private void deleteMainExitEdge(IntraSCR mainIntraSCR) {
-            //only delete edge if main has other outgoing edges
-            if(intraSCRs.outgoingEdgesOf(mainIntraSCR).size() > 1) {
+            //only delete edge if main is not multiNode
+            if(mainIntraSCR.vertexSet().size() == 1) {
                 IntraSCR exitNode = intraSCRs.outgoingEdgesOf(mainIntraSCR).stream()
                         .map(intraSCRs::getEdgeTarget)
                         .filter(target -> target.vertexSet().stream().anyMatch(node -> node instanceof MethodExitNode))

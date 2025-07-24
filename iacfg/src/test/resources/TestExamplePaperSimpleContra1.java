@@ -36,7 +36,8 @@ public class TestExamplePaperSimple {
         l();
         System.out.println("S12");
 
-        main(args);
+        if(2>3)
+            main(args);
     }
 
     public static void p1() {
