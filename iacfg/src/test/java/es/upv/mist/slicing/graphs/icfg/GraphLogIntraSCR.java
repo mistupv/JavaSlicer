@@ -10,6 +10,8 @@ import org.jgrapht.nio.dot.DOTExporter;
 
 import java.awt.*;
 import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Collectors;
 
 public abstract class GraphLogIntraSCR<G extends IntraSCRGraph> {
@@ -19,6 +21,7 @@ public abstract class GraphLogIntraSCR<G extends IntraSCRGraph> {
     protected String imageName;
     protected String format;
     protected boolean generated = false;
+    protected List<IntraSCR> marked = new ArrayList<>();
     protected File outputDir = new File("./out/");
 
     public GraphLogIntraSCR() {
@@ -26,6 +29,11 @@ public abstract class GraphLogIntraSCR<G extends IntraSCRGraph> {
     }
 
     public GraphLogIntraSCR(G graph) {
+        this.graph = graph;
+    }
+
+    public GraphLogIntraSCR(G graph, List<IntraSCR> processedIntraSCRs) {
+        this.marked = processedIntraSCRs;
         this.graph = graph;
     }
 
@@ -140,6 +148,9 @@ public abstract class GraphLogIntraSCR<G extends IntraSCRGraph> {
 
     protected DOTAttributes vertexAttributes(IntraSCR vertex) {
         DOTAttributes res = new DOTAttributes();
+        if(!marked.isEmpty()){
+            res.set("style", marked.contains(vertex) ? "normal" : "dashed");
+        }
         res.set("label", "X" + vertex.getId() + "\n" + "TOP-" + vertex.getTopologicalNumber() + "\n" + vertex.vertexSet().stream()
                 .map(graphNode -> "%04d: %s".formatted(graphNode.getId(), graphNode.getLabel()))
                 .sorted()
