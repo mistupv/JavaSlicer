@@ -26,7 +26,6 @@ import es.upv.mist.slicing.nodes.io.MethodExitNode;
 import es.upv.mist.slicing.utils.ASTUtils;
 import org.jgrapht.Graph;
 import org.jgrapht.Graphs;
-import org.jgrapht.alg.connectivity.ConnectivityInspector;
 import org.jgrapht.alg.util.Triple;
 import org.jgrapht.graph.DefaultDirectedGraph;
 import org.jgrapht.graph.DefaultEdge;
@@ -300,22 +299,20 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
             if (mainIntraSCR == null)
                 throw new RuntimeException();
             deleteMainExitEdge(mainIntraSCR);
-            buildISCRGraph(mainIntraSCR, processedIntraSCRs);
-            getMainProcess(mainIntraSCR);
+            buildISCRGraph(mainIntraSCR, processedIntraSCRs, new Stack<>());
+            deleteNoProcessedIntraSCRs(processedIntraSCRs);
         }
 
-        private void getMainProcess(IntraSCR mainIntraSCR) {
-            ConnectivityInspector<IntraSCR, DefaultEdge> inspector = new ConnectivityInspector<>(intraSCRs);
-            Set<IntraSCR> mainProcess = inspector.connectedSetOf(mainIntraSCR);
+        private void deleteNoProcessedIntraSCRs(List<IntraSCR> processedIntraSCRs) {
             Set<IntraSCR> nodesToBeDeleted = new HashSet<>();
-            for (IntraSCR intraSCR : intraSCRs.vertexSet()) {
-                if (!mainProcess.contains(intraSCR)) {
+            intraSCRs.vertexSet().forEach(intraSCR -> {
+                if(!processedIntraSCRs.contains(intraSCR)) {
                     nodesToBeDeleted.add(intraSCR);
                 }
-            }
-            for (IntraSCR node : nodesToBeDeleted) {
+            });
+            nodesToBeDeleted.forEach(node -> {
                 intraSCRs.removeVertex(node);
-            }
+            });
         }
 
         private void deleteMainExitEdge(IntraSCR mainIntraSCR) {
@@ -363,9 +360,15 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
             }
         }
 
-        private void buildISCRGraph(IntraSCR intraSCR, List<IntraSCR> processedIntraSCRs) {
+        private void buildISCRGraph(IntraSCR intraSCR, List<IntraSCR> processedIntraSCRs, Stack<IntraSCR> callStack) {
             if (processedIntraSCRs.contains(intraSCR)) {
-                return;
+                if(callStack.isEmpty())
+                    return;
+                else {
+                    for (IntraSCR successor : Graphs.successorListOf(intraSCRs, intraSCR)) {
+                        buildISCRGraph(successor, processedIntraSCRs, callStack);
+                    }
+                }
             }
             processedIntraSCRs.add(intraSCR);
             Set<GraphNode<?>> graphNodes = intraSCR.vertexSet();
@@ -412,8 +415,15 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
                             @SuppressWarnings("unchecked")
                             GraphNode<CallableDeclaration<?>> enterNode = (GraphNode<CallableDeclaration<?>>) arc.getSecond();
                             IntraSCR enterIntraSCR = getEnterIntraSCR(enterNode);
-                            buildISCRGraph(enterIntraSCR, processedIntraSCRs);
+                            callStack.push(enterIntraSCR);
+                            buildISCRGraph(enterIntraSCR, processedIntraSCRs, callStack);
                         }
+                    }
+                } else if(graphNode instanceof CallNode.Return) {
+                    if(!processedIntraSCRs.contains(returnToCorrespondentCallSiteMap.get(intraSCR))) {
+                        processedIntraSCRs.remove(intraSCR);
+                        callStack.remove(returnToCorrespondentCallSiteMap.get(intraSCR));
+                        return;
                     }
                 }
             } else {
@@ -421,7 +431,7 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
             }
 
             for (IntraSCR successor : Graphs.successorListOf(intraSCRs, intraSCR)) {
-                buildISCRGraph(successor, processedIntraSCRs);
+                buildISCRGraph(successor, processedIntraSCRs, callStack);
             }
         }
 
