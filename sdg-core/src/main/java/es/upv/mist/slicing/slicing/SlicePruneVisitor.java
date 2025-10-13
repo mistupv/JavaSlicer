@@ -201,6 +201,13 @@ public class SlicePruneVisitor extends ModifierVisitor<NodeHashSet<Node>> {
 
     @Override
     public Visitable visit(EmptyStmt n, NodeHashSet<Node> arg) {
+        // Do not remove empty bodies from if-else or loops
+        Node parent = n.getParentNode().orElse(null);
+        if (parent instanceof IfStmt &&
+                (((IfStmt) parent).getThenStmt() == n || ((IfStmt) parent).getElseStmt().orElse(null) == n))
+            return n;
+        if (parent instanceof NodeWithBody && ((NodeWithBody<?>) parent).getBody() == n)
+            return n;
         return arg.contains(n) ? n : null;
     }
 }
