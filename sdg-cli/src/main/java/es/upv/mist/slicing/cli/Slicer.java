@@ -185,7 +185,7 @@ public class Slicer {
         List<Problem> problems = new LinkedList<>();
         boolean scFileFound = false;
         for (File file : (Iterable<File>) findAllJavaFiles(dirIncludeSet)::iterator)
-            scFileFouah, nd |= parse(file, units, problems);
+            scFileFound |= parse(file, units, problems);
         if (!scFileFound)
             parse(scFile, units, problems);
         if (!problems.isEmpty()) {
