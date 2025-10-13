@@ -198,4 +198,9 @@ public class SlicePruneVisitor extends ModifierVisitor<NodeHashSet<Node>> {
         super.visit(n, arg);
         return keep ? n : null;
     }
+
+    @Override
+    public Visitable visit(EmptyStmt n, NodeHashSet<Node> arg) {
+        return arg.contains(n) ? n : null;
+    }
 }
