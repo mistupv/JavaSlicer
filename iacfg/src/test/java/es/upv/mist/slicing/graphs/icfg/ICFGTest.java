@@ -68,8 +68,11 @@ public class ICFGTest {
         /* createGraph("TestExamplePaperSimpleContra6.java", "contra6");
         System.out.println("Grafo 18 generado..."); */
 
-        createGraph("TestExamplePaperSimpleContra7.java", "contra7");
-        System.out.println("Grafo 19 generado...");
+        /* createGraph("TestExamplePaperSimpleContra7.java", "contra7");
+        System.out.println("Grafo 19 generado..."); */
+
+        createGraph("TestContraEjemploSimple.java", "contraSimple");
+        System.out.println("Grafo 20 generado...");
     }
 
     private static void createGraph(String fileName, String graphName) throws IOException {
