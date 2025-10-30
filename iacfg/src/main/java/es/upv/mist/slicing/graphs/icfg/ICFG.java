@@ -10,6 +10,7 @@ import es.upv.mist.slicing.arcs.cfg.ControlFlowArc;
 import es.upv.mist.slicing.graphs.Buildable;
 import es.upv.mist.slicing.graphs.CallGraph;
 import es.upv.mist.slicing.graphs.ClassGraph;
+import es.upv.mist.slicing.util.LinkedStack;
 import es.upv.mist.slicing.graphs.augmented.ACFG;
 import es.upv.mist.slicing.graphs.cfg.CFG;
 import es.upv.mist.slicing.graphs.scrs.CallSCR;
@@ -148,10 +149,10 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
                 }
             }
             //callGetTopologicalNumber for exitNode (predecessors are visited inside)
-            getTopologicalNumber(exitNode, new HashSet<>(), new Stack<>(), new HashMap<>());
+            getTopologicalNumber(exitNode, new HashSet<>(), new LinkedStack<>(), new HashMap<>());
         }
 
-        private void getTopologicalNumber(IntraSCR node, Set<IntraSCR> processedIntraSCRs, Stack<IntraSCR> callStack, Map<IntraSCR, Set<IntraSCR>> callNodeProcessMap) {
+        private void getTopologicalNumber(IntraSCR node, Set<IntraSCR> processedIntraSCRs, LinkedStack<IntraSCR> callStack, Map<IntraSCR, Set<IntraSCR>> callNodeProcessMap) {
             if (processedIntraSCRs.contains(node)) {
                 return;
             }
@@ -160,15 +161,19 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
                 if (isCallSCR(predecessor)) {
                     if (callStack.isEmpty() || !predecessor.equals(callStack.peek()))
                         continue; // Non-matching call nodes are ignored
-                    callStack.pop();
+                    callStack = callStack.pop();
+                    if (!callStack.isEmpty())
+                        callNodeProcessMap.get(callStack.peek()).add(predecessor);
                     getTopologicalNumber(predecessor, processedIntraSCRs, callStack, callNodeProcessMap);
                 } else if (isReturnSCR(predecessor)) {
+                    if (!callStack.isEmpty())
+                        callNodeProcessMap.get(callStack.peek()).add(predecessor);
                     IntraSCR callNode = returnToCorrespondentCallMap.get(predecessor);
-                    callStack.push(callNode);
+                    callStack = callStack.push(callNode);
                     callNodeProcessMap.computeIfAbsent(callNode, k -> new HashSet<>());
                     getTopologicalNumber(predecessor, processedIntraSCRs, callStack, callNodeProcessMap);
-                    if (callNodeProcessMap.containsKey(callNode))
-                        processedIntraSCRs.removeAll(callNodeProcessMap.get(callNode));
+                    assert callNodeProcessMap.containsKey(callNode);
+                    processedIntraSCRs.removeAll(callNodeProcessMap.get(callNode));
                 } else {
                     if (!callStack.isEmpty())
                         callNodeProcessMap.get(callStack.peek()).add(predecessor);
@@ -345,6 +350,8 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
                     }
                 }
             }
+            // RED FLAG: why does not deleting call->return edges make function numbering miss (it gets numbered, but fewer times than correct).
+            // To see this bug, delete the following for loop.
             for (DefaultEdge deletedEdge : toBeDeletedSet) {
                 intraSCRs.removeEdge(deletedEdge);
             }
@@ -415,19 +422,12 @@ public class ICFG extends es.upv.mist.slicing.graphs.Graph implements Buildable<
                             @SuppressWarnings("unchecked")
                             GraphNode<CallableDeclaration<?>> enterNode = (GraphNode<CallableDeclaration<?>>) arc.getSecond();
                             IntraSCR enterIntraSCR = getEnterIntraSCR(enterNode);
-                            if(processedIntraSCRs.contains(enterIntraSCR)) {
-                                IntraSCR returnIntraSCR = callToCorrespondentReturnMap.get(intraSCR);
-                                buildISCRGraph(returnIntraSCR, processedIntraSCRs);
-                            } else {
                                 buildISCRGraph(enterIntraSCR, processedIntraSCRs);
-                            }
+
                         }
                     }
                 } else if(graphNode instanceof CallNode.Return) {
-                    if(!processedIntraSCRs.contains(returnToCorrespondentCallMap.get(intraSCR))) {
-                        processedIntraSCRs.remove(intraSCR);
-                        return;
-                    }
+                    // RED FLAG: unmarks nodes in this algorithm???
                 }
             } else {
                 throw new IllegalStateException("The intraSCRs is empty");
