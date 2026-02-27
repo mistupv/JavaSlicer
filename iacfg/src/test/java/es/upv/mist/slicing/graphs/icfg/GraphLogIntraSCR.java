@@ -1,42 +1,39 @@
-package es.upv.mist.slicing.cli;
+package es.upv.mist.slicing.graphs.icfg;
 
-import es.upv.mist.slicing.arcs.Arc;
-import es.upv.mist.slicing.graphs.Graph;
+import es.upv.mist.slicing.cli.DOTAttributes;
+import es.upv.mist.slicing.graphs.scrs.IntraSCR;
+import es.upv.mist.slicing.graphs.scrs.IntraSCRGraph;
 import es.upv.mist.slicing.nodes.GraphNode;
 import es.upv.mist.slicing.utils.Logger;
+import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.nio.dot.DOTExporter;
 
 import java.awt.*;
 import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
-public abstract class GraphLog<G extends Graph> {
-    public enum Format {
-        PNG("png"),
-        PDF("pdf");
-
-        private String ext;
-
-        Format(String ext) {
-            this.ext = ext;
-        }
-
-        public String getExt() {
-            return ext;
-        }
-    }
+public abstract class GraphLogIntraSCR<G extends IntraSCRGraph> {
 
     protected G graph;
 
     protected String imageName;
     protected String format;
     protected boolean generated = false;
+    protected List<IntraSCR> marked = new ArrayList<>();
     protected File outputDir = new File("./out/");
 
-    public GraphLog() {
+    public GraphLogIntraSCR() {
         this(null);
     }
 
-    public GraphLog(G graph) {
+    public GraphLogIntraSCR(G graph) {
+        this.graph = graph;
+    }
+
+    public GraphLogIntraSCR(G graph, List<IntraSCR> processedIntraSCRs) {
+        this.marked = processedIntraSCRs;
         this.graph = graph;
     }
 
@@ -47,14 +44,14 @@ public abstract class GraphLog<G extends Graph> {
     public void log() throws IOException {
         Logger.log(
                 "****************************\n" +
-                "*           GRAPH          *\n" +
-                "****************************"
+                        "*           GRAPH          *\n" +
+                        "****************************"
         );
         Logger.log(graph);
         Logger.log(
                 "****************************\n" +
-                "*         GRAPHVIZ         *\n" +
-                "****************************"
+                        "*         GRAPHVIZ         *\n" +
+                        "****************************"
         );
         try (StringWriter stringWriter = new StringWriter()) {
             getDOTExporter().exportGraph(graph, stringWriter);
@@ -141,23 +138,27 @@ public abstract class GraphLog<G extends Graph> {
         return new File(outputDir, imageName + "." + format);
     }
 
-    protected DOTExporter<GraphNode<?>, Arc> getDOTExporter() {
-        DOTExporter<GraphNode<?>, Arc> exporter = new DOTExporter<>();
-        exporter.setVertexIdProvider(node -> String.valueOf(node.getId()));
+    protected DOTExporter<IntraSCR, DefaultEdge> getDOTExporter() {
+        DOTExporter<IntraSCR, DefaultEdge> exporter = new DOTExporter<>();
+        exporter.setVertexIdProvider(node -> String.valueOf(node.vertexSet().stream().map(GraphNode::getId).findFirst().orElse(-1L)));
         exporter.setVertexAttributeProvider(v -> vertexAttributes(v).build());
         exporter.setEdgeAttributeProvider(v -> edgeAttributes(v).build());
         return exporter;
     }
 
-    protected DOTAttributes vertexAttributes(GraphNode<?> node) {
+    protected DOTAttributes vertexAttributes(IntraSCR vertex) {
         DOTAttributes res = new DOTAttributes();
-        res.set("label", node.getLongLabel());
-        if (node.isImplicitInstruction())
-            res.add("style", "dashed");
+        if(!marked.isEmpty()){
+            res.set("style", marked.contains(vertex) ? "normal" : "dashed");
+        }
+        res.set("label", "X" + vertex.getId() + "\n" + "TOP-" + vertex.getTopologicalNumber() + "\n" + vertex.vertexSet().stream()
+                .map(graphNode -> "%04d: %s".formatted(graphNode.getId(), graphNode.getLabel()))
+                .sorted()
+                .collect(Collectors.joining("\n")));
         return res;
     }
 
-    protected DOTAttributes edgeAttributes(Arc arc) {
+    protected DOTAttributes edgeAttributes(DefaultEdge arc) {
         return new DOTAttributes();
     }
 }

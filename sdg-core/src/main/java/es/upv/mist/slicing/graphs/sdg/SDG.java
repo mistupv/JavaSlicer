@@ -69,14 +69,16 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
     }
 
     @Override
-    public void build(NodeList<CompilationUnit> nodeList) {
+    public final void build(NodeList<CompilationUnit> nodeList) {
         createBuilder().build(nodeList);
         compilationUnits = nodeList;
         built = true;
     }
 
-    /** Create a new SDG builder. Child classes that wish to alter the creation of the graph
-     * should create a new SDG builder and override this method. */
+    /**
+     * Create a new SDG builder. Child classes that wish to alter the creation of the graph
+     * should create a new SDG builder and override this method.
+     */
     protected Builder createBuilder() {
         return new Builder();
     }
@@ -113,9 +115,11 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
         this.addEdge(from, to, new SummaryArc());
     }
 
-    /** Populates this SDG by building the corresponding CFGs, call graph, performing data flow analyses,
-     *  building the PDGs, connecting the calls to declarations and computing the summary arcs.
-     *  By default, it uses {@link PDG}s and {@link CFG}s. */
+    /**
+     * Populates this SDG by building the corresponding CFGs, call graph, performing data flow analyses,
+     * building the PDGs, connecting the calls to declarations and computing the summary arcs.
+     * By default, it uses {@link PDG}s and {@link CFG}s.
+     */
     public class Builder {
         protected CallGraph callGraph;
 
@@ -172,7 +176,7 @@ public class SDG extends Graph implements Sliceable, Buildable<NodeList<Compilat
         }
 
         /** Create class graph from the list of compilation units. */
-        protected void createClassGraph(NodeList<CompilationUnit> nodeList){
+        protected void createClassGraph(NodeList<CompilationUnit> nodeList) {
             ClassGraph.getNewInstance().build(nodeList);
         }
 

@@ -52,8 +52,10 @@ public class PDG extends GraphWithRootNode<CallableDeclaration<?>> {
         built = true;
     }
 
-    /** Create a new PDG builder. Child classes that wish to alter the creation of the graph
-     * should create a new PDG builder and override this method. */
+    /**
+     * Create a new PDG builder. Child classes that wish to alter the creation of the graph
+     * should create a new PDG builder and override this method.
+     */
     protected Builder createBuilder() {
         return new Builder();
     }
@@ -112,16 +114,19 @@ public class PDG extends GraphWithRootNode<CallableDeclaration<?>> {
          * them via control dependency to the node they were located at.
          */
         protected void expandCalls() {
+            // debug statement to print graph
+            // new PDGLog(PDG.this).generateImages("pdg-debug")
             for (GraphNode<?> graphNode : Set.copyOf(vertexSet())) {
                 Deque<CallNode> callNodeStack = new LinkedList<>();
                 for (VariableAction action : List.copyOf(graphNode.getVariableActions())) {
                     if (action instanceof VariableAction.CallMarker) {
+                        VariableAction.CallMarker variableAction = (VariableAction.CallMarker) action;
                         // Compute the call node, if entering the marker. Additionally, it places the node
                         // in the graph and makes it control-dependent on its container.
-                        if (!((VariableAction.CallMarker) action).isEnter()) {
+                        if (!variableAction.isEnter()) {
                             callNodeStack.pop();
                         } else {
-                            CallNode callNode = CallNode.create(((VariableAction.CallMarker) action).getCall());
+                            CallNode callNode = CallNode.create(variableAction.getCall());
                             if (graphNode.isImplicitInstruction())
                                 callNode.markAsImplicit();
                             addVertex(callNode);
