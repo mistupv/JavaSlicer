@@ -1,4 +1,4 @@
-public class TestExamplePaperSimple {
+public class TestExamplePaperSimpleContra5 {
 
     public static void main(String[] args) {
 
